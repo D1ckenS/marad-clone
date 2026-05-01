@@ -521,6 +521,20 @@ A task is done only if **all** are true:
 
 > Append a dated entry every time you finish a task. Most-recent entry first.
 
+### 2026-05-01 — P0-3 — CI (GitHub Actions)
+- Branch: `chore/p0-3-progress-log` → PR (see `gh pr list`) → squash-merged to `main`. Earlier P0-3 commits (`a62635f`, `91c4015`) were direct-pushed to `main` *before* branch protection was applied; that direct-push path is now blocked.
+- Files added: `.github/workflows/ci.yml`.
+- Notes:
+  - Single ubuntu-latest job runs `lint + typecheck + test + format:check`, ~25–35 s wall.
+  - Reads Node from `.nvmrc` and pnpm from `packageManager` field — single source of truth.
+  - Concurrency group cancels superseded PR runs.
+  - All actions pinned at `@v6` (actions/checkout, actions/setup-node, pnpm/action-setup) — `@v4` runs on Node-20 runtime which is deprecated 2026-09-16.
+  - Departures from §11 P0-3 spec: (a) Node 20 → 24 in setup, (b) Flutter step deferred to P1-11 (no `apps/mobile/` exists), (c) ubuntu-only matrix; cross-OS (Win/macOS) added when sync/Electron/filesystem code arrives.
+  - **Repo flipped public** (`gh repo edit D1ckenS/marad-clone --visibility public`) so branch protection works on the GitHub Free tier. Revisit before P0-7 / first proprietary business logic — see memory `project_repo_visibility.md`.
+  - Branch protection: Repository ruleset **"Protect main"** (id `15824020`, https://github.com/D1ckenS/marad-clone/rules/15824020) — blocks deletion + force-push, requires PR (0 approvals, conversation resolution required), requires `ci` status check (strict / up-to-date), no bypass actors.
+- Verify (P0-3 DoD): two clean CI runs (run IDs `25209927662` 25 s, `25209955256` 33 s); ruleset reports `enforcement: active`; this very entry's update path goes through a PR (proves direct-push blocking).
+- Next: **P0-4** — `shared-types` + `proto` packages.
+
 ### 2026-05-01 — P0-2 — Tooling baselines
 - Branch: `main`  PR: n/a (no remote yet)  Commit: see `git log` (this commit)
 - Files added: `tsconfig.base.json`, `tsconfig.json`, `eslint.config.mjs`, `.prettierrc.json`, `.prettierignore`, `vitest.config.ts`. Modified: `package.json` (added `"type": "module"`, dev deps, expanded scripts).
@@ -568,9 +582,9 @@ Format for entries:
 
 > Single, unambiguous next task for any fresh Claude Code session.
 
-**Task: P0-3 — CI (GitHub Actions).**
+**Task: P0-4 — `shared-types` + `proto` packages.**
 
-Open §11 → Phase 0 → P0-3 for the steps. Goal: `.github/workflows/ci.yml` runs lint/typecheck/test on PR using Node 24 matrix, Flutter 3.22+, and pnpm cache. Required checks configured on `main`. After completion, update §15 and set this section to `P0-4`.
+Open §11 → Phase 0 → P0-4 for the steps. Goal: create `packages/shared-types` (with `tenant`, `vessel`, `user`, `role` TS types) and `packages/proto` (with empty `sync.proto`). Add codegen script `proto:gen` that produces TS in `packages/shared-types/src/proto` and Dart in `packages/flutter-shared/lib/proto`. After completion, update §15 and set this section to `P0-5`.
 
 ---
 
