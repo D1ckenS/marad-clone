@@ -77,11 +77,11 @@ Pin to these versions. When you bump, update this section in the same commit.
 | Web table | TanStack Table | `8.x` |
 | Desktop shell | Electron | `30.x` |
 | Desktop builder | electron-builder | `24.x` |
-| Mobile | Flutter | `3.22+` (Dart `3.4+`) |
+| Mobile | Flutter | `3.22+` (Dart `3.11+`; standalone Dart 3.11.5 installed at P0-4 for protoc-gen-dart, until Flutter SDK lands at P1-11) |
 | ORM (shore) | Prisma | `5.x` (Postgres provider) |
 | ORM (vessel) | Drizzle ORM | latest stable (SQLite provider via `better-sqlite3`) |
 | Sync RPC | gRPC | `@grpc/grpc-js 1.10+` |
-| Sync proto | Protobuf | `proto3` |
+| Sync proto | Protobuf (`protoc 34+`, `ts-proto 2.11+` for TS, `protoc_plugin 25+` for Dart) | `proto3` |
 | Postgres | PostgreSQL | `16.x` |
 | SQLite | SQLite | `3.45+` (ships with `better-sqlite3`) |
 | Search (shore) | Meilisearch | `1.8+` |
@@ -521,6 +521,34 @@ A task is done only if **all** are true:
 
 > Append a dated entry every time you finish a task. Most-recent entry first.
 
+### 2026-05-01 — P0-4 — `shared-types` + `proto` packages
+- Branch: `feat/p0-4-shared-types-proto` → PR (see `gh pr list`) → squash-merged to `main`.
+- Files added (~17):
+  - `packages/shared-types/` — TS package: `package.json`, `tsconfig.json`, `src/{index,sync,tenant,vessel,user,role}.ts`. Generated: `src/proto/sync.ts` (committed).
+  - `packages/proto/` — proto schemas: `package.json`, `sync.proto` (placeholder `Heartbeat` message).
+  - `packages/flutter-shared/` — Dart package: `pubspec.yaml`. Generated: `lib/proto/sync.{pb,pbenum,pbjson}.dart` (committed).
+  - `scripts/proto-gen.mjs` — cross-platform codegen wrapper.
+- Modified: root `package.json` (added `ts-proto@2.11.6` + `proto:gen` script), `tsconfig.json` (expanded `include` to `packages/*/src/**/*`), `eslint.config.mjs` (ignore `**/proto/**` for both TS and Dart), `.prettierignore` (ignore generated proto dirs).
+- Tooling installed:
+  - `protoc 34.1` (winget `Google.Protobuf`) at `%LOCALAPPDATA%\Microsoft\WinGet\Packages\Google.Protobuf_*\bin\protoc.exe`.
+  - `Dart SDK 3.11.5` (winget `Google.DartSDK`) — standalone, not Flutter. Flutter SDK + bundled Dart will arrive at **P1-11**.
+  - `protoc_plugin 25.0.0` via `dart pub global activate protoc_plugin` → `protoc-gen-dart.bat` at `%LOCALAPPDATA%\Pub\Cache\bin\`.
+  - `ts-proto 2.11.6` as workspace dev dep.
+- Notes:
+  - **Departures from §11 P0-4**:
+    - `sync.proto` has a placeholder `Heartbeat` message rather than being *literally* empty (per §11). Empty protos produce empty codegen output; a stub message keeps the codegen path exercised. Real sync messages still defined in **P0-6**.
+    - Flutter SDK is NOT installed; only standalone Dart 3.11.5. Re-evaluate at P1-11 — likely uninstall standalone Dart and use Flutter's bundled Dart.
+  - **ts-proto options**: `esModuleInterop=true,useExactTypes=true,onlyTypes=true,forceLong=string,useOptionals=messages` → pure-type interfaces, no runtime code, no `protobufjs` dependency. **When P0-6 needs encode/decode, flip `onlyTypes=false` and add `protobufjs` runtime dep.**
+  - **Windows-only quirk fixed in `scripts/proto-gen.mjs`**: `protoc-gen-dart.bat` (the pub global shim) shells out to `dart`, which isn't on PATH in shells that pre-date the Dart install. The script prepends the known winget Dart `bin` dir to the protoc subprocess `PATH`. POSIX install is unaffected.
+  - **Generated files are committed**, not gitignored. Pattern: regenerate locally with `pnpm run proto:gen`, commit. CI does NOT run codegen (would require installing protoc + Dart on the runner — deferred until proto changes happen often).
+  - Root `tsconfig.json` `include` now covers `packages/*/src/**/*` — a single `tsc --noEmit` typechecks the whole monorepo. May need to switch to `tsc -b` (project references) when packages grow build interdependencies.
+  - §3 updated: Sync proto row spelled out tooling versions; Mobile row Dart bumped from `3.4+` → `3.11+`.
+- Verify (P0-4 DoD):
+  - `pnpm run proto:gen` produces `packages/shared-types/src/proto/sync.ts` AND `packages/flutter-shared/lib/proto/sync.{pb,pbenum,pbjson}.dart` ✓
+  - `pnpm run ci:full` (lint + typecheck + test + format:check) green ✓
+  - Types importable as `@marad-clone/shared-types` from any workspace package ✓
+- Next: **P0-5** — domain package skeleton (errors, ids, clock, quantity).
+
 ### 2026-05-01 — P0-3 — CI (GitHub Actions)
 - Branch: `chore/p0-3-progress-log` → PR (see `gh pr list`) → squash-merged to `main`. Earlier P0-3 commits (`a62635f`, `91c4015`) were direct-pushed to `main` *before* branch protection was applied; that direct-push path is now blocked.
 - Files added: `.github/workflows/ci.yml`.
@@ -582,9 +610,9 @@ Format for entries:
 
 > Single, unambiguous next task for any fresh Claude Code session.
 
-**Task: P0-4 — `shared-types` + `proto` packages.**
+**Task: P0-5 — domain package skeleton.**
 
-Open §11 → Phase 0 → P0-4 for the steps. Goal: create `packages/shared-types` (with `tenant`, `vessel`, `user`, `role` TS types) and `packages/proto` (with empty `sync.proto`). Add codegen script `proto:gen` that produces TS in `packages/shared-types/src/proto` and Dart in `packages/flutter-shared/lib/proto`. After completion, update §15 and set this section to `P0-5`.
+Open §11 → Phase 0 → P0-5 for the steps. Goal: create `packages/domain` with `errors.ts` (DomainError class + canonical codes), `ids.ts` (ULID generator), `clock.ts` (Hybrid Logical Clock implementation), `quantity.ts` (`Quantity` type with units). Pure TS, no IO imports (enforce via ESLint `no-restricted-imports`). Verify: `pnpm --filter domain test -- --coverage` ≥ 95%. After completion, update §15 and set this section to `P0-6`.
 
 ---
 

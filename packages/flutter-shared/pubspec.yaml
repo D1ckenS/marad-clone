@@ -1,0 +1,10 @@
+name: marad_clone_flutter_shared
+description: Dart equivalents of shared types (codegen from packages/proto/).
+version: 0.0.0
+publish_to: none
+
+environment:
+  sdk: ^3.4.0
+
+dependencies:
+  protobuf: ^4.0.0

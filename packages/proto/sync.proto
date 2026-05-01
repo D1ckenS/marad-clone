@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package marad.sync.v1;
+
+// Placeholder so proto:gen has something to compile. Real sync messages
+// (events, deltas, HLC tie-breaks, etc.) are defined in P0-6 (sync-engine).
+message Heartbeat {
+  string node_id = 1;
+  string hlc = 2;
+  int64 sent_at_unix_ms = 3;
+}
