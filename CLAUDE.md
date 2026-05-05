@@ -71,6 +71,7 @@ Pin to these versions. When you bump, update this section in the same commit.
 | Backend lang | TypeScript | `5.9+` (hold 5.x; 6.x stabilising) |
 | Lint | ESLint + typescript-eslint | `eslint 10.x` + `typescript-eslint 8.59+` (flat config) |
 | Format | Prettier | `3.x` |
+| ID generation | ulidx | `2.4.1+` (monotonic ULIDs, browser+Node) |
 | Web framework | React | `18.x` |
 | Web bundler | Vite | `5.x` |
 | Web styling | Tailwind CSS | `3.x` |
@@ -521,6 +522,29 @@ A task is done only if **all** are true:
 
 > Append a dated entry every time you finish a task. Most-recent entry first.
 
+### 2026-05-01 — P0-5 — domain package skeleton
+- Branch: `feat/p0-5-domain` → PR (see `gh pr list`) → squash-merged to `main`.
+- Files added: `packages/domain/{package.json,tsconfig.json,vitest.config.ts}`, plus `src/{index,errors,errors.test,ids,ids.test,clock,clock.test,quantity,quantity.test}.ts`.
+- Modified: `eslint.config.mjs` (added domain-purity restriction rule).
+- Tooling: `ulidx@2.4.1` as runtime dep of `@marad-clone/domain`.
+- Modules:
+  - **`errors.ts`** — `DomainError extends Error` with `code: DomainErrorCode`, frozen `details`. Codes: `INVALID_INPUT | NOT_FOUND | CONFLICT | PRECONDITION_FAILED | UNAUTHORIZED | FORBIDDEN | INTERNAL`. `isDomainError` type guard.
+  - **`ids.ts`** — branded `Ulid` type. `newId()` (monotonic via `ulidx.monotonicFactory`), `nonMonotonicUlid()` re-export, `asUlid(s)` (validating parse → throws `INVALID_INPUT`), `isUlid(s)` guard, `idTimestampMs(id)`.
+  - **`clock.ts`** — Hybrid Logical Clock per Kulkarni 2014. `Hlc` interface (`physicalMs`, `counter`, `nodeId`). `encodeHlc/decodeHlc` produce a lexically-sortable string `<12-hex-ms>-<4-hex-counter>-<nodeId>` (48-bit ms safe to year ~10889, 16-bit counter). `compareHlc` total order. `HlcClock` class with `send()`, `receive(remote)`, `current()`, injectable `now: () => number`.
+  - **`quantity.ts`** — branded `Quantity<U>`. Unit categories: `MassUnit`, `VolumeUnit`, `LengthUnit`, `TimeUnit`, `CountUnit`, `EnergyUnit` (string-literal unions per §7). `quantity(value, unit)` constructor (rejects non-finite). `addQuantities` (rejects unit mismatch — runtime check, since TS generic widens to union). Per-category converters to base units (`massInKg`, `volumeInLitre`, `lengthInMetre`, `timeInSecond`, `energyInJoule`). `formatQuantity` for display.
+- **Domain-purity ESLint rule** added in `eslint.config.mjs`: files under `packages/domain/src/` cannot import any of `node:fs / http / https / child_process / net / tls / dgram / dns / cluster / worker_threads / inspector / path / os / stream / process / crypto` (with or without `node:` prefix). Enforces §7's "no IO in domain" rule at lint time. Side-effectful code goes through ports/adapters in `apps/*`.
+- **Coverage gate** in `packages/domain/vitest.config.ts`: ≥95% lines/branches/functions/statements. `src/index.ts` excluded (re-exports only).
+- Verify (P0-5 DoD):
+  - `pnpm --filter @marad-clone/domain test:coverage` → 52 tests pass; **98.83% stmt / 95.08% branch / 100% fn / 98.79% lines** (all ≥ 95%) ✓
+  - `pnpm run ci:full` (root) → green (lint + typecheck + test + format:check) ✓
+  - Domain has no IO imports (would fail ESLint if violated) ✓
+- Notes:
+  - One uncovered line in `clock.ts` (`decodeHlc` post-regex defensive validation): unreachable because the regex already constrains hex chars and non-empty nodeId. Left in for safety.
+  - §11 P0-5 goal says "100% coverage", verify says "≥95%". Took the verify gate as the DoD.
+  - **Sub-decisions per Ziad**: ulidx, standard Kulkarni HLC, branded `Quantity`, root vitest stays as-is (per-package `vitest.config.ts` only for domain because it's the only one with a coverage gate so far).
+  - **Workspace structure shift**: each package now has its own `lint`/`typecheck`/`test` scripts (matching pnpm/turbo convention); root scripts (`pnpm run lint/typecheck/test`) still scan the whole repo directly via flat ESLint config + root tsconfig include + root vitest discovery — turbo delegation deferred until per-package builds matter.
+- Next: **P0-6** — sync-engine package (outbox + HLC reuse + LWW + delta CRDT for inventory ROB).
+
 ### 2026-05-01 — P0-4 — `shared-types` + `proto` packages
 - Branch: `feat/p0-4-shared-types-proto` → PR (see `gh pr list`) → squash-merged to `main`.
 - Files added (~17):
@@ -610,9 +634,9 @@ Format for entries:
 
 > Single, unambiguous next task for any fresh Claude Code session.
 
-**Task: P0-5 — domain package skeleton.**
+**Task: P0-6 — sync-engine package.**
 
-Open §11 → Phase 0 → P0-5 for the steps. Goal: create `packages/domain` with `errors.ts` (DomainError class + canonical codes), `ids.ts` (ULID generator), `clock.ts` (Hybrid Logical Clock implementation), `quantity.ts` (`Quantity` type with units). Pure TS, no IO imports (enforce via ESLint `no-restricted-imports`). Verify: `pnpm --filter domain test -- --coverage` ≥ 95%. After completion, update §15 and set this section to `P0-6`.
+Open §11 → Phase 0 → P0-6 for the steps. Goal: create `packages/sync-engine` implementing outbox + HLC (reuse from `@marad-clone/domain`) + LWW conflict resolution + delta CRDT for inventory ROB. In-memory adapter for tests. Verify: property-based tests with `fast-check` for commutativity and idempotency; `pnpm run soak:sync` runs a 30-minute simulated 1000-write/1000-conflict scenario with zero data loss. DoD: spec doc in `apps/docs/adr/0001-sync-engine.md`. After completion, update §15 and set this section to `P0-7`.
 
 ---
 

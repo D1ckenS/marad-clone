@@ -35,6 +35,55 @@ export default tseslint.config(
     },
   },
 
+  // packages/domain must be pure: no Node IO/fs/http/etc. imports.
+  // Side-effectful code goes through ports/adapters in apps/* — see CLAUDE.md §7.
+  {
+    files: ['packages/domain/src/**/*.{ts,tsx,mts,cts}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                'node:fs',
+                'node:fs/*',
+                'fs',
+                'fs/*',
+                'node:http',
+                'http',
+                'node:https',
+                'https',
+                'node:child_process',
+                'child_process',
+                'node:net',
+                'node:tls',
+                'node:dgram',
+                'node:dns',
+                'node:cluster',
+                'node:worker_threads',
+                'node:inspector',
+                'node:path',
+                'path',
+                'node:os',
+                'os',
+                'node:stream',
+                'node:stream/*',
+                'stream',
+                'node:process',
+                'process',
+                'node:crypto',
+                'crypto',
+              ],
+              message:
+                'Domain code must be pure — no Node IO/fs/http/etc. imports. Wrap behind a port in apps/*.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   // Must be last — disables stylistic rules that conflict with Prettier.
   eslintConfigPrettier,
 );
