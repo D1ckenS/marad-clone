@@ -520,113 +520,45 @@ A task is done only if **all** are true:
 
 ## 15. Progress Log (Claude Code updates this)
 
-> Append a dated entry every time you finish a task. Most-recent entry first.
+> Append a dated entry, most-recent first. Format: `### YYYY-MM-DD — <task> — <summary>` then bullets for PR/commit, files added/modified, departures from §11, verify, next.
 
-### 2026-05-01 — P0-5 — domain package skeleton
-- Branch: `feat/p0-5-domain` → PR (see `gh pr list`) → squash-merged to `main`.
-- Files added: `packages/domain/{package.json,tsconfig.json,vitest.config.ts}`, plus `src/{index,errors,errors.test,ids,ids.test,clock,clock.test,quantity,quantity.test}.ts`.
-- Modified: `eslint.config.mjs` (added domain-purity restriction rule).
-- Tooling: `ulidx@2.4.1` as runtime dep of `@marad-clone/domain`.
-- Modules:
-  - **`errors.ts`** — `DomainError extends Error` with `code: DomainErrorCode`, frozen `details`. Codes: `INVALID_INPUT | NOT_FOUND | CONFLICT | PRECONDITION_FAILED | UNAUTHORIZED | FORBIDDEN | INTERNAL`. `isDomainError` type guard.
-  - **`ids.ts`** — branded `Ulid` type. `newId()` (monotonic via `ulidx.monotonicFactory`), `nonMonotonicUlid()` re-export, `asUlid(s)` (validating parse → throws `INVALID_INPUT`), `isUlid(s)` guard, `idTimestampMs(id)`.
-  - **`clock.ts`** — Hybrid Logical Clock per Kulkarni 2014. `Hlc` interface (`physicalMs`, `counter`, `nodeId`). `encodeHlc/decodeHlc` produce a lexically-sortable string `<12-hex-ms>-<4-hex-counter>-<nodeId>` (48-bit ms safe to year ~10889, 16-bit counter). `compareHlc` total order. `HlcClock` class with `send()`, `receive(remote)`, `current()`, injectable `now: () => number`.
-  - **`quantity.ts`** — branded `Quantity<U>`. Unit categories: `MassUnit`, `VolumeUnit`, `LengthUnit`, `TimeUnit`, `CountUnit`, `EnergyUnit` (string-literal unions per §7). `quantity(value, unit)` constructor (rejects non-finite). `addQuantities` (rejects unit mismatch — runtime check, since TS generic widens to union). Per-category converters to base units (`massInKg`, `volumeInLitre`, `lengthInMetre`, `timeInSecond`, `energyInJoule`). `formatQuantity` for display.
-- **Domain-purity ESLint rule** added in `eslint.config.mjs`: files under `packages/domain/src/` cannot import any of `node:fs / http / https / child_process / net / tls / dgram / dns / cluster / worker_threads / inspector / path / os / stream / process / crypto` (with or without `node:` prefix). Enforces §7's "no IO in domain" rule at lint time. Side-effectful code goes through ports/adapters in `apps/*`.
-- **Coverage gate** in `packages/domain/vitest.config.ts`: ≥95% lines/branches/functions/statements. `src/index.ts` excluded (re-exports only).
-- Verify (P0-5 DoD):
-  - `pnpm --filter @marad-clone/domain test:coverage` → 52 tests pass; **98.83% stmt / 95.08% branch / 100% fn / 98.79% lines** (all ≥ 95%) ✓
-  - `pnpm run ci:full` (root) → green (lint + typecheck + test + format:check) ✓
-  - Domain has no IO imports (would fail ESLint if violated) ✓
-- Notes:
-  - One uncovered line in `clock.ts` (`decodeHlc` post-regex defensive validation): unreachable because the regex already constrains hex chars and non-empty nodeId. Left in for safety.
-  - §11 P0-5 goal says "100% coverage", verify says "≥95%". Took the verify gate as the DoD.
-  - **Sub-decisions per Ziad**: ulidx, standard Kulkarni HLC, branded `Quantity`, root vitest stays as-is (per-package `vitest.config.ts` only for domain because it's the only one with a coverage gate so far).
-  - **Workspace structure shift**: each package now has its own `lint`/`typecheck`/`test` scripts (matching pnpm/turbo convention); root scripts (`pnpm run lint/typecheck/test`) still scan the whole repo directly via flat ESLint config + root tsconfig include + root vitest discovery — turbo delegation deferred until per-package builds matter.
-- Next: **P0-6** — sync-engine package (outbox + HLC reuse + LWW + delta CRDT for inventory ROB).
+### 2026-05-01 — Phase 0 progress: P0-1 through P0-5 (consolidated)
 
-### 2026-05-01 — P0-4 — `shared-types` + `proto` packages
-- Branch: `feat/p0-4-shared-types-proto` → PR (see `gh pr list`) → squash-merged to `main`.
-- Files added (~17):
-  - `packages/shared-types/` — TS package: `package.json`, `tsconfig.json`, `src/{index,sync,tenant,vessel,user,role}.ts`. Generated: `src/proto/sync.ts` (committed).
-  - `packages/proto/` — proto schemas: `package.json`, `sync.proto` (placeholder `Heartbeat` message).
-  - `packages/flutter-shared/` — Dart package: `pubspec.yaml`. Generated: `lib/proto/sync.{pb,pbenum,pbjson}.dart` (committed).
-  - `scripts/proto-gen.mjs` — cross-platform codegen wrapper.
-- Modified: root `package.json` (added `ts-proto@2.11.6` + `proto:gen` script), `tsconfig.json` (expanded `include` to `packages/*/src/**/*`), `eslint.config.mjs` (ignore `**/proto/**` for both TS and Dart), `.prettierignore` (ignore generated proto dirs).
-- Tooling installed:
-  - `protoc 34.1` (winget `Google.Protobuf`) at `%LOCALAPPDATA%\Microsoft\WinGet\Packages\Google.Protobuf_*\bin\protoc.exe`.
-  - `Dart SDK 3.11.5` (winget `Google.DartSDK`) — standalone, not Flutter. Flutter SDK + bundled Dart will arrive at **P1-11**.
-  - `protoc_plugin 25.0.0` via `dart pub global activate protoc_plugin` → `protoc-gen-dart.bat` at `%LOCALAPPDATA%\Pub\Cache\bin\`.
-  - `ts-proto 2.11.6` as workspace dev dep.
-- Notes:
-  - **Departures from §11 P0-4**:
-    - `sync.proto` has a placeholder `Heartbeat` message rather than being *literally* empty (per §11). Empty protos produce empty codegen output; a stub message keeps the codegen path exercised. Real sync messages still defined in **P0-6**.
-    - Flutter SDK is NOT installed; only standalone Dart 3.11.5. Re-evaluate at P1-11 — likely uninstall standalone Dart and use Flutter's bundled Dart.
-  - **ts-proto options**: `esModuleInterop=true,useExactTypes=true,onlyTypes=true,forceLong=string,useOptionals=messages` → pure-type interfaces, no runtime code, no `protobufjs` dependency. **When P0-6 needs encode/decode, flip `onlyTypes=false` and add `protobufjs` runtime dep.**
-  - **Windows-only quirk fixed in `scripts/proto-gen.mjs`**: `protoc-gen-dart.bat` (the pub global shim) shells out to `dart`, which isn't on PATH in shells that pre-date the Dart install. The script prepends the known winget Dart `bin` dir to the protoc subprocess `PATH`. POSIX install is unaffected.
-  - **Generated files are committed**, not gitignored. Pattern: regenerate locally with `pnpm run proto:gen`, commit. CI does NOT run codegen (would require installing protoc + Dart on the runner — deferred until proto changes happen often).
-  - Root `tsconfig.json` `include` now covers `packages/*/src/**/*` — a single `tsc --noEmit` typechecks the whole monorepo. May need to switch to `tsc -b` (project references) when packages grow build interdependencies.
-  - §3 updated: Sync proto row spelled out tooling versions; Mobile row Dart bumped from `3.4+` → `3.11+`.
-- Verify (P0-4 DoD):
-  - `pnpm run proto:gen` produces `packages/shared-types/src/proto/sync.ts` AND `packages/flutter-shared/lib/proto/sync.{pb,pbenum,pbjson}.dart` ✓
-  - `pnpm run ci:full` (lint + typecheck + test + format:check) green ✓
-  - Types importable as `@marad-clone/shared-types` from any workspace package ✓
-- Next: **P0-5** — domain package skeleton (errors, ids, clock, quantity).
+| Task | PR / Commit | Adds |
+|---|---|---|
+| **P0-1** Init monorepo | direct→main / `d02edee` | `.editorconfig`, `.gitignore`, `.nvmrc` (`24.15.0`), root `package.json` (`marad-clone`), `pnpm-workspace.yaml` (`packages/*`, `apps/*`), `turbo.json`, `pnpm-lock.yaml` |
+| (line endings) | direct→main / `8831ed6` | `.gitattributes` — LF for text, CRLF for `.bat`/`.cmd`/`.ps1`, lockfile marked generated |
+| **P0-2** Tooling baselines | direct→main / `5381cdb` | `tsconfig.base.json`, `tsconfig.json`, `eslint.config.mjs`, `.prettierrc.json`, `.prettierignore`, `vitest.config.ts` |
+| **P0-3** CI workflow | direct→main / `a62635f`, `91c4015` | `.github/workflows/ci.yml` |
+| (P0-3 progress doc) | PR #1 / `0060834` | (CLAUDE.md only) |
+| **P0-4** shared-types + proto | PR #2 / `b6d626f` | `packages/shared-types/`, `packages/proto/sync.proto`, `packages/flutter-shared/`, `scripts/proto-gen.mjs` |
+| **P0-5** domain skeleton | PR #3 / `95d8240` | `packages/domain/` (errors, ids, clock, quantity + tests) |
 
-### 2026-05-01 — P0-3 — CI (GitHub Actions)
-- Branch: `chore/p0-3-progress-log` → PR (see `gh pr list`) → squash-merged to `main`. Earlier P0-3 commits (`a62635f`, `91c4015`) were direct-pushed to `main` *before* branch protection was applied; that direct-push path is now blocked.
-- Files added: `.github/workflows/ci.yml`.
-- Notes:
-  - Single ubuntu-latest job runs `lint + typecheck + test + format:check`, ~25–35 s wall.
-  - Reads Node from `.nvmrc` and pnpm from `packageManager` field — single source of truth.
-  - Concurrency group cancels superseded PR runs.
-  - All actions pinned at `@v6` (actions/checkout, actions/setup-node, pnpm/action-setup) — `@v4` runs on Node-20 runtime which is deprecated 2026-09-16.
-  - Departures from §11 P0-3 spec: (a) Node 20 → 24 in setup, (b) Flutter step deferred to P1-11 (no `apps/mobile/` exists), (c) ubuntu-only matrix; cross-OS (Win/macOS) added when sync/Electron/filesystem code arrives.
-  - **Repo flipped public** (`gh repo edit D1ckenS/marad-clone --visibility public`) so branch protection works on the GitHub Free tier. Revisit before P0-7 / first proprietary business logic — see memory `project_repo_visibility.md`.
-  - Branch protection: Repository ruleset **"Protect main"** (id `15824020`, https://github.com/D1ckenS/marad-clone/rules/15824020) — blocks deletion + force-push, requires PR (0 approvals, conversation resolution required), requires `ci` status check (strict / up-to-date), no bypass actors.
-- Verify (P0-3 DoD): two clean CI runs (run IDs `25209927662` 25 s, `25209955256` 33 s); ruleset reports `enforcement: active`; this very entry's update path goes through a PR (proves direct-push blocking).
-- Next: **P0-4** — `shared-types` + `proto` packages.
+**Tooling installed locally (Windows; pinned in §3):** Node 24.15.0 (official installer, NOT fnm — multishell broke on Windows), pnpm 10.33.2 (standalone, NOT Corepack — see memory `feedback_pnpm_standalone.md`), `gh` CLI 2.92.0, protoc 34.1 (winget `Google.Protobuf`), Dart SDK 3.11.5 (winget `Google.DartSDK` standalone — NOT Flutter; bundled Dart arrives at P1-11), `protoc_plugin 25.0.0` (`dart pub global activate`), Docker Desktop, Git.
 
-### 2026-05-01 — P0-2 — Tooling baselines
-- Branch: `main`  PR: n/a (no remote yet)  Commit: see `git log` (this commit)
-- Files added: `tsconfig.base.json`, `tsconfig.json`, `eslint.config.mjs`, `.prettierrc.json`, `.prettierignore`, `vitest.config.ts`. Modified: `package.json` (added `"type": "module"`, dev deps, expanded scripts).
-- Tooling pinned (latest stable except TypeScript held at 5.x):
-  - `typescript@5.9.3` — TS 6.0.3 deferred (released 15 days ago, too new)
-  - `eslint@10.2.1` + `typescript-eslint@8.59.1` (flat config)
-  - `prettier@3.8.3` + `eslint-config-prettier@10.1.8`
-  - `vitest@4.1.5` + `@vitest/coverage-v8@4.1.5`
-  - `globals@17.5.0`
-  - `@types/node@24.12.2` (matches Node 24 LTS line; held off 25.x)
-- Notes:
-  - §11 P0-2 originally specified `.eslintrc.cjs`; **replaced with `eslint.config.mjs`** (ESLint 9+ flat config). The legacy format file is not created.
-  - `package.json` got `"type": "module"` so TS's `verbatimModuleSyntax` accepts `.ts` config files as ESM. Future packages may opt out per-package as needed.
-  - Vitest 4.x errors on "no test files found"; opted in via `passWithNoTests: true` so the empty workspace passes — remove this if/when test discovery is enforced project-wide.
-  - Root `tsconfig.json` includes only the dev-tool config files (`eslint.config.mjs`, `vitest.config.ts`); per-package `tsconfig.json`s extend `tsconfig.base.json` directly when packages land.
-  - `pnpm run ci:full` now runs lint + typecheck + test + format:check.
-  - §3 updated this commit: TS pin bumped to `5.9+`, new rows for ESLint+Prettier, Vitest row clarified to `4.x`.
-- Verify (P0-2 DoD): `pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run format:check` all green ✓
-- Next: **P0-3** — CI (GitHub Actions: lint/typecheck/test on PR, Node 24 matrix, pnpm cache).
+**Workspace dev deps pinned**: `typescript@5.9.3` (TS 6.0.3 too new — 15 days old at install), `eslint@10.2.1` + `typescript-eslint@8.59.1` (flat config), `prettier@3.8.3`, `eslint-config-prettier@10.1.8`, `vitest@4.1.5` + `@vitest/coverage-v8@4.1.5`, `globals@17.5.0`, `@types/node@24.12.2`, `ts-proto@2.11.6`, `turbo@^2.9.6`. **Runtime deps (per package):** `@marad-clone/domain` → `ulidx@2.4.1`.
 
-### 2026-05-01 — P0-1 — Initialize monorepo
-- Branch: `main`  PR: n/a (inaugural commit, no remote yet)  Commit: see `git log` (this commit)
-- Files added: `.editorconfig`, `.gitignore`, `.nvmrc` (`24.15.0`), `package.json` (private root, name `marad-clone`), `pnpm-workspace.yaml` (`packages/*`, `apps/*`), `turbo.json` (tasks: build/lint/typecheck/test), `pnpm-lock.yaml`. Branch initialized as `main`.
-- Notes:
-  - Node 24.15.0 LTS installed system-wide via the official Node installer (NOT fnm — fnm's multishell mechanism produced broken junctions on this Windows machine; abandoned cleanly).
-  - pnpm 10.33.2 installed standalone via `npm install -g pnpm@latest` (NOT Corepack — explicit user preference; see memory `feedback_pnpm_standalone.md`).
-  - §3 was bumped in this same commit: Node `20.x LTS` → `24.x LTS` (Node 20 LTS was EOL 2026-04-30) and pnpm `9.x` → `10.x`.
-  - §5 was rewritten to drop `corepack enable` in favour of `npm install -g pnpm@latest`, and to give platform-neutral install instructions for protoc / Docker.
-  - Workspace globs `packages/*` and `apps/*` declared; no packages exist yet (first one lands in P0-4).
-  - Turbo 2.9.6 installed; pipeline tasks declared but no workspace package implements them yet — `pnpm run lint`/`typecheck`/`test` are no-ops until P0-2.
-- Verify (P0-1 DoD): `pnpm install` succeeds cleanly on the empty workspace ✓
-- Next: **P0-2** — Tooling baselines (ESLint, Prettier, Vitest, TypeScript root configs).
+**Codegen** (`pnpm run proto:gen` → `node scripts/proto-gen.mjs`): `packages/proto/*.proto` → `packages/shared-types/src/proto/*.ts` (ts-proto, `onlyTypes=true,esModuleInterop,useExactTypes,forceLong=string,useOptionals=messages` — types-only, no `protobufjs` dep; **flip `onlyTypes=false` + add `protobufjs` when P0-6 needs encode/decode**) + `packages/flutter-shared/lib/proto/*.{pb,pbenum,pbjson}.dart`. Generated files **committed**; CI does NOT run codegen. Windows quirk: script prepends winget Dart bin dir to subprocess PATH (`protoc-gen-dart.bat` shells out to `dart`).
 
-Format for entries:
-```
-### YYYY-MM-DD — <Task ID> — <one-line summary>
-- Branch: <name>  PR: #<num>  Commit: <sha>
-- Notes: <anything future-you needs to know>
-- Next: <task ID from §11>
-```
+**ESLint flat config** (`eslint.config.mjs`): `@typescript-eslint` recommended + `eslint-config-prettier`; ignores generated proto dirs and `node_modules`/`dist`/`build`/`coverage`/`.turbo`. **Domain-purity rule**: `packages/domain/src/**` cannot import any of `node:fs/http/https/child_process/net/tls/dgram/dns/cluster/worker_threads/inspector/path/os/stream/process/crypto` (with/without `node:` prefix). Per-package vitest config exists only for `packages/domain/` (coverage gate ≥95% lines/branches/functions/statements; `src/index.ts` excluded).
+
+**Domain modules** (`@marad-clone/domain`, all pure-TS, no IO):
+- `errors.ts`: `DomainError extends Error` + frozen `details` + 7 codes (`INVALID_INPUT|NOT_FOUND|CONFLICT|PRECONDITION_FAILED|UNAUTHORIZED|FORBIDDEN|INTERNAL`) + `isDomainError`
+- `ids.ts`: branded `Ulid`, `newId()` (monotonic via `ulidx.monotonicFactory`), `asUlid`, `isUlid`, `idTimestampMs`, `nonMonotonicUlid`
+- `clock.ts`: Kulkarni HLC — `Hlc` interface, `encode/decodeHlc` as `<12-hex-ms>-<4-hex-counter>-<nodeId>` (lex-sortable; 48-bit ms safe to ~10889 AD; 16-bit counter), `compareHlc`, `HlcClock` class (`send/receive/current` with injectable `now`)
+- `quantity.ts`: branded `Quantity<U>` over Mass/Volume/Length/Time/Count/Energy units; per-category converters (`massInKg`, `volumeInLitre`, `lengthInMetre`, `timeInSecond`, `energyInJoule`); `addQuantities` rejects unit mismatch
+
+**Shared types** (`@marad-clone/shared-types`, type-only): `Tenant`, `Vessel`, `User`, `Role`, plus mixins `SyncMeta` / `TenantScoped` / `VesselScoped`. `sync.proto` contains placeholder `Heartbeat` (real sync messages defined in P0-6).
+
+**CI** (`.github/workflows/ci.yml`): ubuntu-latest, `lint + typecheck + test + format:check` (~25–35 s). Reads Node from `.nvmrc`, pnpm from `packageManager`. Concurrency cancels superseded PR runs. Actions all `@v6` (v4 is on Node-20 runtime, deprecated 2026-09-16). Flutter step deferred to P1-11. Ubuntu-only (cross-OS deferred until sync/Electron/filesystem code arrives).
+
+**Branch protection** (ruleset id `15824020` "Protect main", https://github.com/D1ckenS/marad-clone/rules/15824020): blocks deletion + force-push, requires PR (0 approvals required, conversation resolution required), requires `ci` status check (strict / up-to-date), no bypass actors. **Repo is public** on GitHub Free tier — flip to private + GitHub Pro before P0-7 / first proprietary code (see memory `project_repo_visibility.md`).
+
+**Departures from §11 spec** (all documented above): `eslint.config.mjs` (vs `.eslintrc.cjs`); placeholder `Heartbeat` message in `sync.proto` (vs literally empty); standalone Dart only (Flutter deferred to P1-11); CI Node 20→24, ubuntu-only; coverage gate ≥95% (verify) accepted as DoD vs goal "100%" — one uncovered line in `clock.ts` is an unreachable defensive guard.
+
+**Verify**: `pnpm run ci:full` green ✓; `pnpm --filter @marad-clone/domain test:coverage` 52 tests, 98.83% stmt / 95.08% branch / 100% fn / 98.79% line ✓; CI on PRs #1/#2/#3 all green ✓; ruleset `enforcement: active` ✓.
+
+**Next: P0-6** — sync-engine.
 
 ---
 
@@ -636,7 +568,32 @@ Format for entries:
 
 **Task: P0-6 — sync-engine package.**
 
-Open §11 → Phase 0 → P0-6 for the steps. Goal: create `packages/sync-engine` implementing outbox + HLC (reuse from `@marad-clone/domain`) + LWW conflict resolution + delta CRDT for inventory ROB. In-memory adapter for tests. Verify: property-based tests with `fast-check` for commutativity and idempotency; `pnpm run soak:sync` runs a 30-minute simulated 1000-write/1000-conflict scenario with zero data loss. DoD: spec doc in `apps/docs/adr/0001-sync-engine.md`. After completion, update §15 and set this section to `P0-7`.
+Spec: §11 → Phase 0 → P0-6. Build `packages/sync-engine` with outbox + HLC reuse from `@marad-clone/domain` + LWW conflict resolution + delta CRDT for inventory ROB. In-memory adapter for tests. Property-based tests (`fast-check`) for commutativity + idempotency. Soak test: simulated 30-minute, 1000-write/1000-conflict scenario, zero data loss. ADR doc at `apps/docs/adr/0001-sync-engine.md`. Coverage gate ≥95%.
+
+### Sub-decisions awaiting Ziad's confirmation
+
+Drafted in the prior session before pause. Ask Ziad once, accept defaults if no objection, then proceed.
+
+1. **Scope split P0-6 vs P0-9.** P0-6 = engine + in-memory adapter + tests; P0-9 = gRPC wire transport between api-shore ↔ api-vessel. **Default: this split.**
+2. **CRDT for inventory ROB.** **Default: PN-Counter** (per-node positive deltas + negative deltas; ROB = sum positives − sum negatives). Commutative, associative, idempotent. Reservation semantics deferred.
+3. **LWW resolution.** **Default: per-field LWW**, keyed by HLC; tied HLCs broken by `nodeId`. Two nodes editing different fields of one record both keep their changes.
+4. **ADR location.** §11 specifies `apps/docs/adr/0001-sync-engine.md`. `apps/docs/` does not exist yet — P0-6 creates it.
+5. **Soak test clock.** **Default: simulated time** (injected `now: () => number` advanced manually) — runs in seconds, simulates the 30-min horizon. Real-time soak deferred until P0-9.
+6. **`fast-check` version.** Latest stable per the "always latest" memory; was `4.7.0` at last check (re-verify via `npm view fast-check version`).
+7. **Pacing.** **Default: same as P0-3/4/5** (batched, no pauses unless interactive bits) — unless Ziad says otherwise.
+
+### Suggested execution order (when approved)
+
+1. `pnpm add -Dw fast-check@<latest>` (re-verify version first)
+2. Create `packages/sync-engine/{package.json,tsconfig.json,vitest.config.ts}` (mirror `packages/domain/` setup; coverage gate ≥95%)
+3. Write the ADR `apps/docs/adr/0001-sync-engine.md` *first* — capture algorithm decisions before code
+4. Implement under `src/`: `outbox.ts`, `lww.ts`, `pn-counter.ts`, `engine.ts`, `in-memory-adapter.ts`, plus matching `*.test.ts`
+5. Add `pnpm run soak:sync` script at root → `node scripts/sync-soak-test.ts` (per §4 layout)
+6. Run `pnpm --filter @marad-clone/sync-engine test:coverage` and `pnpm run soak:sync` — must both be green
+7. Update §3 (add `fast-check` row), §15 (P0-6 entry), §16 (→ P0-7)
+8. Branch `feat/p0-6-sync-engine`, commit, PR, watch CI on PR, squash-merge
+
+After completion, set this section's task to **P0-7** (api-shore skeleton).
 
 ---
 
@@ -656,31 +613,15 @@ These are decisions only the human (Ziad) can make. Ask before acting.
 
 ## 18. Sources (Marad public material)
 
-Use only these for "what Marad does" reference. Do not browse beyond them.
+Use only these for "what Marad does" reference. Do not browse beyond them. Module-specific pages (Maintenance / Inventory / Purchase / QHSE / Safety / FLGO / Crewing / Start) are reachable from the Features index.
 
-- Marad — Product Overview — https://marad.com/product/
-- Marad — Features index — https://marad.com/features/
-- Marad — Maintenance — https://marad.com/features/maintenance/
-- Marad — Inventory — https://marad.com/features/inventory/
-- Marad — Purchase — https://marad.com/features/purchase/
-- Marad — QHSE — https://marad.com/features/qhse/
-- Marad — Safety — https://marad.com/features/safety/
-- Marad — FLGO — https://marad.com/features/flgo/
-- Marad — Crewing — https://marad.com/features/crewing/
-- Marad — Start — https://marad.com/features/start/
-- Marad — Applications — https://marad.com/applications/
-- Marad — Marad App — https://marad.com/marad-app/
-- Marad — Integrations — https://marad.com/integrations/
-- Marad — Compliance — https://marad.com/compliance/
-- Marad — About — https://marad.com/about/
 - Marad — Brochure (PDF) — https://marad.com/wp-content/uploads/2025/12/Marad-Brochure.pdf
+- Marad — Features index — https://marad.com/features/
+- Marad — Compliance — https://marad.com/compliance/
+- Marad — Integrations — https://marad.com/integrations/
+- Marad — Marad App (mobile) — https://marad.com/marad-app/
 - Marad — Cloud site — https://marad.cloud/
 - MaraSoft Generic API — https://external.marad.ms/index.html
-- Capterra — Marad — https://www.capterra.com/p/10024267/Marad/
-- GetApp — Marad — https://www.getapp.com/industries-software/a/marad/
-- Software Advice — Marad — https://www.softwareadvice.com/product/523037-Marad/
-- Apple App Store — Marad — https://apps.apple.com/us/app/marad/id1504414983
-- Google Play — Marad — https://play.google.com/store/apps/details?id=com.maradapp
 
 ---
 
