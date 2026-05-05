@@ -26,7 +26,11 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "esbuild"
+      "@nestjs/core",
+      "@prisma/engines",
+      "bcrypt",
+      "esbuild",
+      "prisma"
     ]
   },
   "dependencies": {

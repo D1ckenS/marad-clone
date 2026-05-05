@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN   // platform-level; not tenant-scoped
+  TENANT_ADMIN
+  PURCHASE_MANAGER
+  MASTER        // Captain
+  CHIEF_ENGINEER
+  OFFICER
+  CREW
+}
+
+// ── Tenant ───────────────────────────────────────────────────────────────────
+// Root aggregate. Not sync-aware (shore-only master record).
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  vessels Vessel[]
+  users   User[]
+
+  @@map("tenants")
+}
+
+// ── Vessel ───────────────────────────────────────────────────────────────────
+// Tenant-scoped. RLS applied in migration.
+
+model Vessel {
+  id        String   @id
+  tenantId  String   @map("tenant_id")
+  name      String
+  imoNumber String?  @map("imo_number")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  users  User[]
+
+  @@map("vessels")
+}
+
+// ── User ─────────────────────────────────────────────────────────────────────
+// Tenant-scoped. passwordHash is nullable for OIDC-only users (P0-10).
+
+model User {
+  id           String   @id
+  tenantId     String   @map("tenant_id")
+  vesselId     String?  @map("vessel_id")
+  email        String
+  passwordHash String?  @map("password_hash")
+  role         Role     @default(OFFICER)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id])
+  vessel Vessel? @relation(fields: [vesselId], references: [id])
+
+  @@unique([tenantId, email])
+  @@map("users")
+}

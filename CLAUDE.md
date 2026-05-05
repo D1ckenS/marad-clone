@@ -67,7 +67,7 @@ Pin to these versions. When you bump, update this section in the same commit.
 | Node | Node.js | `24.x LTS (Krypton, ≥24.15)` |
 | Package mgr | pnpm | `10.x (≥10.33)` |
 | Monorepo | Turborepo | `2.x` |
-| Backend | NestJS | `10.x` |
+| Backend | NestJS | `11.x (11.1.19)` |
 | Backend lang | TypeScript | `5.9+` (hold 5.x; 6.x stabilising) |
 | Lint | ESLint + typescript-eslint | `eslint 10.x` + `typescript-eslint 8.59+` (flat config) |
 | Format | Prettier | `3.x` |
@@ -79,7 +79,7 @@ Pin to these versions. When you bump, update this section in the same commit.
 | Desktop shell | Electron | `30.x` |
 | Desktop builder | electron-builder | `24.x` |
 | Mobile | Flutter | `3.22+` (Dart `3.11+`; standalone Dart 3.11.5 installed at P0-4 for protoc-gen-dart, until Flutter SDK lands at P1-11) |
-| ORM (shore) | Prisma | `5.x` (Postgres provider) |
+| ORM (shore) | Prisma + `@prisma/client` + `@prisma/adapter-pg` | `7.x (7.8.0)` — config via `prisma.config.ts`; `datasource.url` moved out of schema |
 | ORM (vessel) | Drizzle ORM | latest stable (SQLite provider via `better-sqlite3`) |
 | Sync RPC | gRPC | `@grpc/grpc-js 1.10+` |
 | Sync proto | Protobuf (`protoc 34+`, `ts-proto 2.11+` for TS, `protoc_plugin 25+` for Dart) | `proto3` |
@@ -88,7 +88,11 @@ Pin to these versions. When you bump, update this section in the same commit.
 | Search (shore) | Meilisearch | `1.8+` |
 | Object store | S3-compatible (MinIO for local dev) | latest |
 | Auth | OIDC via `openid-client` | `5.x` |
-| Logging | pino | `9.x` |
+| Logging | pino + pino-http + nestjs-pino | `10.3.1` / `11.0.0` / `4.6.1` |
+| Postgres client | pg + `@prisma/adapter-pg` | `8.20.0` / `7.8.0` |
+| Auth (local) | bcrypt + `@nestjs/jwt` + `@nestjs/passport` + passport-local | `6.0.0` / `11.0.2` / `11.0.5` / `1.0.0` |
+| Validation | class-validator + class-transformer | `0.15.1` / `0.5.1` |
+| HTTP testing | supertest | `7.2.2` |
 | Testing | Vitest, Playwright (e2e), flutter_test | `vitest 4.x`, Playwright/flutter_test latest stable |
 | Property testing | fast-check | `4.7.0` |
 | Script runner | tsx | `4.21.0` |
@@ -524,6 +528,28 @@ A task is done only if **all** are true:
 
 > Append a dated entry, most-recent first. Format: `### YYYY-MM-DD — <task> — <summary>` then bullets for PR/commit, files added/modified, departures from §11, verify, next.
 
+### 2026-05-05 — P0-7 — api-shore skeleton — PR #5 (feat/p0-7-api-shore)
+
+| File/Dir | Notes |
+|---|---|
+| `infra/docker-compose.dev.yml` | postgres:16 (port **5433** — 5432 occupied by local PG install), minio:latest, meilisearch:v1.8 |
+| `apps/api-shore/prisma/schema.prisma` | `Tenant`, `Vessel`, `User` (ULID PKs); `Role` enum |
+| `apps/api-shore/prisma/migrations/…_init_*` | Tables + FK constraints |
+| `apps/api-shore/prisma/migrations/…_add_rls_*` | RLS enabled on `vessels` + `users`; policy checks `app.current_tenant_id` session var |
+| `apps/api-shore/prisma.config.ts` | Prisma 7 config (URL moved from schema; `PrismaPg` adapter; `dotenv` loads `.env`) |
+| `apps/api-shore/src/prisma/` | `PrismaService` + `PrismaModule` — `withTenant(id, fn)` wraps queries in `$transaction` + `SET LOCAL` |
+| `apps/api-shore/src/tenant/` | `TenantService` + `TenantController` — `POST /tenants`, `GET /tenants/:id` |
+| `apps/api-shore/src/vessel/` | `VesselService` + `VesselController` — `POST /tenants/:id/vessels`, `GET` list/single |
+| `apps/api-shore/src/user/` | `UserService` (bcrypt 12 rounds) + `UserController` — `POST /tenants/:id/users` |
+| `apps/api-shore/src/auth/` | `AuthService` + `AuthController` — `POST /auth/login` → JWT (8h, `@nestjs/jwt`) |
+| `apps/api-shore/test/app.e2e.ts` | 7 e2e tests: tenant → vessel → user → login → bad-password → bad-email → RLS check |
+
+**Key decisions:** NestJS upgraded 10.x→11.x; Prisma upgraded 5.x→7.x (breaking: `prisma.config.ts` required). `withTenant` uses `$executeRawUnsafe` (ULID-validated) because `SET LOCAL` rejects parameterised values. `marad` user is table owner so bypasses RLS — full least-privilege app role deferred to Phase 1. Docker Postgres on port 5433 (local Postgres owns 5432 on this machine).
+
+**Verify:** `pnpm --filter @marad-clone/api-shore run test:e2e` → 7 tests ✓; `pnpm -w run ci:full` → 102 tests ✓.
+
+---
+
 ### 2026-05-05 — P0-6 — sync-engine package — PR #4 (feat/p0-6-sync-engine)
 
 | File | Notes |
@@ -560,7 +586,7 @@ A task is done only if **all** are true:
 
 **Key pinned deps:** `typescript@5.9.3`, `eslint@10.2.1`, `typescript-eslint@8.59.1`, `vitest@4.1.5`, `ts-proto@2.11.6`, `ulidx@2.4.1`. ESLint domain-purity rule blocks `node:fs/http/net/…` in `packages/domain/src/**`.
 
-**Repo:** public on GitHub Free — flip to private + Pro before P0-7 (see memory `project_repo_visibility.md`).
+**Repo:** public on GitHub Free throughout development; flip private at Phase 4–5 pre-launch (see memory `project_repo_visibility.md`).
 
 **Verify:** `pnpm run ci:full` ✓; CI on PRs #1–#3 ✓; ruleset `enforcement: active` ✓.
 
@@ -570,11 +596,10 @@ A task is done only if **all** are true:
 
 > Single, unambiguous next task for any fresh Claude Code session.
 
-**Task: P0-7 — api-shore skeleton (NestJS + Prisma).**
+**Task: P0-8 — api-vessel skeleton (NestJS + Drizzle + SQLite).**
 
-Spec: §11 → Phase 0 → P0-7. NestJS app at `apps/api-shore/`. Prisma schema with `Tenant`, `Vessel`, `User`, `Role`. Postgres RLS on every tenant-scoped table. e2e test: create tenant → create vessel → create user → login returns JWT.
+Spec: §11 → Phase 0 → P0-8. NestJS app at `apps/api-vessel/`. Drizzle ORM with `better-sqlite3`. Same domain endpoints as `api-shore` (`Tenant`, `Vessel`, `User`, `Role`). Designed to run inside Electron (single-tenant, offline). Integration test: create same fixtures, round-trip through SQLite. OpenAPI surface must match `api-shore`.
 
-**Before starting:** flip D1ckenS/marad-clone to private + upgrade to GitHub Pro (first proprietary business logic lands here — see memory `project_repo_visibility.md`).
 
 ---
 

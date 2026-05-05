@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: marad
+      POSTGRES_PASSWORD: marad_dev
+      POSTGRES_DB: marad_shore
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U marad -d marad_shore']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: marad_minio
+      MINIO_ROOT_PASSWORD: marad_minio_dev
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.8
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: marad_meili_dev
+      MEILI_ENV: development
+    ports:
+      - '7700:7700'
+    volumes:
+      - meili_data:/meili_data
+
+volumes:
+  postgres_data:
+  minio_data:
+  meili_data:
