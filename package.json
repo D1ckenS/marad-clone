@@ -21,16 +21,28 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "proto:gen": "node scripts/proto-gen.mjs",
+    "soak:sync": "tsx scripts/sync-soak-test.ts",
     "ci:full": "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run format:check"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "dependencies": {
+    "@marad-clone/domain": "workspace:*",
+    "@marad-clone/sync-engine": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "24.12.2",
     "@vitest/coverage-v8": "4.1.5",
     "eslint": "10.2.1",
     "eslint-config-prettier": "10.1.8",
+    "fast-check": "4.7.0",
     "globals": "17.5.0",
     "prettier": "3.8.3",
     "ts-proto": "2.11.6",
+    "tsx": "4.21.0",
     "turbo": "^2.9.6",
     "typescript": "5.9.3",
     "typescript-eslint": "8.59.1",

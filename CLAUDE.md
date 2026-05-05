@@ -90,6 +90,8 @@ Pin to these versions. When you bump, update this section in the same commit.
 | Auth | OIDC via `openid-client` | `5.x` |
 | Logging | pino | `9.x` |
 | Testing | Vitest, Playwright (e2e), flutter_test | `vitest 4.x`, Playwright/flutter_test latest stable |
+| Property testing | fast-check | `4.7.0` |
+| Script runner | tsx | `4.21.0` |
 | BI / dashboards | Apache Superset (later phase) | `4.x` |
 
 **Rule:** If a package is not listed, justify the addition in the commit message and add it here.
@@ -522,43 +524,45 @@ A task is done only if **all** are true:
 
 > Append a dated entry, most-recent first. Format: `### YYYY-MM-DD — <task> — <summary>` then bullets for PR/commit, files added/modified, departures from §11, verify, next.
 
-### 2026-05-01 — Phase 0 progress: P0-1 through P0-5 (consolidated)
+### 2026-05-05 — P0-6 — sync-engine package — PR #4 (feat/p0-6-sync-engine)
 
-| Task | PR / Commit | Adds |
+| File | Notes |
+|---|---|
+| `packages/sync-engine/` | scaffold: `package.json`, `tsconfig.json`, `vitest.config.ts` (≥95% gate) |
+| `src/types.ts` | `LwwField`, `LwwRecord`, `OutboxEntry`, `SyncDelta`, `SyncRecord`, `SyncAdapter` |
+| `src/outbox.ts` | `createOutboxEntry` (ULID id, encoded HLC, null payload for deletes) |
+| `src/lww.ts` | `compareEncodedHlc`, `mergeFields` — per-field LWW delegating to domain `compareHlc` |
+| `src/pn-counter.ts` | `PnCounterState`, `pnValue/Increment/Decrement/Merge` — CRDT for inventory ROB |
+| `src/engine.ts` | `SyncEngine.write/delete/applyRemoteDelta/drainOutbox`; writes materialize locally |
+| `src/in-memory-adapter.ts` | `InMemoryAdapter implements SyncAdapter` — Map-backed, no persistence |
+| `apps/docs/adr/0001-sync-engine.md` | ADR: outbox pattern, HLC, per-field LWW, PN-Counter, simulated soak clock |
+| `scripts/sync-soak-test.ts` | soak: 30 min sim, 1 000 vessel + 1 000 shore writes, 200 entities, 0 diverged |
+
+**New root deps:** `@marad-clone/domain workspace:*`, `@marad-clone/sync-engine workspace:*` (needed by soak script). `pnpm.onlyBuiltDependencies: [esbuild]` added for tsx. `fast-check@4.7.0`, `tsx@4.21.0` added to root devDeps.
+
+**Design decisions (ADR 0001):** P0-6 = pure engine + in-memory adapter; gRPC wire deferred to P0-9. PN-Counter (per-node +/− buckets, merge = per-node max). Per-field LWW keyed by HLC, nodeId tiebreak. Simulated clock in soak (fast-forward; real-time soak at P0-9). Generated proto output committed; CI does not run codegen.
+
+**Verify:** `pnpm --filter @marad-clone/sync-engine test:coverage` → 50 tests, 98.78% stmt / 95.74% branch ✓; `pnpm run soak:sync` → PASS, 0 diverged ✓; `pnpm run ci:full` → 102 tests ✓.
+
+---
+
+### 2026-05-01 — P0-1 through P0-5 (consolidated)
+
+| Task | Commit | Key output |
 |---|---|---|
-| **P0-1** Init monorepo | direct→main / `d02edee` | `.editorconfig`, `.gitignore`, `.nvmrc` (`24.15.0`), root `package.json` (`marad-clone`), `pnpm-workspace.yaml` (`packages/*`, `apps/*`), `turbo.json`, `pnpm-lock.yaml` |
-| (line endings) | direct→main / `8831ed6` | `.gitattributes` — LF for text, CRLF for `.bat`/`.cmd`/`.ps1`, lockfile marked generated |
-| **P0-2** Tooling baselines | direct→main / `5381cdb` | `tsconfig.base.json`, `tsconfig.json`, `eslint.config.mjs`, `.prettierrc.json`, `.prettierignore`, `vitest.config.ts` |
-| **P0-3** CI workflow | direct→main / `a62635f`, `91c4015` | `.github/workflows/ci.yml` |
-| (P0-3 progress doc) | PR #1 / `0060834` | (CLAUDE.md only) |
-| **P0-4** shared-types + proto | PR #2 / `b6d626f` | `packages/shared-types/`, `packages/proto/sync.proto`, `packages/flutter-shared/`, `scripts/proto-gen.mjs` |
-| **P0-5** domain skeleton | PR #3 / `95d8240` | `packages/domain/` (errors, ids, clock, quantity + tests) |
+| P0-1 Init monorepo | `d02edee` | `pnpm-workspace.yaml`, `turbo.json`, `.nvmrc` (24.15.0), `.gitattributes` |
+| P0-2 Tooling | `5381cdb` | `tsconfig.base.json`, `eslint.config.mjs` (flat config), `.prettierrc.json`, `vitest.config.ts` |
+| P0-3 CI | `a62635f`, `91c4015` | `.github/workflows/ci.yml`; branch ruleset id `15824020` on main |
+| P0-4 shared-types + proto | PR #2 / `b6d626f` | `packages/shared-types/`, `packages/proto/sync.proto`, `packages/flutter-shared/`, `scripts/proto-gen.mjs` |
+| P0-5 domain skeleton | PR #3 / `95d8240` | `packages/domain/` — `errors.ts`, `ids.ts` (ULID), `clock.ts` (HLC), `quantity.ts`; 52 tests, ≥95% coverage |
 
-**Tooling installed locally (Windows; pinned in §3):** Node 24.15.0 (official installer, NOT fnm — multishell broke on Windows), pnpm 10.33.2 (standalone, NOT Corepack — see memory `feedback_pnpm_standalone.md`), `gh` CLI 2.92.0, protoc 34.1 (winget `Google.Protobuf`), Dart SDK 3.11.5 (winget `Google.DartSDK` standalone — NOT Flutter; bundled Dart arrives at P1-11), `protoc_plugin 25.0.0` (`dart pub global activate`), Docker Desktop, Git.
+**Local tooling (Windows):** Node 24.15.0, pnpm 10.33.2 standalone (NOT Corepack), gh 2.92.0, protoc 34.1, Dart SDK 3.11.5 standalone (Flutter deferred to P1-11), Docker Desktop.
 
-**Workspace dev deps pinned**: `typescript@5.9.3` (TS 6.0.3 too new — 15 days old at install), `eslint@10.2.1` + `typescript-eslint@8.59.1` (flat config), `prettier@3.8.3`, `eslint-config-prettier@10.1.8`, `vitest@4.1.5` + `@vitest/coverage-v8@4.1.5`, `globals@17.5.0`, `@types/node@24.12.2`, `ts-proto@2.11.6`, `turbo@^2.9.6`. **Runtime deps (per package):** `@marad-clone/domain` → `ulidx@2.4.1`.
+**Key pinned deps:** `typescript@5.9.3`, `eslint@10.2.1`, `typescript-eslint@8.59.1`, `vitest@4.1.5`, `ts-proto@2.11.6`, `ulidx@2.4.1`. ESLint domain-purity rule blocks `node:fs/http/net/…` in `packages/domain/src/**`.
 
-**Codegen** (`pnpm run proto:gen` → `node scripts/proto-gen.mjs`): `packages/proto/*.proto` → `packages/shared-types/src/proto/*.ts` (ts-proto, `onlyTypes=true,esModuleInterop,useExactTypes,forceLong=string,useOptionals=messages` — types-only, no `protobufjs` dep; **flip `onlyTypes=false` + add `protobufjs` when P0-6 needs encode/decode**) + `packages/flutter-shared/lib/proto/*.{pb,pbenum,pbjson}.dart`. Generated files **committed**; CI does NOT run codegen. Windows quirk: script prepends winget Dart bin dir to subprocess PATH (`protoc-gen-dart.bat` shells out to `dart`).
+**Repo:** public on GitHub Free — flip to private + Pro before P0-7 (see memory `project_repo_visibility.md`).
 
-**ESLint flat config** (`eslint.config.mjs`): `@typescript-eslint` recommended + `eslint-config-prettier`; ignores generated proto dirs and `node_modules`/`dist`/`build`/`coverage`/`.turbo`. **Domain-purity rule**: `packages/domain/src/**` cannot import any of `node:fs/http/https/child_process/net/tls/dgram/dns/cluster/worker_threads/inspector/path/os/stream/process/crypto` (with/without `node:` prefix). Per-package vitest config exists only for `packages/domain/` (coverage gate ≥95% lines/branches/functions/statements; `src/index.ts` excluded).
-
-**Domain modules** (`@marad-clone/domain`, all pure-TS, no IO):
-- `errors.ts`: `DomainError extends Error` + frozen `details` + 7 codes (`INVALID_INPUT|NOT_FOUND|CONFLICT|PRECONDITION_FAILED|UNAUTHORIZED|FORBIDDEN|INTERNAL`) + `isDomainError`
-- `ids.ts`: branded `Ulid`, `newId()` (monotonic via `ulidx.monotonicFactory`), `asUlid`, `isUlid`, `idTimestampMs`, `nonMonotonicUlid`
-- `clock.ts`: Kulkarni HLC — `Hlc` interface, `encode/decodeHlc` as `<12-hex-ms>-<4-hex-counter>-<nodeId>` (lex-sortable; 48-bit ms safe to ~10889 AD; 16-bit counter), `compareHlc`, `HlcClock` class (`send/receive/current` with injectable `now`)
-- `quantity.ts`: branded `Quantity<U>` over Mass/Volume/Length/Time/Count/Energy units; per-category converters (`massInKg`, `volumeInLitre`, `lengthInMetre`, `timeInSecond`, `energyInJoule`); `addQuantities` rejects unit mismatch
-
-**Shared types** (`@marad-clone/shared-types`, type-only): `Tenant`, `Vessel`, `User`, `Role`, plus mixins `SyncMeta` / `TenantScoped` / `VesselScoped`. `sync.proto` contains placeholder `Heartbeat` (real sync messages defined in P0-6).
-
-**CI** (`.github/workflows/ci.yml`): ubuntu-latest, `lint + typecheck + test + format:check` (~25–35 s). Reads Node from `.nvmrc`, pnpm from `packageManager`. Concurrency cancels superseded PR runs. Actions all `@v6` (v4 is on Node-20 runtime, deprecated 2026-09-16). Flutter step deferred to P1-11. Ubuntu-only (cross-OS deferred until sync/Electron/filesystem code arrives).
-
-**Branch protection** (ruleset id `15824020` "Protect main", https://github.com/D1ckenS/marad-clone/rules/15824020): blocks deletion + force-push, requires PR (0 approvals required, conversation resolution required), requires `ci` status check (strict / up-to-date), no bypass actors. **Repo is public** on GitHub Free tier — flip to private + GitHub Pro before P0-7 / first proprietary code (see memory `project_repo_visibility.md`).
-
-**Departures from §11 spec** (all documented above): `eslint.config.mjs` (vs `.eslintrc.cjs`); placeholder `Heartbeat` message in `sync.proto` (vs literally empty); standalone Dart only (Flutter deferred to P1-11); CI Node 20→24, ubuntu-only; coverage gate ≥95% (verify) accepted as DoD vs goal "100%" — one uncovered line in `clock.ts` is an unreachable defensive guard.
-
-**Verify**: `pnpm run ci:full` green ✓; `pnpm --filter @marad-clone/domain test:coverage` 52 tests, 98.83% stmt / 95.08% branch / 100% fn / 98.79% line ✓; CI on PRs #1/#2/#3 all green ✓; ruleset `enforcement: active` ✓.
-
-**Next: P0-6** — sync-engine.
+**Verify:** `pnpm run ci:full` ✓; CI on PRs #1–#3 ✓; ruleset `enforcement: active` ✓.
 
 ---
 
@@ -566,34 +570,11 @@ A task is done only if **all** are true:
 
 > Single, unambiguous next task for any fresh Claude Code session.
 
-**Task: P0-6 — sync-engine package.**
+**Task: P0-7 — api-shore skeleton (NestJS + Prisma).**
 
-Spec: §11 → Phase 0 → P0-6. Build `packages/sync-engine` with outbox + HLC reuse from `@marad-clone/domain` + LWW conflict resolution + delta CRDT for inventory ROB. In-memory adapter for tests. Property-based tests (`fast-check`) for commutativity + idempotency. Soak test: simulated 30-minute, 1000-write/1000-conflict scenario, zero data loss. ADR doc at `apps/docs/adr/0001-sync-engine.md`. Coverage gate ≥95%.
+Spec: §11 → Phase 0 → P0-7. NestJS app at `apps/api-shore/`. Prisma schema with `Tenant`, `Vessel`, `User`, `Role`. Postgres RLS on every tenant-scoped table. e2e test: create tenant → create vessel → create user → login returns JWT.
 
-### Sub-decisions awaiting Ziad's confirmation
-
-Drafted in the prior session before pause. Ask Ziad once, accept defaults if no objection, then proceed.
-
-1. **Scope split P0-6 vs P0-9.** P0-6 = engine + in-memory adapter + tests; P0-9 = gRPC wire transport between api-shore ↔ api-vessel. **Default: this split.**
-2. **CRDT for inventory ROB.** **Default: PN-Counter** (per-node positive deltas + negative deltas; ROB = sum positives − sum negatives). Commutative, associative, idempotent. Reservation semantics deferred.
-3. **LWW resolution.** **Default: per-field LWW**, keyed by HLC; tied HLCs broken by `nodeId`. Two nodes editing different fields of one record both keep their changes.
-4. **ADR location.** §11 specifies `apps/docs/adr/0001-sync-engine.md`. `apps/docs/` does not exist yet — P0-6 creates it.
-5. **Soak test clock.** **Default: simulated time** (injected `now: () => number` advanced manually) — runs in seconds, simulates the 30-min horizon. Real-time soak deferred until P0-9.
-6. **`fast-check` version.** Latest stable per the "always latest" memory; was `4.7.0` at last check (re-verify via `npm view fast-check version`).
-7. **Pacing.** **Default: same as P0-3/4/5** (batched, no pauses unless interactive bits) — unless Ziad says otherwise.
-
-### Suggested execution order (when approved)
-
-1. `pnpm add -Dw fast-check@<latest>` (re-verify version first)
-2. Create `packages/sync-engine/{package.json,tsconfig.json,vitest.config.ts}` (mirror `packages/domain/` setup; coverage gate ≥95%)
-3. Write the ADR `apps/docs/adr/0001-sync-engine.md` *first* — capture algorithm decisions before code
-4. Implement under `src/`: `outbox.ts`, `lww.ts`, `pn-counter.ts`, `engine.ts`, `in-memory-adapter.ts`, plus matching `*.test.ts`
-5. Add `pnpm run soak:sync` script at root → `node scripts/sync-soak-test.ts` (per §4 layout)
-6. Run `pnpm --filter @marad-clone/sync-engine test:coverage` and `pnpm run soak:sync` — must both be green
-7. Update §3 (add `fast-check` row), §15 (P0-6 entry), §16 (→ P0-7)
-8. Branch `feat/p0-6-sync-engine`, commit, PR, watch CI on PR, squash-merge
-
-After completion, set this section's task to **P0-7** (api-shore skeleton).
+**Before starting:** flip D1ckenS/marad-clone to private + upgrade to GitHub Pro (first proprietary business logic lands here — see memory `project_repo_visibility.md`).
 
 ---
 
