@@ -80,7 +80,7 @@ Pin to these versions. When you bump, update this section in the same commit.
 | Desktop builder | electron-builder | `24.x` |
 | Mobile | Flutter | `3.22+` (Dart `3.11+`; standalone Dart 3.11.5 installed at P0-4 for protoc-gen-dart, until Flutter SDK lands at P1-11) |
 | ORM (shore) | Prisma + `@prisma/client` + `@prisma/adapter-pg` | `7.x (7.8.0)` — config via `prisma.config.ts`; `datasource.url` moved out of schema |
-| ORM (vessel) | Drizzle ORM | latest stable (SQLite provider via `better-sqlite3`) |
+| ORM (vessel) | Drizzle ORM + drizzle-kit + better-sqlite3 | `drizzle-orm 0.45.2` / `drizzle-kit 0.31.10` / `better-sqlite3 12.9.0` |
 | Sync RPC | gRPC | `@grpc/grpc-js 1.10+` |
 | Sync proto | Protobuf (`protoc 34+`, `ts-proto 2.11+` for TS, `protoc_plugin 25+` for Dart) | `proto3` |
 | Postgres | PostgreSQL | `16.x` |
@@ -513,6 +513,7 @@ A task is done only if **all** are true:
 
 ## 14. Common Pitfalls (saved for future Claude Code sessions)
 
+- **Workspace package ESM/CJS dual-mode (IMPORTANT — read before touching `packages/*` configs).** `tsconfig.base.json` uses `module: NodeNext` + `verbatimModuleSyntax: true`, so each file's ESM/CJS classification follows the nearest `package.json#type`. Packages consumed by *both* vitest (ESM, reads `.ts` source) and NestJS-via-ts-node (CJS, reads compiled `dist/`) must be dual-mode: keep `"type":"module"` at the package root (so source `export`/`import` typechecks under NodeNext), and have the build script also write `dist/package.json` containing `{"type":"commonjs"}` — this overrides the parent for the dist subtree only, so Node treats compiled output as CJS at runtime. See `packages/domain/package.json`'s `build` script (`tsc && node -e "...writeFileSync('dist/package.json', ...)"`). Symptoms if mismatched: TS1287/TS1295 from root typecheck (source classified as CJS), or `ReferenceError: exports is not defined in ES module scope` at runtime (compiled CJS classified as ESM). Same pattern needed for `sync-engine` and any future shared TS package.
 - **Floating-point money.** Use `Prisma.Decimal` / decimal strings end-to-end. Never `number`.
 - **JS `Date` time zones.** Always store and serialize UTC ISO 8601. Do timezone conversion at the edge.
 - **SQLite WAL on shutdown.** Electron must call `db.pragma('wal_checkpoint(TRUNCATE)')` before quit, or sync gets out of sync after a hard reboot.
@@ -521,6 +522,7 @@ A task is done only if **all** are true:
 - **PDF/photo storage in DB.** Don't. Use S3/MinIO and store the key.
 - **Long files.** Split anything trending past 400 lines.
 - **Skipping the soak test.** Sync bugs only surface under load + offline windows. Run the soak.
+- **Orphan node processes on Windows.** `nest start --watch` spawns a child node; killing the pnpm/nest wrapper does not always cascade. After cancelled dev runs, check `Get-NetTCPConnection -LocalPort <port>` and `Stop-Process -Id <OwningProcess>` before starting again, or you'll hit `EADDRINUSE`.
 
 ---
 
@@ -528,47 +530,39 @@ A task is done only if **all** are true:
 
 > Append a dated entry, most-recent first. Format: `### YYYY-MM-DD — <task> — <summary>` then bullets for PR/commit, files added/modified, departures from §11, verify, next.
 
+### 2026-05-05 — P0-8 — api-vessel skeleton — PR #7 (feat/p0-8-api-vessel)
+
+NestJS + Drizzle + better-sqlite3, mirroring api-shore's surface (`tenant`, `vessel`, `user`, `auth/login`) onto SQLite. New: `apps/api-vessel/src/db/{schema,drizzle.{service,module}}.ts`, `apps/api-vessel/drizzle/0000_brief_spectrum.sql` (3 tables, unique `(tenant_id, email)`, FKs), parallel `tenant/`, `vessel/`, `user/`, `auth/` modules, 8 e2e tests, `.env`/`.env.test` (`DATABASE_URL=./vessel.db` / `:memory:`), root `pnpm.onlyBuiltDependencies` += `better-sqlite3`.
+
+**Decisions:** Drizzle `.returning()` on sync better-sqlite3 driver requires `.all()` terminator. `Role` is a const-array type in `schema.ts` (no `@prisma/client` import). `MIGRATIONS_DIR` env var (default `./drizzle`) lets Electron set absolute path at runtime. No RLS on SQLite (single-tenant vessel DB). WAL skipped for `:memory:`.
+
+**New deps:** `drizzle-orm@0.45.2`, `drizzle-kit@0.31.10`, `better-sqlite3@12.9.0`, `@types/better-sqlite3@7.6.13`.
+
+**Verify:** `pnpm --filter @marad-clone/api-vessel test:e2e` → 8 ✓; `pnpm -w run ci:full` → 102 ✓.
+
+**Dev-server fix (post-merge):** `packages/domain` switched to dual-mode build — root `package.json` keeps `"type":"module"`, `tsconfig.build.json` emits CJS, and `build` script writes `dist/package.json` with `{"type":"commonjs"}` so NestJS via ts-node can `require()` the compiled output. See §14 "Workspace package ESM/CJS dual-mode" pitfall.
+
+---
+
 ### 2026-05-05 — P0-7 — api-shore skeleton — PR #5 (feat/p0-7-api-shore)
 
-| File/Dir | Notes |
-|---|---|
-| `infra/docker-compose.dev.yml` | postgres:16 (port **5433** — 5432 occupied by local PG install), minio:latest, meilisearch:v1.8 |
-| `apps/api-shore/prisma/schema.prisma` | `Tenant`, `Vessel`, `User` (ULID PKs); `Role` enum |
-| `apps/api-shore/prisma/migrations/…_init_*` | Tables + FK constraints |
-| `apps/api-shore/prisma/migrations/…_add_rls_*` | RLS enabled on `vessels` + `users`; policy checks `app.current_tenant_id` session var |
-| `apps/api-shore/prisma.config.ts` | Prisma 7 config (URL moved from schema; `PrismaPg` adapter; `dotenv` loads `.env`) |
-| `apps/api-shore/src/prisma/` | `PrismaService` + `PrismaModule` — `withTenant(id, fn)` wraps queries in `$transaction` + `SET LOCAL` |
-| `apps/api-shore/src/tenant/` | `TenantService` + `TenantController` — `POST /tenants`, `GET /tenants/:id` |
-| `apps/api-shore/src/vessel/` | `VesselService` + `VesselController` — `POST /tenants/:id/vessels`, `GET` list/single |
-| `apps/api-shore/src/user/` | `UserService` (bcrypt 12 rounds) + `UserController` — `POST /tenants/:id/users` |
-| `apps/api-shore/src/auth/` | `AuthService` + `AuthController` — `POST /auth/login` → JWT (8h, `@nestjs/jwt`) |
-| `apps/api-shore/test/app.e2e.ts` | 7 e2e tests: tenant → vessel → user → login → bad-password → bad-email → RLS check |
+NestJS 11 + Prisma 7 + Postgres 16. New: `infra/docker-compose.dev.yml` (postgres:16 on **5433** — local PG owns 5432, plus minio + meilisearch:v1.8), `apps/api-shore/prisma/{schema.prisma,migrations/{init,add_rls}}` (`Tenant`/`Vessel`/`User` ULID PKs, `Role` enum, RLS on `vessels` + `users` checking `app.current_tenant_id`), `prisma.config.ts` (Prisma 7 — URL out of schema; `PrismaPg` adapter), `src/{prisma,tenant,vessel,user,auth}/` modules, 7 e2e tests (incl. RLS check). bcrypt 12 rounds; JWT 8h via `@nestjs/jwt`.
 
-**Key decisions:** NestJS upgraded 10.x→11.x; Prisma upgraded 5.x→7.x (breaking: `prisma.config.ts` required). `withTenant` uses `$executeRawUnsafe` (ULID-validated) because `SET LOCAL` rejects parameterised values. `marad` user is table owner so bypasses RLS — full least-privilege app role deferred to Phase 1. Docker Postgres on port 5433 (local Postgres owns 5432 on this machine).
+**Decisions:** Prisma 5→7 forces `prisma.config.ts`. `withTenant(id, fn)` wraps queries in `$transaction` + `SET LOCAL app.current_tenant_id = ...` via `$executeRawUnsafe` (ULID-validated; `SET LOCAL` rejects parameters). `marad` user is table owner so bypasses RLS — least-privilege app role deferred to Phase 1. NestJS upgraded 10→11 in same PR.
 
-**Verify:** `pnpm --filter @marad-clone/api-shore run test:e2e` → 7 tests ✓; `pnpm -w run ci:full` → 102 tests ✓.
+**Verify:** `pnpm --filter @marad-clone/api-shore run test:e2e` → 7 ✓; `pnpm -w run ci:full` → 102 ✓.
 
 ---
 
 ### 2026-05-05 — P0-6 — sync-engine package — PR #4 (feat/p0-6-sync-engine)
 
-| File | Notes |
-|---|---|
-| `packages/sync-engine/` | scaffold: `package.json`, `tsconfig.json`, `vitest.config.ts` (≥95% gate) |
-| `src/types.ts` | `LwwField`, `LwwRecord`, `OutboxEntry`, `SyncDelta`, `SyncRecord`, `SyncAdapter` |
-| `src/outbox.ts` | `createOutboxEntry` (ULID id, encoded HLC, null payload for deletes) |
-| `src/lww.ts` | `compareEncodedHlc`, `mergeFields` — per-field LWW delegating to domain `compareHlc` |
-| `src/pn-counter.ts` | `PnCounterState`, `pnValue/Increment/Decrement/Merge` — CRDT for inventory ROB |
-| `src/engine.ts` | `SyncEngine.write/delete/applyRemoteDelta/drainOutbox`; writes materialize locally |
-| `src/in-memory-adapter.ts` | `InMemoryAdapter implements SyncAdapter` — Map-backed, no persistence |
-| `apps/docs/adr/0001-sync-engine.md` | ADR: outbox pattern, HLC, per-field LWW, PN-Counter, simulated soak clock |
-| `scripts/sync-soak-test.ts` | soak: 30 min sim, 1 000 vessel + 1 000 shore writes, 200 entities, 0 diverged |
+`packages/sync-engine/` scaffold: `types.ts` (`LwwField/Record`, `OutboxEntry`, `SyncDelta/Record`, `SyncAdapter`), `outbox.ts` (`createOutboxEntry`), `lww.ts` (per-field LWW via domain `compareHlc`), `pn-counter.ts` (CRDT for inventory ROB), `engine.ts` (`write/delete/applyRemoteDelta/drainOutbox`), `in-memory-adapter.ts`. ADR `apps/docs/adr/0001-sync-engine.md`. Soak script `scripts/sync-soak-test.ts` (30 min sim, 1 000 vessel + 1 000 shore writes, 200 entities, 0 diverged).
 
-**New root deps:** `@marad-clone/domain workspace:*`, `@marad-clone/sync-engine workspace:*` (needed by soak script). `pnpm.onlyBuiltDependencies: [esbuild]` added for tsx. `fast-check@4.7.0`, `tsx@4.21.0` added to root devDeps.
+**Design (ADR 0001):** outbox + HLC + per-field LWW (nodeId tiebreak) + PN-Counter (per-node +/− buckets). gRPC wire deferred to P0-9. Simulated clock in soak; real-time soak at P0-9. Generated proto committed; CI does not run codegen.
 
-**Design decisions (ADR 0001):** P0-6 = pure engine + in-memory adapter; gRPC wire deferred to P0-9. PN-Counter (per-node +/− buckets, merge = per-node max). Per-field LWW keyed by HLC, nodeId tiebreak. Simulated clock in soak (fast-forward; real-time soak at P0-9). Generated proto output committed; CI does not run codegen.
+**New root deps:** `@marad-clone/{domain,sync-engine} workspace:*`, `fast-check@4.7.0`, `tsx@4.21.0`. `pnpm.onlyBuiltDependencies` += `esbuild` (for tsx).
 
-**Verify:** `pnpm --filter @marad-clone/sync-engine test:coverage` → 50 tests, 98.78% stmt / 95.74% branch ✓; `pnpm run soak:sync` → PASS, 0 diverged ✓; `pnpm run ci:full` → 102 tests ✓.
+**Verify:** `pnpm --filter @marad-clone/sync-engine test:coverage` → 50 tests, 98.78% stmt / 95.74% branch ✓; `pnpm run soak:sync` → PASS, 0 diverged ✓; `pnpm run ci:full` → 102 ✓.
 
 ---
 
@@ -596,9 +590,9 @@ A task is done only if **all** are true:
 
 > Single, unambiguous next task for any fresh Claude Code session.
 
-**Task: P0-8 — api-vessel skeleton (NestJS + Drizzle + SQLite).**
+**Task: P0-9 — Sync wire-up between api-shore and api-vessel.**
 
-Spec: §11 → Phase 0 → P0-8. NestJS app at `apps/api-vessel/`. Drizzle ORM with `better-sqlite3`. Same domain endpoints as `api-shore` (`Tenant`, `Vessel`, `User`, `Role`). Designed to run inside Electron (single-tenant, offline). Integration test: create same fixtures, round-trip through SQLite. OpenAPI surface must match `api-shore`.
+Spec: §11 → Phase 0 → P0-9. Bidirectional gRPC stream replicating tenant/vessel/user changes. SMTP fallback stub. Verify with `pnpm run soak:sync` end-to-end: 24h simulated offline, then sync; zero divergence. Write ADR `apps/docs/adr/0002-sync-wire-protocol.md`.
 
 
 ---

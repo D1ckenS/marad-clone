@@ -2,6 +2,11 @@
 node_modules/
 .pnpm-store/
 
+# SQLite vessel database files
+*.db
+*.db-shm
+*.db-wal
+
 # Build outputs
 dist/
 build/
