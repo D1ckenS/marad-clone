@@ -6,6 +6,7 @@ import { TenantModule } from './tenant/tenant.module';
 import { VesselModule } from './vessel/vessel.module';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
+import { SyncModule } from './sync/sync.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { AuthModule } from './auth/auth.module';
     VesselModule,
     UserModule,
     AuthModule,
+    SyncModule,
   ],
 })
 export class AppModule {}

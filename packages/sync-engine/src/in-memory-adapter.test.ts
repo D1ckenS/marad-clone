@@ -35,7 +35,7 @@ function makeDeleteDelta(
 // ── outbox ────────────────────────────────────────────────────────────────────
 
 describe('InMemoryAdapter — outbox', () => {
-  it('appendOutbox + readPendingOutbox roundtrip', () => {
+  it('appendOutbox + readPendingOutbox roundtrip', async () => {
     const adapter = new InMemoryAdapter();
     const clock = makeClock('vessel');
     const entry = createOutboxEntry({
@@ -46,13 +46,13 @@ describe('InMemoryAdapter — outbox', () => {
       hlc: clock.send(),
       nodeId: 'vessel',
     });
-    adapter.appendOutbox(entry);
-    const pending = adapter.readPendingOutbox(10);
+    await adapter.appendOutbox(entry);
+    const pending = await adapter.readPendingOutbox(10);
     expect(pending).toHaveLength(1);
     expect(pending[0]?.id).toBe(entry.id);
   });
 
-  it('markSent removes entries from pending', () => {
+  it('markSent removes entries from pending', async () => {
     const adapter = new InMemoryAdapter();
     const clock = makeClock('vessel');
     const e1 = createOutboxEntry({
@@ -71,18 +71,18 @@ describe('InMemoryAdapter — outbox', () => {
       hlc: clock.send(),
       nodeId: 'vessel',
     });
-    adapter.appendOutbox(e1);
-    adapter.appendOutbox(e2);
-    adapter.markSent([e1.id]);
-    expect(adapter.readPendingOutbox(10)).toHaveLength(1);
+    await adapter.appendOutbox(e1);
+    await adapter.appendOutbox(e2);
+    await adapter.markSent([e1.id]);
+    expect(await adapter.readPendingOutbox(10)).toHaveLength(1);
     expect(adapter.pendingCount()).toBe(1);
   });
 
-  it('respects the limit parameter', () => {
+  it('respects the limit parameter', async () => {
     const adapter = new InMemoryAdapter();
     const clock = makeClock('vessel');
     for (let i = 0; i < 5; i++) {
-      adapter.appendOutbox(
+      await adapter.appendOutbox(
         createOutboxEntry({
           entityType: 'Part',
           entityId: `E${i}`,
@@ -93,51 +93,51 @@ describe('InMemoryAdapter — outbox', () => {
         }),
       );
     }
-    expect(adapter.readPendingOutbox(3)).toHaveLength(3);
+    expect(await adapter.readPendingOutbox(3)).toHaveLength(3);
   });
 });
 
 // ── applyRemoteDelta — upsert ─────────────────────────────────────────────────
 
 describe('InMemoryAdapter — applyRemoteDelta upsert', () => {
-  it('creates a new record on first upsert', () => {
+  it('creates a new record on first upsert', async () => {
     const adapter = new InMemoryAdapter();
     const clock = makeClock('shore');
     const hlcStr = encodeHlc(clock.send());
     const delta = makeUpsertDelta('Component', 'C1', { name: 'Engine' }, hlcStr, 'shore');
-    const { record, merged } = adapter.applyRemoteDelta(delta);
+    const { record, merged } = await adapter.applyRemoteDelta(delta);
     expect(merged).toBe(true);
     expect(record.entityId).toBe('C1');
     expect(record.deletedAt).toBeNull();
     expect((record.fields['name'] as { value: unknown }).value).toBe('Engine');
   });
 
-  it('per-field LWW: remote wins when its HLC is newer', () => {
+  it('per-field LWW: remote wins when its HLC is newer', async () => {
     const adapter = new InMemoryAdapter();
     const clock = makeClock('vessel');
     const hlc1 = encodeHlc(clock.send());
     const hlc2 = encodeHlc(clock.send());
 
-    adapter.applyRemoteDelta(
+    await adapter.applyRemoteDelta(
       makeUpsertDelta('Component', 'C1', { status: 'open', name: 'Pump' }, hlc1, 'vessel'),
     );
-    const { record } = adapter.applyRemoteDelta(
+    const { record } = await adapter.applyRemoteDelta(
       makeUpsertDelta('Component', 'C1', { status: 'closed' }, hlc2, 'shore'),
     );
     expect((record.fields['status'] as { value: unknown }).value).toBe('closed');
     expect((record.fields['name'] as { value: unknown }).value).toBe('Pump');
   });
 
-  it('per-field LWW: local wins when its HLC is newer', () => {
+  it('per-field LWW: local wins when its HLC is newer', async () => {
     const adapter = new InMemoryAdapter();
     const clock = makeClock('vessel');
     const hlc2 = encodeHlc(clock.send());
-    const hlc1 = encodeHlc({ physicalMs: 1, counter: 0, nodeId: 'old' }); // very old
+    const hlc1 = encodeHlc({ physicalMs: 1, counter: 0, nodeId: 'old' });
 
-    adapter.applyRemoteDelta(
+    await adapter.applyRemoteDelta(
       makeUpsertDelta('Component', 'C1', { status: 'closed' }, hlc2, 'vessel'),
     );
-    const { record, merged } = adapter.applyRemoteDelta(
+    const { record, merged } = await adapter.applyRemoteDelta(
       makeUpsertDelta('Component', 'C1', { status: 'open' }, hlc1, 'shore'),
     );
     expect((record.fields['status'] as { value: unknown }).value).toBe('closed');
@@ -148,47 +148,53 @@ describe('InMemoryAdapter — applyRemoteDelta upsert', () => {
 // ── applyRemoteDelta — delete ─────────────────────────────────────────────────
 
 describe('InMemoryAdapter — applyRemoteDelta delete', () => {
-  it('soft-deletes a record', () => {
+  it('soft-deletes a record', async () => {
     const adapter = new InMemoryAdapter();
     const clock = makeClock('shore');
     const hlc1 = encodeHlc(clock.send());
     const hlc2 = encodeHlc(clock.send());
-    adapter.applyRemoteDelta(makeUpsertDelta('Component', 'C1', { name: 'Valve' }, hlc1, 'shore'));
-    const { record } = adapter.applyRemoteDelta(makeDeleteDelta('Component', 'C1', hlc2, 'shore'));
+    await adapter.applyRemoteDelta(
+      makeUpsertDelta('Component', 'C1', { name: 'Valve' }, hlc1, 'shore'),
+    );
+    const { record } = await adapter.applyRemoteDelta(
+      makeDeleteDelta('Component', 'C1', hlc2, 'shore'),
+    );
     expect(record.deletedAt).not.toBeNull();
   });
 
-  it('older delete does not overwrite newer upsert', () => {
+  it('older delete does not overwrite newer upsert', async () => {
     const adapter = new InMemoryAdapter();
     const clock = makeClock('shore');
     const hlcOld = encodeHlc({ physicalMs: 1, counter: 0, nodeId: 'old' });
     const hlcNew = encodeHlc(clock.send());
-    adapter.applyRemoteDelta(
+    await adapter.applyRemoteDelta(
       makeUpsertDelta('Component', 'C1', { name: 'Valve' }, hlcNew, 'shore'),
     );
-    const { record, merged } = adapter.applyRemoteDelta(
+    const { record, merged } = await adapter.applyRemoteDelta(
       makeDeleteDelta('Component', 'C1', hlcOld, 'shore'),
     );
     expect(record.deletedAt).toBeNull();
     expect(merged).toBe(false);
   });
 
-  it('newer upsert after delete resurrects the record', () => {
+  it('newer upsert after delete resurrects the record', async () => {
     const adapter = new InMemoryAdapter();
     const clock = makeClock('shore');
     const hlc1 = encodeHlc(clock.send());
     const hlc2 = encodeHlc(clock.send());
     const hlc3 = encodeHlc(clock.send());
-    adapter.applyRemoteDelta(makeUpsertDelta('Component', 'C1', { name: 'Valve' }, hlc1, 'shore'));
-    adapter.applyRemoteDelta(makeDeleteDelta('Component', 'C1', hlc2, 'shore'));
-    const { record } = adapter.applyRemoteDelta(
+    await adapter.applyRemoteDelta(
+      makeUpsertDelta('Component', 'C1', { name: 'Valve' }, hlc1, 'shore'),
+    );
+    await adapter.applyRemoteDelta(makeDeleteDelta('Component', 'C1', hlc2, 'shore'));
+    const { record } = await adapter.applyRemoteDelta(
       makeUpsertDelta('Component', 'C1', { name: 'Valve v2' }, hlc3, 'shore'),
     );
     expect(record.deletedAt).toBeNull();
   });
 
-  it('readLocalRecord returns null for unknown entity', () => {
+  it('readLocalRecord returns null for unknown entity', async () => {
     const adapter = new InMemoryAdapter();
-    expect(adapter.readLocalRecord('Component', 'C_UNKNOWN')).toBeNull();
+    expect(await adapter.readLocalRecord('Component', 'C_UNKNOWN')).toBeNull();
   });
 });

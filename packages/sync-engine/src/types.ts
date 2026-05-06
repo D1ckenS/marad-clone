@@ -47,9 +47,9 @@ export type ApplyResult = {
 
 /** Port: what the sync engine needs from the storage layer. */
 export interface SyncAdapter {
-  appendOutbox(entry: OutboxEntry): void;
-  readPendingOutbox(limit: number): OutboxEntry[];
-  markSent(ids: string[]): void;
-  applyRemoteDelta(delta: SyncDelta): ApplyResult;
-  readLocalRecord(entityType: string, entityId: string): SyncRecord | null;
+  appendOutbox(entry: OutboxEntry): Promise<void>;
+  readPendingOutbox(limit: number): Promise<OutboxEntry[]>;
+  markSent(ids: string[]): Promise<void>;
+  applyRemoteDelta(delta: SyncDelta): Promise<ApplyResult>;
+  readLocalRecord(entityType: string, entityId: string): Promise<SyncRecord | null>;
 }

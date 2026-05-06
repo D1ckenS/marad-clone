@@ -5,15 +5,119 @@
 // source: sync.proto
 
 /* eslint-disable */
+import { Observable } from "rxjs";
 
 export const protobufPackage = "marad.sync.v1";
 
+export enum SyncOperation {
+  SYNC_OPERATION_UNSPECIFIED = 0,
+  SYNC_OPERATION_UPSERT = 1,
+  SYNC_OPERATION_DELETE = 2,
+  UNRECOGNIZED = -1,
+}
+
+export enum ErrorCode {
+  ERROR_CODE_UNSPECIFIED = 0,
+  ERROR_CODE_UNAUTHENTICATED = 1,
+  ERROR_CODE_TENANT_MISMATCH = 2,
+  ERROR_CODE_PROTOCOL = 3,
+  ERROR_CODE_INTERNAL = 4,
+  UNRECOGNIZED = -1,
+}
+
+export interface ClientMessage {
+  hello?: Hello | undefined;
+  deltas?: DeltaBatch | undefined;
+  ack?: Ack | undefined;
+  heartbeat?: Heartbeat | undefined;
+}
+
+export interface ServerMessage {
+  welcome?: Welcome | undefined;
+  deltas?: DeltaBatch | undefined;
+  ack?: Ack | undefined;
+  heartbeat?: Heartbeat | undefined;
+  error?: Error | undefined;
+}
+
+export interface Hello {
+  tenantId: string;
+  vesselId: string;
+  nodeId: string;
+  /**
+   * Highest HLC the vessel has *applied* from each peer node.
+   * Server replays deltas with hlc > cursors[nodeId] for each peer.
+   */
+  cursors: { [key: string]: string };
+}
+
+export interface Hello_CursorsEntry {
+  key: string;
+  value: string;
+}
+
+export interface Welcome {
+  /**
+   * Highest HLC the server has *received* from this vessel's node.
+   * Vessel replays deltas with hlc > cursors[nodeId] for each peer.
+   */
+  cursors: { [key: string]: string };
+  /** Server-assigned correlation id useful for log triage. */
+  sessionId: string;
+}
+
+export interface Welcome_CursorsEntry {
+  key: string;
+  value: string;
+}
+
+export interface Delta {
+  entityType: string;
+  entityId: string;
+  operation: SyncOperation;
+  /** encoded HLC string */
+  hlc: string;
+  nodeId: string;
+  /**
+   * JSON-encoded LwwRecord (per-field { value, hlc } map).
+   * Bytes (not string) so future protobuf-typed payloads are wire-compatible.
+   */
+  payload: Uint8Array;
+}
+
+export interface DeltaBatch {
+  deltas: Delta[];
+}
+
 /**
- * Placeholder so proto:gen has something to compile. Real sync messages
- * (events, deltas, HLC tie-breaks, etc.) are defined in P0-6 (sync-engine).
+ * Highest HLC successfully applied per peer node, after a DeltaBatch
+ * was processed. Acks are advisory — recovery happens via cursor replay
+ * on stream reconnect, not via per-message ack.
  */
+export interface Ack {
+  appliedCursors: { [key: string]: string };
+}
+
+export interface Ack_AppliedCursorsEntry {
+  key: string;
+  value: string;
+}
+
 export interface Heartbeat {
   nodeId: string;
   hlc: string;
   sentAtUnixMs: string;
+}
+
+export interface Error {
+  code: ErrorCode;
+  message: string;
+}
+
+/**
+ * One bidirectional stream per (tenant, vessel) connection.
+ * See apps/docs/adr/0002-sync-wire-protocol.md for protocol semantics.
+ */
+export interface SyncService {
+  Stream(request: Observable<ClientMessage>): Observable<ServerMessage>;
 }

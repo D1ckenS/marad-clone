@@ -10,26 +10,25 @@ export class InMemoryAdapter implements SyncAdapter {
   private readonly sentIds = new Set<string>();
   private readonly records = new Map<string, SyncRecord>();
 
-  appendOutbox(entry: OutboxEntry): void {
+  async appendOutbox(entry: OutboxEntry): Promise<void> {
     this.outbox.push(entry);
   }
 
-  readPendingOutbox(limit: number): OutboxEntry[] {
+  async readPendingOutbox(limit: number): Promise<OutboxEntry[]> {
     return this.outbox.filter((e) => !this.sentIds.has(e.id)).slice(0, limit);
   }
 
-  markSent(ids: string[]): void {
+  async markSent(ids: string[]): Promise<void> {
     for (const id of ids) {
       this.sentIds.add(id);
     }
   }
 
-  applyRemoteDelta(delta: SyncDelta): ApplyResult {
+  async applyRemoteDelta(delta: SyncDelta): Promise<ApplyResult> {
     const key = `${delta.entityType}:${delta.entityId}`;
     const existing = this.records.get(key);
 
     if (delta.operation === 'delete') {
-      // Delete wins only if it is strictly newer than whatever we have.
       if (existing === undefined || compareEncodedHlc(delta.hlc, existing.hlc) > 0) {
         const record: SyncRecord = {
           entityType: delta.entityType,
@@ -44,7 +43,6 @@ export class InMemoryAdapter implements SyncAdapter {
       return { record: existing, merged: false };
     }
 
-    // upsert: merge fields per-field LWW
     if (existing === undefined) {
       const record: SyncRecord = {
         entityType: delta.entityType,
@@ -60,7 +58,6 @@ export class InMemoryAdapter implements SyncAdapter {
     const { record: mergedFields, changed } = mergeFields(existing.fields, delta.payload ?? {});
     const newHlc = compareEncodedHlc(delta.hlc, existing.hlc) > 0 ? delta.hlc : existing.hlc;
 
-    // An upsert with a higher HLC than an existing delete resurrects the record.
     const deletedAt =
       existing.deletedAt !== null && compareEncodedHlc(delta.hlc, existing.hlc) > 0
         ? null
@@ -76,7 +73,7 @@ export class InMemoryAdapter implements SyncAdapter {
     return { record, merged: changed || deletedAt !== existing.deletedAt };
   }
 
-  readLocalRecord(entityType: string, entityId: string): SyncRecord | null {
+  async readLocalRecord(entityType: string, entityId: string): Promise<SyncRecord | null> {
     return this.records.get(`${entityType}:${entityId}`) ?? null;
   }
 

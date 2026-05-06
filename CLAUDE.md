@@ -530,39 +530,34 @@ A task is done only if **all** are true:
 
 > Append a dated entry, most-recent first. Format: `### YYYY-MM-DD — <task> — <summary>` then bullets for PR/commit, files added/modified, departures from §11, verify, next.
 
-### 2026-05-05 — P0-8 — api-vessel skeleton — PR #7 (feat/p0-8-api-vessel)
+### 2026-05-06 — P0-9 — sync wire protocol — PR #8 (feat/p0-9-sync-wire)
 
-NestJS + Drizzle + better-sqlite3, mirroring api-shore's surface (`tenant`, `vessel`, `user`, `auth/login`) onto SQLite. New: `apps/api-vessel/src/db/{schema,drizzle.{service,module}}.ts`, `apps/api-vessel/drizzle/0000_brief_spectrum.sql` (3 tables, unique `(tenant_id, email)`, FKs), parallel `tenant/`, `vessel/`, `user/`, `auth/` modules, 8 e2e tests, `.env`/`.env.test` (`DATABASE_URL=./vessel.db` / `:memory:`), root `pnpm.onlyBuiltDependencies` += `better-sqlite3`.
+Bidi gRPC stream between shore and vessel; ADR `apps/docs/adr/0002-sync-wire-protocol.md` is the design source.
 
-**Decisions:** Drizzle `.returning()` on sync better-sqlite3 driver requires `.all()` terminator. `Role` is a const-array type in `schema.ts` (no `@prisma/client` import). `MIGRATIONS_DIR` env var (default `./drizzle`) lets Electron set absolute path at runtime. No RLS on SQLite (single-tenant vessel DB). WAL skipped for `:memory:`.
+- `packages/proto/sync.proto` — `SyncService.Stream` bidi RPC; `Hello/Welcome/DeltaBatch/Ack/Heartbeat/Error`; cursor-based resume, batch acks, JSON-encoded LWW payloads in `Delta.payload` bytes. Codegen via `proto:gen`.
+- **Schema** — added `hlc` + `deletedAt` to `Tenant`/`Vessel`/`User` on both Prisma (shore) and Drizzle (vessel); new `outbox` + `sync_records` tables on each side (RLS on shore). Migrations: shore `20260505205702_add_sync_fields`, vessel `0001_concerned_william_stryker.sql`.
+- **`SyncAdapter` made async** — Prisma is async; engine.ts + InMemoryAdapter + tests + soak migrated.
+- **`packages/sync-engine/src/transport/`** — `transport.ts` (`SyncTransport`), `grpc-transport.ts` (`startSyncServer`, `GrpcSyncTransport`; @grpc/grpc-js + @grpc/proto-loader, runtime-load .proto), `smtp-transport.ts` (interface stub per ADR §6).
+- **DB adapters** — `apps/api-vessel/src/sync/drizzle-sync-adapter.ts` (raw SQL on better-sqlite3) + 6 unit tests; `apps/api-shore/src/sync/prisma-sync-adapter.ts` scoped per (tenant, vessel) + 5 e2e tests against real Postgres.
+- **NestJS modules** — `SyncModule` registered on both AppModules. Vessel exports `DrizzleSyncAdapter` singleton; shore exports a `PrismaSyncAdapterFactory` (one adapter per active vessel session per ADR §9). Transport boot intentionally deferred — see §16.
+- **Soak** — `scripts/sync-soak-test.ts` Phase 1 keeps the original P0-6 in-process scenario; new Phase 2 routes 200 writes/side over a real loopback gRPC stream, 0 diverged.
+- **Tooling** — Dart `protoc-gen-dart` v25.0.0 installed at `~\AppData\Local\Pub\Cache\bin\protoc-gen-dart.bat`. `shared-types` gains `rxjs` (ts-proto's `Observable` import). `api-shore` gains `ulidx` for tests.
 
-**New deps:** `drizzle-orm@0.45.2`, `drizzle-kit@0.31.10`, `better-sqlite3@12.9.0`, `@types/better-sqlite3@7.6.13`.
+**New deps:** `@grpc/grpc-js@^1.14.3`, `@grpc/proto-loader@^0.8.0` on `sync-engine`; `rxjs@^7.8.2` on `shared-types`; `ulidx` on `api-shore`.
 
-**Verify:** `pnpm --filter @marad-clone/api-vessel test:e2e` → 8 ✓; `pnpm -w run ci:full` → 102 ✓.
+**Verify:** sync-engine 54 ✓ (added 4 grpc-transport tests); api-vessel test 6 ✓ + test:e2e 8 ✓; api-shore test:e2e 12 ✓ (added 5 sync-adapter); `pnpm -w run ci:full` → 112 ✓; `pnpm -w run soak:sync` → both phases PASS, 0 diverged.
 
-**Dev-server fix (post-merge):** `packages/domain` switched to dual-mode build — root `package.json` keeps `"type":"module"`, `tsconfig.build.json` emits CJS, and `build` script writes `dist/package.json` with `{"type":"commonjs"}` so NestJS via ts-node can `require()` the compiled output. See §14 "Workspace package ESM/CJS dual-mode" pitfall.
-
----
-
-### 2026-05-05 — P0-7 — api-shore skeleton — PR #5 (feat/p0-7-api-shore)
-
-NestJS 11 + Prisma 7 + Postgres 16. New: `infra/docker-compose.dev.yml` (postgres:16 on **5433** — local PG owns 5432, plus minio + meilisearch:v1.8), `apps/api-shore/prisma/{schema.prisma,migrations/{init,add_rls}}` (`Tenant`/`Vessel`/`User` ULID PKs, `Role` enum, RLS on `vessels` + `users` checking `app.current_tenant_id`), `prisma.config.ts` (Prisma 7 — URL out of schema; `PrismaPg` adapter), `src/{prisma,tenant,vessel,user,auth}/` modules, 7 e2e tests (incl. RLS check). bcrypt 12 rounds; JWT 8h via `@nestjs/jwt`.
-
-**Decisions:** Prisma 5→7 forces `prisma.config.ts`. `withTenant(id, fn)` wraps queries in `$transaction` + `SET LOCAL app.current_tenant_id = ...` via `$executeRawUnsafe` (ULID-validated; `SET LOCAL` rejects parameters). `marad` user is table owner so bypasses RLS — least-privilege app role deferred to Phase 1. NestJS upgraded 10→11 in same PR.
-
-**Verify:** `pnpm --filter @marad-clone/api-shore run test:e2e` → 7 ✓; `pnpm -w run ci:full` → 102 ✓.
+**Deferred (P0-9 follow-up):** auto-start of the gRPC server on api-shore boot and the gRPC client on api-vessel boot. Needs runtime config (server URL, JWT loading, backoff, heartbeat cadence) and real entity controllers that emit through `outbox`. The wire mechanics are proven; this is plumbing.
 
 ---
 
-### 2026-05-05 — P0-6 — sync-engine package — PR #4 (feat/p0-6-sync-engine)
+### 2026-05-05 — P0-6 / P0-7 / P0-8 (consolidated, all merged to main)
 
-`packages/sync-engine/` scaffold: `types.ts` (`LwwField/Record`, `OutboxEntry`, `SyncDelta/Record`, `SyncAdapter`), `outbox.ts` (`createOutboxEntry`), `lww.ts` (per-field LWW via domain `compareHlc`), `pn-counter.ts` (CRDT for inventory ROB), `engine.ts` (`write/delete/applyRemoteDelta/drainOutbox`), `in-memory-adapter.ts`. ADR `apps/docs/adr/0001-sync-engine.md`. Soak script `scripts/sync-soak-test.ts` (30 min sim, 1 000 vessel + 1 000 shore writes, 200 entities, 0 diverged).
-
-**Design (ADR 0001):** outbox + HLC + per-field LWW (nodeId tiebreak) + PN-Counter (per-node +/− buckets). gRPC wire deferred to P0-9. Simulated clock in soak; real-time soak at P0-9. Generated proto committed; CI does not run codegen.
-
-**New root deps:** `@marad-clone/{domain,sync-engine} workspace:*`, `fast-check@4.7.0`, `tsx@4.21.0`. `pnpm.onlyBuiltDependencies` += `esbuild` (for tsx).
-
-**Verify:** `pnpm --filter @marad-clone/sync-engine test:coverage` → 50 tests, 98.78% stmt / 95.74% branch ✓; `pnpm run soak:sync` → PASS, 0 diverged ✓; `pnpm run ci:full` → 102 ✓.
+| Task | PR | Key output |
+|---|---|---|
+| P0-6 sync-engine package | PR #4 / `7e7dacd` | `packages/sync-engine/` (engine, in-memory adapter, outbox, LWW, PN-Counter); ADR 0001; `scripts/sync-soak-test.ts` (30-min sim, 1000 vessel + 1000 shore writes); `tsx@4.21.0`, `fast-check@4.7.0` to root |
+| P0-7 api-shore skeleton | PR #6 / `a2082b5` | NestJS 11 + Prisma 7 + Postgres 16 (Docker on **5433**); `Tenant/Vessel/User` schema with RLS via `app.current_tenant_id`; `withTenant()` wrapper; bcrypt 12-round users; 8h JWT; 7 e2e tests |
+| P0-8 api-vessel skeleton | PR #7 / `a3b5537` | NestJS + Drizzle + better-sqlite3; same surface as shore mirrored to SQLite; 8 e2e tests; `Role` as const-array type (no Prisma dep on vessel); `MIGRATIONS_DIR` for Electron; dual-mode `packages/domain` build (see §14 ESM/CJS pitfall) |
 
 ---
 
@@ -590,9 +585,12 @@ NestJS 11 + Prisma 7 + Postgres 16. New: `infra/docker-compose.dev.yml` (postgre
 
 > Single, unambiguous next task for any fresh Claude Code session.
 
-**Task: P0-9 — Sync wire-up between api-shore and api-vessel.**
+**Task: P0-10 — Auth (OIDC + offline JWT).** Spec: §11 → Phase 0 → P0-10. Shore auth via Microsoft Entra OIDC; vessel cached JWT (signed by shore) usable offline up to 30 days. Verify with end-to-end e2e: log in shore, sync to vessel, pull plug, log in on vessel, perform write, restore plug, sync up. Token rotation tested.
 
-Spec: §11 → Phase 0 → P0-9. Bidirectional gRPC stream replicating tenant/vessel/user changes. SMTP fallback stub. Verify with `pnpm run soak:sync` end-to-end: 24h simulated offline, then sync; zero divergence. Write ADR `apps/docs/adr/0002-sync-wire-protocol.md`.
+**Or, continue P0-9 follow-up** if the human wants the sync transport actually booting on app start before P0-10:
+- `apps/api-shore/src/sync/sync-gateway.service.ts` — boot `startSyncServer` on app init bound to `process.env.SYNC_GRPC_PORT`; route incoming streams to per-(tenant, vessel) `SyncEngine` instances using the `PrismaSyncAdapterFactory` already exported by `SyncModule`.
+- `apps/api-vessel/src/sync/sync-client.service.ts` — boot `GrpcSyncTransport` on app init pointed at `process.env.SHORE_SYNC_URL`, with reconnect backoff + heartbeat per ADR 0002 §5.
+- Wire any controller-driven write (e.g. `TenantController.create`) through the `SyncEngine.write` path so the outbox actually fills.
 
 
 ---

@@ -2,10 +2,111 @@ syntax = "proto3";
 
 package marad.sync.v1;
 
-// Placeholder so proto:gen has something to compile. Real sync messages
-// (events, deltas, HLC tie-breaks, etc.) are defined in P0-6 (sync-engine).
+// --------------------------------------------------------------------
+// Service
+// --------------------------------------------------------------------
+
+// One bidirectional stream per (tenant, vessel) connection.
+// See apps/docs/adr/0002-sync-wire-protocol.md for protocol semantics.
+service SyncService {
+  rpc Stream(stream ClientMessage) returns (stream ServerMessage);
+}
+
+// --------------------------------------------------------------------
+// Envelopes
+// --------------------------------------------------------------------
+
+message ClientMessage {
+  oneof payload {
+    Hello hello = 1;
+    DeltaBatch deltas = 2;
+    Ack ack = 3;
+    Heartbeat heartbeat = 4;
+  }
+}
+
+message ServerMessage {
+  oneof payload {
+    Welcome welcome = 1;
+    DeltaBatch deltas = 2;
+    Ack ack = 3;
+    Heartbeat heartbeat = 4;
+    Error error = 5;
+  }
+}
+
+// --------------------------------------------------------------------
+// Handshake
+// --------------------------------------------------------------------
+
+message Hello {
+  string tenant_id = 1;
+  string vessel_id = 2;
+  string node_id = 3;
+  // Highest HLC the vessel has *applied* from each peer node.
+  // Server replays deltas with hlc > cursors[nodeId] for each peer.
+  map<string, string> cursors = 4;
+}
+
+message Welcome {
+  // Highest HLC the server has *received* from this vessel's node.
+  // Vessel replays deltas with hlc > cursors[nodeId] for each peer.
+  map<string, string> cursors = 1;
+  // Server-assigned correlation id useful for log triage.
+  string session_id = 2;
+}
+
+// --------------------------------------------------------------------
+// Data plane
+// --------------------------------------------------------------------
+
+enum SyncOperation {
+  SYNC_OPERATION_UNSPECIFIED = 0;
+  SYNC_OPERATION_UPSERT = 1;
+  SYNC_OPERATION_DELETE = 2;
+}
+
+message Delta {
+  string entity_type = 1;
+  string entity_id = 2;
+  SyncOperation operation = 3;
+  string hlc = 4; // encoded HLC string
+  string node_id = 5;
+  // JSON-encoded LwwRecord (per-field { value, hlc } map).
+  // Bytes (not string) so future protobuf-typed payloads are wire-compatible.
+  bytes payload = 6;
+}
+
+message DeltaBatch {
+  repeated Delta deltas = 1;
+}
+
+// Highest HLC successfully applied per peer node, after a DeltaBatch
+// was processed. Acks are advisory — recovery happens via cursor replay
+// on stream reconnect, not via per-message ack.
+message Ack {
+  map<string, string> applied_cursors = 1;
+}
+
+// --------------------------------------------------------------------
+// Liveness & errors
+// --------------------------------------------------------------------
+
 message Heartbeat {
   string node_id = 1;
   string hlc = 2;
   int64 sent_at_unix_ms = 3;
+}
+
+enum ErrorCode {
+  ERROR_CODE_UNSPECIFIED = 0;
+  ERROR_CODE_UNAUTHENTICATED = 1;
+  ERROR_CODE_TENANT_MISMATCH = 2;
+  ERROR_CODE_PROTOCOL = 3;
+  ERROR_CODE_INTERNAL = 4;
+}
+
+message Error {
+  ErrorCode code = 1;
+  string message = 2;
 }
