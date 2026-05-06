@@ -21,8 +21,10 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "proto:gen": "node scripts/proto-gen.mjs",
+    "gen:jwt-keys": "node scripts/gen-jwt-keys.mjs",
     "soak:sync": "tsx scripts/sync-soak-test.ts",
-    "ci:full": "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run format:check"
+    "typecheck:all": "pnpm run typecheck && pnpm -r --workspace-concurrency=1 run typecheck",
+    "ci:full": "pnpm run lint && pnpm run typecheck:all && pnpm run test && pnpm run format:check"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

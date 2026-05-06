@@ -4,11 +4,10 @@ import Database from 'better-sqlite3';
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DrizzleSyncAdapter } from './drizzle-sync-adapter.js';
 
-const MIGRATIONS_FOLDER = resolve(fileURLToPath(import.meta.url), '..', '..', '..', 'drizzle');
+const MIGRATIONS_FOLDER = resolve(__dirname, '..', '..', 'drizzle');
 
 function makeAdapter(): {
   adapter: DrizzleSyncAdapter;

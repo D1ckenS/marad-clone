@@ -7,6 +7,9 @@ node_modules/
 *.db-shm
 *.db-wal
 
+# JWT keypair material (per-environment; generate via scripts/gen-jwt-keys.mjs)
+keys/
+
 # Build outputs
 dist/
 build/

@@ -530,34 +530,33 @@ A task is done only if **all** are true:
 
 > Append a dated entry, most-recent first. Format: `### YYYY-MM-DD — <task> — <summary>` then bullets for PR/commit, files added/modified, departures from §11, verify, next.
 
-### 2026-05-06 — P0-9 — sync wire protocol — PR #8 (feat/p0-9-sync-wire)
+### 2026-05-06 — P0-10 — auth (RS256 JWT + OIDC scaffold) — PR #11 (feat/p0-10-auth)
 
-Bidi gRPC stream between shore and vessel; ADR `apps/docs/adr/0002-sync-wire-protocol.md` is the design source.
+Asymmetric trust model: shore signs with RSA private key, vessel verifies offline with cached public key.
 
-- `packages/proto/sync.proto` — `SyncService.Stream` bidi RPC; `Hello/Welcome/DeltaBatch/Ack/Heartbeat/Error`; cursor-based resume, batch acks, JSON-encoded LWW payloads in `Delta.payload` bytes. Codegen via `proto:gen`.
-- **Schema** — added `hlc` + `deletedAt` to `Tenant`/`Vessel`/`User` on both Prisma (shore) and Drizzle (vessel); new `outbox` + `sync_records` tables on each side (RLS on shore). Migrations: shore `20260505205702_add_sync_fields`, vessel `0001_concerned_william_stryker.sql`.
-- **`SyncAdapter` made async** — Prisma is async; engine.ts + InMemoryAdapter + tests + soak migrated.
-- **`packages/sync-engine/src/transport/`** — `transport.ts` (`SyncTransport`), `grpc-transport.ts` (`startSyncServer`, `GrpcSyncTransport`; @grpc/grpc-js + @grpc/proto-loader, runtime-load .proto), `smtp-transport.ts` (interface stub per ADR §6).
-- **DB adapters** — `apps/api-vessel/src/sync/drizzle-sync-adapter.ts` (raw SQL on better-sqlite3) + 6 unit tests; `apps/api-shore/src/sync/prisma-sync-adapter.ts` scoped per (tenant, vessel) + 5 e2e tests against real Postgres.
-- **NestJS modules** — `SyncModule` registered on both AppModules. Vessel exports `DrizzleSyncAdapter` singleton; shore exports a `PrismaSyncAdapterFactory` (one adapter per active vessel session per ADR §9). Transport boot intentionally deferred — see §16.
-- **Soak** — `scripts/sync-soak-test.ts` Phase 1 keeps the original P0-6 in-process scenario; new Phase 2 routes 200 writes/side over a real loopback gRPC stream, 0 diverged.
-- **Tooling** — Dart `protoc-gen-dart` v25.0.0 installed at `~\AppData\Local\Pub\Cache\bin\protoc-gen-dart.bat`. `shared-types` gains `rxjs` (ts-proto's `Observable` import). `api-shore` gains `ulidx` for tests.
+- `scripts/gen-jwt-keys.mjs` + `pnpm -w run gen:jwt-keys` — RS256 dev keypair into `keys/` (gitignored): `jwt-private.pem` (mode 600, shore only), `jwt-public.pem` (distributed to vessels).
+- **Shore** — `AuthModule` HS256→RS256; `AuthService.login` returns `{access_token, refresh_token, *_expires_in_ms}` (24 h access, 30 d refresh per §11). New `POST /auth/refresh` rotates. JWTs carry `tenantId/vesselId/role/type/jti`, `iss=marad-shore`.
+- **Vessel** — `AuthModule` loads public key only. New `POST /auth/verify-shore-token` validates offline with `algorithms:['RS256']`, `issuer:'marad-shore'`. Local password login retained as separate HS256 path (`VESSEL_LOCAL_JWT_SECRET`) so surfaces can't spoof each other.
+- **OIDC scaffold** — `OidcController` + `OidcService` at `GET /auth/oidc/login` and `POST /auth/oidc/callback`. Returns 503 when `OIDC_AUTHORITY/CLIENT_ID/CLIENT_SECRET/REDIRECT_URI` unset. Real Entra wiring deferred (Azure tenant needed); URL surface locked.
+- **Tests** — shore +8 e2e (issuance, claim shape, refresh, replay rejection, OIDC 503); vessel +6 e2e (valid, expired, refresh-as-access, wrong issuer, malformed, **HS256 algorithm-confusion attack rejected**).
+- **Latent fix** — `prisma-sync-adapter.ts` had a Prisma 7 nullable-JSON type error (needs `Prisma.JsonNull` not raw `null`) that root `tsc --noEmit` skipped because it only checks `packages/*`. Added `pnpm run typecheck:all` (root + every workspace) into `ci:full`.
 
-**New deps:** `@grpc/grpc-js@^1.14.3`, `@grpc/proto-loader@^0.8.0` on `sync-engine`; `rxjs@^7.8.2` on `shared-types`; `ulidx` on `api-shore`.
+**New deps (test-only):** `jsonwebtoken` + `@types/jsonwebtoken` on both apps. **Env vars:** `JWT_PRIVATE_KEY_PATH` (shore), `JWT_PUBLIC_KEY_PATH` (both), `JWT_ACCESS_TTL_MS`, `JWT_REFRESH_TTL_MS`, `VESSEL_LOCAL_JWT_SECRET`, `OIDC_*` (all optional in dev).
 
-**Verify:** sync-engine 54 ✓ (added 4 grpc-transport tests); api-vessel test 6 ✓ + test:e2e 8 ✓; api-shore test:e2e 12 ✓ (added 5 sync-adapter); `pnpm -w run ci:full` → 112 ✓; `pnpm -w run soak:sync` → both phases PASS, 0 diverged.
+**Verify:** shore test:e2e → 20 ✓; vessel test:e2e → 14 ✓; `pnpm -w run ci:full` → 112 ✓; soak both phases PASS.
 
-**Deferred (P0-9 follow-up):** auto-start of the gRPC server on api-shore boot and the gRPC client on api-vessel boot. Needs runtime config (server URL, JWT loading, backoff, heartbeat cadence) and real entity controllers that emit through `outbox`. The wire mechanics are proven; this is plumbing.
+**Deferred (P0-10 follow-up, §16):** real Microsoft Entra OIDC; cross-app live e2e — needs entity-through-outbox wiring (P0-9 follow-up).
 
 ---
 
-### 2026-05-05 — P0-6 / P0-7 / P0-8 (consolidated, all merged to main)
+### 2026-05-05 — P0-6 / P0-7 / P0-8 / P0-9 (consolidated, all merged to main)
 
 | Task | PR | Key output |
 |---|---|---|
-| P0-6 sync-engine package | PR #4 / `7e7dacd` | `packages/sync-engine/` (engine, in-memory adapter, outbox, LWW, PN-Counter); ADR 0001; `scripts/sync-soak-test.ts` (30-min sim, 1000 vessel + 1000 shore writes); `tsx@4.21.0`, `fast-check@4.7.0` to root |
-| P0-7 api-shore skeleton | PR #6 / `a2082b5` | NestJS 11 + Prisma 7 + Postgres 16 (Docker on **5433**); `Tenant/Vessel/User` schema with RLS via `app.current_tenant_id`; `withTenant()` wrapper; bcrypt 12-round users; 8h JWT; 7 e2e tests |
-| P0-8 api-vessel skeleton | PR #7 / `a3b5537` | NestJS + Drizzle + better-sqlite3; same surface as shore mirrored to SQLite; 8 e2e tests; `Role` as const-array type (no Prisma dep on vessel); `MIGRATIONS_DIR` for Electron; dual-mode `packages/domain` build (see §14 ESM/CJS pitfall) |
+| P0-6 sync-engine package | PR #4 / `7e7dacd` | `packages/sync-engine/` (engine, in-memory adapter, outbox, LWW, PN-Counter); ADR 0001; `scripts/sync-soak-test.ts` (30-min sim, 1000 vessel + 1000 shore writes); `tsx`, `fast-check` to root |
+| P0-7 api-shore skeleton | PR #6 / `a2082b5` | NestJS 11 + Prisma 7 + Postgres 16 (Docker on **5433**); `Tenant/Vessel/User` schema with RLS via `app.current_tenant_id`; `withTenant()` wrapper; bcrypt 12-round users; 7 e2e tests |
+| P0-8 api-vessel skeleton | PR #7 / `a3b5537` | NestJS + Drizzle + better-sqlite3; surface mirrored to SQLite; 8 e2e tests; `MIGRATIONS_DIR` for Electron; dual-mode `packages/domain` build (see §14 ESM/CJS pitfall) |
+| P0-9 sync wire protocol | PR #8 + #10 / `7acd1de` | Bidi gRPC stream (proto + ADR 0002); HLC/`outbox`/`sync_records` on both sides; async `SyncAdapter` with Prisma+Drizzle impls; `SyncGatewayService` + `SyncClientService` auto-boot when `SYNC_ENABLED=1` (backoff per ADR §5); soak Phase 2 over real loopback gRPC, 0 diverged |
 
 ---
 
@@ -585,12 +584,13 @@ Bidi gRPC stream between shore and vessel; ADR `apps/docs/adr/0002-sync-wire-pro
 
 > Single, unambiguous next task for any fresh Claude Code session.
 
-**Task: P0-10 — Auth (OIDC + offline JWT).** Spec: §11 → Phase 0 → P0-10. Shore auth via Microsoft Entra OIDC; vessel cached JWT (signed by shore) usable offline up to 30 days. Verify with end-to-end e2e: log in shore, sync to vessel, pull plug, log in on vessel, perform write, restore plug, sync up. Token rotation tested.
+**Phase 0 is complete.** Begin **Phase 1 — MVP onboard (Maintenance + Inventory + Purchase)**, starting with **P1-1: Maintenance schema**. Spec: §11 → Phase 1 → P1-1. Add the PMS entities (`Component`, `MasterComponent`, `Job`, `JobInstance`, `JobHistory`, `RunningHourReading`) on shore (Prisma) + vessel (Drizzle); make them sync-aware (`hlc`, `deletedAt`, plus tenant/vessel scoping per §7). New ADR not required unless a non-trivial choice surfaces.
 
-**Or, continue P0-9 follow-up** if the human wants the sync transport actually booting on app start before P0-10:
-- `apps/api-shore/src/sync/sync-gateway.service.ts` — boot `startSyncServer` on app init bound to `process.env.SYNC_GRPC_PORT`; route incoming streams to per-(tenant, vessel) `SyncEngine` instances using the `PrismaSyncAdapterFactory` already exported by `SyncModule`.
-- `apps/api-vessel/src/sync/sync-client.service.ts` — boot `GrpcSyncTransport` on app init pointed at `process.env.SHORE_SYNC_URL`, with reconnect backoff + heartbeat per ADR 0002 §5.
-- Wire any controller-driven write (e.g. `TenantController.create`) through the `SyncEngine.write` path so the outbox actually fills.
+**Outstanding follow-up tickets (do these whenever the human wants — not blocking Phase 1):**
+
+- **P0-9 follow-up: entity → outbox.** Wire one existing entity (e.g. `TenantController.create`) through `SyncEngine.write` so a real domain event hits the outbox and traverses the wire. Closes the "auto-boot transport but no data flows" gap.
+- **P0-10 follow-up: real OIDC.** Add `openid-client@5.x`, implement `OidcService.beginLogin`/`completeLogin` for Microsoft Entra. Needs an Azure tenant + app registration to test end-to-end.
+- **P0-10 follow-up: cross-app offline-token e2e.** Boot both NestJS apps (api-shore + api-vessel) in one test, login via shore, deliver the access token to vessel through the sync stream, verify on vessel offline, perform a write, sync back. Currently we test each side in isolation.
 
 
 ---

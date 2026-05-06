@@ -8,7 +8,7 @@ import {
   type SyncDelta,
   type SyncRecord,
 } from '@marad-clone/sync-engine';
-import type { PrismaClient } from '@prisma/client';
+import { Prisma, type PrismaClient } from '@prisma/client';
 
 /**
  * Prisma / Postgres implementation of SyncAdapter for the shore side.
@@ -35,7 +35,10 @@ export class PrismaSyncAdapter implements SyncAdapter {
         entityType: entry.entityType,
         entityId: entry.entityId,
         operation: entry.operation,
-        payload: entry.payload === null ? null : entry.payload,
+        payload:
+          entry.payload === null
+            ? Prisma.JsonNull
+            : (entry.payload as unknown as Prisma.InputJsonValue),
         hlc: entry.hlc,
         nodeId: entry.nodeId,
         sentAt: entry.sentAt === null ? null : new Date(entry.sentAt),
