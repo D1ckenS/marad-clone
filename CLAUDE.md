@@ -530,50 +530,45 @@ A task is done only if **all** are true:
 
 > Append a dated entry, most-recent first. Format: `### YYYY-MM-DD — <task> — <summary>` then bullets for PR/commit, files added/modified, departures from §11, verify, next.
 
-### 2026-05-06 — P1-1 — maintenance schema (PMS) — PR #12 (feat/p1-1-maintenance-schema)
+### 2026-05-12 — Phase 1 — P1-1 + P1-2 (Maintenance schema → API)
 
-- **Shore (Prisma)** — 6 models (`Component`, `MasterComponent`, `Job`, `JobInstance`, `JobHistory`, `RunningHourReading`) + 3 enums; self-FK on `Component.parentId`; `MasterComponent` is template (vessel-less, tenant-scoped). All sync-aware (`hlc/deletedAt`, tenant+vessel scope per §7). Migration `20260506173034_add_maintenance_schema` adds tables + RLS `*_tenant_isolation` policies + CHECK `jobs_interval_required_chk` (intervalDays OR intervalRunningHours) + **plpgsql trigger** `job_histories_immutable` (blocks business-column UPDATE; permits `deleted_at/hlc/updated_at` for soft-delete + HLC bumps).
-- **Vessel (Drizzle)** — same schema mirrored; migration `0002_chilly_lionheart.sql` adds equivalent **SQLite trigger** (`RAISE(ABORT, ...)`) + CHECK. `parent_id` left as soft FK (drizzle-kit doesn't emit self-FKs without `AnySQLiteColumn` typing — shore has the strict FK).
-- **Tests** — shore +6 e2e (round-trip with hierarchy, CHECK rejection, sign-off, trigger blocks business UPDATE, sync-meta UPDATE permitted, `pg_policies` present); vessel +4 e2e.
-- **New dep:** `ulidx@2.4.1` on api-vessel.
-- **Verify:** shore test:e2e → 26 ✓; vessel test:e2e → 18 ✓; `ci:full` → 120 ✓; soak both phases PASS.
+| Task | PR | Key output |
+|---|---|---|
+| P1-1 PMS schema | PR #12 | 6 models on both apps (Component/MasterComponent/Job/JobInstance/JobHistory/RunningHourReading) + 3 enums; sync-aware (`hlc/deletedAt`). Shore RLS `*_tenant_isolation` policies + CHECK `jobs_interval_required_chk` + plpgsql trigger `job_histories_immutable` (blocks business-column UPDATE; permits sync-meta). Vessel mirrors with SQLite `RAISE(ABORT)` trigger. `parent_id` is soft FK on vessel only (drizzle-kit self-FK limitation). +10 e2e |
+| P1-2a sync recorder | PR #13 | `HlcClockRegistry` + `OutboxRecorder` — tx-aware writer: mints HLC, appends outbox row, merges sync_records via per-field LWW inside the caller's tx. Shared HLC state between gateway/client and recorder so monotonicity holds across both paths. **Closes the P0-9 follow-up.** +12 e2e |
+| P1-2b shore CRUD + auth | PR #14 | `JwtAuthGuard` (RS256, `type=access`) + `@AuthCtx()` decorator + `requireVesselId` (403 for tenant-wide roles). AuthModule `@Global`. Migrated `/tenants/:tenantId/{vessels,users}` → `/{vessels,users}`. `POST /tenants` atomically creates tenant + initial `TENANT_ADMIN`. Six maintenance modules; Component/Job/JobInstance/RunningHourReading full CRUD via OutboxRecorder; MasterComponent shore-only; JobHistory read-only. RunningHourReading enforces monotonic value + bumps Component counter in same tx. +14 e2e |
+| P1-2c vessel CRUD + auth | PR #15 | Mirror on Drizzle/SQLite. Vessel guard accepts both shore RS256 AND vessel-local HS256 (`iss=marad-vessel`); local tokens now carry `vesselId`. MasterComponent + JobHistory read-only. Decimal comparison via `Number()` (SQLite TEXT storage) — revisit at P3. +13 e2e |
+| P1-2d sign-off + photos | PR #16 | `POST /job-instances/:id/sign-off` on both apps (multipart `photos[]` + form fields). `StorageService` wraps `@aws-sdk/client-s3` (`@Global` module; tests `.overrideProvider`). Flow: photos → S3 (orphans-on-failure OK), then atomic tx INSERT JobHistory + UPDATE JobInstance.status=DONE through OutboxRecorder. Vessel service deserializes TEXT-stored JSON cols so HTTP shape matches shore. +10 e2e |
+
+**New deps:** `@aws-sdk/client-s3@^3.1044` + `@types/multer` (both apps); `ulidx@2.4.1` on api-vessel. **Gaps tracked in §16 follow-ups.**
+
+**Verify (PR #16 tip):** shore test:e2e → 55 ✓; vessel test:e2e → 44 ✓; `pnpm -w run ci:full` → 120 ✓; soak both phases PASS.
 
 ---
 
-### 2026-05-06 — P0-10 — auth (RS256 JWT + OIDC scaffold) — PR #11 / `c4ef4d9`
-
-RS256 keypair (`scripts/gen-jwt-keys.mjs` → `keys/`, gitignored). Shore signs access (24 h) + refresh (30 d) + `POST /auth/refresh`; vessel offline-verifies via `POST /auth/verify-shore-token`. Tests reject **HS256 algorithm-confusion**, replay, wrong issuer, expired. Vessel-local password login kept on a separate HS256 path (`VESSEL_LOCAL_JWT_SECRET`). OIDC scaffold returns 503 until `OIDC_*` set — Entra wiring deferred (needs Azure tenant). Latent fix: `pnpm run typecheck:all` (root + every workspace) added to `ci:full` because root `tsc --noEmit` only checked `packages/*` and missed a Prisma 7 nullable-JSON error in `prisma-sync-adapter.ts`. New deps: `jsonwebtoken` + types. +14 e2e (shore +8, vessel +6).
-
----
-
-### 2026-05-05 — P0-6 / P0-7 / P0-8 / P0-9 (consolidated, all merged to main)
+### 2026-05-05 / 2026-05-06 — Phase 0 — P0-6 through P0-10 (consolidated, all merged to main)
 
 | Task | PR | Key output |
 |---|---|---|
 | P0-6 sync-engine package | PR #4 / `7e7dacd` | `packages/sync-engine/` (engine, in-memory adapter, outbox, LWW, PN-Counter); ADR 0001; `scripts/sync-soak-test.ts` (30-min sim, 1000 vessel + 1000 shore writes); `tsx`, `fast-check` to root |
-| P0-7 api-shore skeleton | PR #6 / `a2082b5` | NestJS 11 + Prisma 7 + Postgres 16 (Docker on **5433**); `Tenant/Vessel/User` schema with RLS via `app.current_tenant_id`; `withTenant()` wrapper; bcrypt 12-round users; 7 e2e tests |
-| P0-8 api-vessel skeleton | PR #7 / `a3b5537` | NestJS + Drizzle + better-sqlite3; surface mirrored to SQLite; 8 e2e tests; `MIGRATIONS_DIR` for Electron; dual-mode `packages/domain` build (see §14 ESM/CJS pitfall) |
-| P0-9 sync wire protocol | PR #8 + #10 / `7acd1de` | Bidi gRPC stream (proto + ADR 0002); HLC/`outbox`/`sync_records` on both sides; async `SyncAdapter` with Prisma+Drizzle impls; `SyncGatewayService` + `SyncClientService` auto-boot when `SYNC_ENABLED=1` (backoff per ADR §5); soak Phase 2 over real loopback gRPC, 0 diverged |
+| P0-7 api-shore skeleton | PR #6 / `a2082b5` | NestJS 11 + Prisma 7 + Postgres 16 (Docker on **5433**); `Tenant/Vessel/User` schema with RLS via `app.current_tenant_id`; `withTenant()` wrapper; bcrypt 12-round users |
+| P0-8 api-vessel skeleton | PR #7 / `a3b5537` | NestJS + Drizzle + better-sqlite3; surface mirrored to SQLite; `MIGRATIONS_DIR` for Electron; dual-mode `packages/domain` build (see §14 ESM/CJS pitfall) |
+| P0-9 sync wire protocol | PR #8 + #10 / `7acd1de` | Bidi gRPC stream (proto + ADR 0002); HLC/`outbox`/`sync_records` on both sides; async `SyncAdapter` with Prisma+Drizzle impls; `SyncGatewayService` + `SyncClientService` auto-boot when `SYNC_ENABLED=1`; soak Phase 2 over real loopback gRPC, 0 diverged |
+| P0-10 RS256 JWT + OIDC scaffold | PR #11 / `c4ef4d9` | RS256 keypair (`scripts/gen-jwt-keys.mjs` → `keys/`). Shore signs access (24 h) + refresh (30 d) + `/auth/refresh`; vessel offline-verifies via `/auth/verify-shore-token`. Tests reject **HS256 algorithm-confusion**, replay, wrong issuer, expired. Vessel-local password login on separate HS256 path. OIDC scaffold returns 503 until `OIDC_*` set. Added `typecheck:all` (root + every workspace) to `ci:full` since root `tsc --noEmit` was missing workspace errors |
 
 ---
 
-### 2026-05-01 — P0-1 through P0-5 (consolidated)
+### 2026-05-01 — Phase 0 — P0-1 through P0-5 (consolidated)
 
-| Task | Commit | Key output |
+| Task | PR / Commit | Key output |
 |---|---|---|
-| P0-1 Init monorepo | `d02edee` | `pnpm-workspace.yaml`, `turbo.json`, `.nvmrc` (24.15.0), `.gitattributes` |
-| P0-2 Tooling | `5381cdb` | `tsconfig.base.json`, `eslint.config.mjs` (flat config), `.prettierrc.json`, `vitest.config.ts` |
-| P0-3 CI | `a62635f`, `91c4015` | `.github/workflows/ci.yml`; branch ruleset id `15824020` on main |
+| P0-1 init monorepo | `d02edee` | `pnpm-workspace.yaml`, `turbo.json`, `.nvmrc`, `.gitattributes` |
+| P0-2 tooling baselines | `5381cdb` | `tsconfig.base.json`, `eslint.config.mjs` (flat), `.prettierrc.json`, `vitest.config.ts` |
+| P0-3 CI | `a62635f` + `91c4015` | `.github/workflows/ci.yml`; branch ruleset `15824020` on main |
 | P0-4 shared-types + proto | PR #2 / `b6d626f` | `packages/shared-types/`, `packages/proto/sync.proto`, `packages/flutter-shared/`, `scripts/proto-gen.mjs` |
-| P0-5 domain skeleton | PR #3 / `95d8240` | `packages/domain/` — `errors.ts`, `ids.ts` (ULID), `clock.ts` (HLC), `quantity.ts`; 52 tests, ≥95% coverage |
+| P0-5 domain skeleton | PR #3 / `95d8240` | `packages/domain/` — errors, ULID ids, HLC clock, quantity; 52 tests, ≥95% coverage; ESLint domain-purity rule blocks `node:fs/http/net/…` |
 
-**Local tooling (Windows):** Node 24.15.0, pnpm 10.33.2 standalone (NOT Corepack), gh 2.92.0, protoc 34.1, Dart SDK 3.11.5 standalone (Flutter deferred to P1-11), Docker Desktop.
-
-**Key pinned deps:** `typescript@5.9.3`, `eslint@10.2.1`, `typescript-eslint@8.59.1`, `vitest@4.1.5`, `ts-proto@2.11.6`, `ulidx@2.4.1`. ESLint domain-purity rule blocks `node:fs/http/net/…` in `packages/domain/src/**`.
-
-**Repo:** public on GitHub Free throughout development; flip private at Phase 4–5 pre-launch (see memory `project_repo_visibility.md`).
-
-**Verify:** `pnpm run ci:full` ✓; CI on PRs #1–#3 ✓; ruleset `enforcement: active` ✓.
+**Local tooling (Windows):** Node 24.15.0, pnpm 10.33.2 standalone (NOT Corepack), gh 2.92.0, protoc 34.1, Dart SDK 3.11.5 (Flutter deferred to P1-11), Docker Desktop. **Repo:** public on GitHub Free; flip private at Phase 4–5 pre-launch (memory `project_repo_visibility.md`).
 
 ---
 
@@ -581,13 +576,18 @@ RS256 keypair (`scripts/gen-jwt-keys.mjs` → `keys/`, gitignored). Shore signs 
 
 > Single, unambiguous next task for any fresh Claude Code session.
 
-**P1-1 is done.** Next: **P1-2 — Maintenance API**. CRUD endpoints (NestJS controllers + services + `class-validator` DTOs) for the six PMS entities on both apps, plus the **sign-off endpoint** that creates a `JobHistory` with multipart photo upload (→ MinIO/S3, store key in `JobHistory.photos`). The P1-1 DB trigger enforces immutability, so the service layer just inserts. Wire `tenantId/vesselId` from the JWT (P0-10), generate ULIDs server-side, set `hlc` via the existing `HLClock` from `packages/domain`. **The P0-9 follow-up below is now in scope** — creates/updates need to actually replicate.
+**P1-2 done (PRs #12–#16 merged).** Next: **P1-3 — Maintenance UI** (§11 Phase 1). Three frontend surfaces land together:
 
-**Outstanding follow-up tickets:**
+- `packages/ui-kit` — shared React + Tailwind components consumed by both web and Electron.
+- `apps/web-shore` — Vite + React SPA against shore API. Screens: login → Component browser → JobInstance list → sign-off modal with photo upload.
+- `apps/desktop-vessel` — Electron 30 + electron-builder shell embedding the same React bundle, with `api-vessel` as a child process. Stretch: MasterComponent browser.
 
-- **P0-9 follow-up: entity → outbox** (now blocking P1-2). Wire create/update through `SyncEngine.write` so domain events hit the outbox and traverse the wire. Closes the "auto-boot transport but no data flows" gap.
-- **P0-10 follow-up: real OIDC.** Add `openid-client@5.x`, implement `OidcService.beginLogin`/`completeLogin` for Microsoft Entra (needs an Azure tenant + app registration).
-- **P0-10 follow-up: cross-app offline-token e2e.** Boot both apps in one test, login via shore, deliver token to vessel through sync stream, verify offline, perform a write, sync back.
+**Outstanding follow-up tickets (deferred, not blocking P1-3):**
+
+- **P0-10 follow-up: real OIDC.** Add `openid-client@5.x`, implement `OidcService.beginLogin/completeLogin` for Microsoft Entra (needs Azure tenant + app registration).
+- **P0-10 follow-up: cross-app offline-token e2e.** Boot both apps in one test, login via shore, deliver token via sync, verify offline, write, sync back.
+- **P1-2 follow-up: photo-byte sync vessel↔shore.** Only S3 keys traverse the wire today; both sides need the same MinIO/S3 reachable. Deferred to P5.
+- **P1-2 follow-up: master library replication shore→vessel.** Vessel `master_components` is read-only and currently empty until a broadcast mechanism lands.
 
 
 ---

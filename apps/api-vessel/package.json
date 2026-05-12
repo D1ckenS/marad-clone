@@ -17,6 +17,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1044.0",
     "@marad-clone/domain": "workspace:*",
     "@marad-clone/shared-types": "workspace:*",
     "@nestjs/common": "11.1.19",
@@ -45,6 +46,7 @@
     "@types/bcrypt": "6.0.0",
     "@types/better-sqlite3": "7.6.13",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.1.0",
     "@types/passport-local": "1.0.38",
     "@types/supertest": "7.2.0",
     "drizzle-kit": "0.31.10",

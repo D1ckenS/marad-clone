@@ -2,10 +2,11 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { eq } from 'drizzle-orm';
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AppModule } from '../src/app.module';
 import { DrizzleService } from '../src/db/drizzle.service';
-import { outbox } from '../src/db/schema';
+import { jobHistories, outbox } from '../src/db/schema';
+import { StorageService } from '../src/storage/storage.service';
 
 let app: INestApplication;
 let drizzle: DrizzleService;
@@ -14,8 +15,20 @@ let chiefToken = '';
 let adminToken = '';
 const created = { tenantId: '', vesselId: '' };
 
+const uploadedPhotos: Array<{ originalname: string; size: number }> = [];
+const storageStub = {
+  putJobHistoryPhoto: vi.fn(async (ctx, idx, file) => {
+    uploadedPhotos.push({ originalname: file.originalname, size: file.buffer.length });
+    const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80);
+    return `${ctx.tenantId}/${ctx.vesselId}/job-history/${ctx.jobHistoryId}/photos/${idx}-${safeName}`;
+  }),
+};
+
 beforeAll(async () => {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(StorageService)
+    .useValue(storageStub)
+    .compile();
   app = moduleRef.createNestApplication();
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
@@ -216,6 +229,71 @@ describe('P1-2c — maintenance CRUD on vessel (vessel-bound writes)', () => {
   it('GET /job-histories — empty list for a vessel with no sign-offs yet', async () => {
     const res = await api().get('/api/v1/job-histories').set('Authorization', auth()).expect(200);
     expect(res.body).toHaveLength(0);
+  });
+
+  it('POST /job-instances/:id/sign-off — creates JobHistory + flips instance to DONE', async () => {
+    const res = await api()
+      .post(`/api/v1/job-instances/${instanceId}/sign-off`)
+      .set('Authorization', auth())
+      .field('hoursWorked', '3.0')
+      .field('notes', 'Cleaned strainer')
+      .field('signatureHash', 'sha256:vessel-test')
+      .field('partsConsumedJson', JSON.stringify([{ partId: 'p-vessel-1', qty: 2 }]))
+      .attach('photos', Buffer.from('vessel-jpeg-bytes-1'), 'before.jpg')
+      .attach('photos', Buffer.from('vessel-jpeg-bytes-2'), 'after.jpg')
+      .expect(201);
+
+    expect(res.body.jobInstanceId).toBe(instanceId);
+    expect(res.body.photos).toHaveLength(2);
+    expect(res.body.photos[0]).toContain(`${created.tenantId}/${created.vesselId}/job-history/`);
+    expect(res.body.partsConsumed).toEqual([{ partId: 'p-vessel-1', qty: 2 }]);
+
+    expect(storageStub.putJobHistoryPhoto).toHaveBeenCalledTimes(2);
+    expect(uploadedPhotos.map((p) => p.originalname)).toEqual(['before.jpg', 'after.jpg']);
+
+    const inst = await api()
+      .get(`/api/v1/job-instances/${instanceId}`)
+      .set('Authorization', auth())
+      .expect(200);
+    expect(inst.body.status).toBe('DONE');
+  });
+
+  it('GET /job-histories — list now returns the signed-off record (photos parsed)', async () => {
+    const res = await api().get('/api/v1/job-histories').set('Authorization', auth()).expect(200);
+    expect(res.body).toHaveLength(1);
+    expect(Array.isArray(res.body[0].photos)).toBe(true);
+    expect(res.body[0].notes).toBe('Cleaned strainer');
+  });
+
+  it('POST /job-instances/:id/sign-off — second sign-off on a DONE instance returns 409', async () => {
+    await api()
+      .post(`/api/v1/job-instances/${instanceId}/sign-off`)
+      .set('Authorization', auth())
+      .field('notes', 'Tampering attempt')
+      .expect(409);
+  });
+
+  it('POST /job-instances/:id/sign-off — without JWT returns 401', async () => {
+    await api()
+      .post(`/api/v1/job-instances/${instanceId}/sign-off`)
+      .field('notes', 'Anon')
+      .expect(401);
+  });
+
+  it('JobHistory immutability trigger blocks direct UPDATE of business columns', () => {
+    const row = drizzle.db
+      .select()
+      .from(jobHistories)
+      .where(eq(jobHistories.jobInstanceId, instanceId))
+      .get();
+    expect(row).toBeDefined();
+    expect(() =>
+      drizzle.db
+        .update(jobHistories)
+        .set({ notes: 'rewritten' })
+        .where(eq(jobHistories.id, row!.id))
+        .run(),
+    ).toThrow(/immutable/);
   });
 
   it('DELETE /components/:id — soft delete writes a delete-outbox row', async () => {

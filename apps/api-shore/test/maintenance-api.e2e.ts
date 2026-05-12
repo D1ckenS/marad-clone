@@ -2,10 +2,11 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import * as bcrypt from 'bcrypt';
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ulid } from 'ulidx';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { StorageService } from '../src/storage/storage.service';
 
 let app: INestApplication;
 let prisma: PrismaService;
@@ -19,8 +20,33 @@ const tenantWideAdminId = ulid();
 let chiefToken = '';
 let tenantWideToken = '';
 
+const uploadedPhotos: Array<{
+  ctx: { tenantId: string; vesselId: string; jobHistoryId: string };
+  idx: number;
+  originalname: string;
+  mimetype: string;
+  size: number;
+}> = [];
+
+const storageStub = {
+  putJobHistoryPhoto: vi.fn(async (ctx, idx, file) => {
+    uploadedPhotos.push({
+      ctx,
+      idx,
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      size: file.buffer.length,
+    });
+    const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80);
+    return `${ctx.tenantId}/${ctx.vesselId}/job-history/${ctx.jobHistoryId}/photos/${idx}-${safeName}`;
+  }),
+};
+
 beforeAll(async () => {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(StorageService)
+    .useValue(storageStub)
+    .compile();
   app = moduleRef.createNestApplication();
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
@@ -244,6 +270,74 @@ describe('P1-2b — maintenance CRUD on shore (vessel-bound writes)', () => {
     const res = await api().get('/api/v1/job-histories').set('Authorization', auth()).expect(200);
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body).toHaveLength(0);
+  });
+
+  it('POST /job-instances/:id/sign-off — creates JobHistory + flips instance to DONE', async () => {
+    const res = await api()
+      .post(`/api/v1/job-instances/${instanceId}/sign-off`)
+      .set('Authorization', auth())
+      .field('hoursWorked', '2.5')
+      .field('notes', 'Replaced impeller')
+      .field('signatureHash', 'sha256:deadbeef')
+      .field('partsConsumedJson', JSON.stringify([{ partId: 'p-1', qty: 1, unit: 'each' }]))
+      .attach('photos', Buffer.from('fake-jpeg-bytes-1'), 'before.jpg')
+      .attach('photos', Buffer.from('fake-jpeg-bytes-2'), 'after.jpg')
+      .expect(201);
+
+    expect(res.body.jobInstanceId).toBe(instanceId);
+    expect(res.body.completedByUserId).toBe(chiefId);
+    expect(res.body.hoursWorked).toBe('2.5');
+    expect(res.body.photos).toHaveLength(2);
+    expect(res.body.photos[0]).toContain(`${tenantId}/${vesselId}/job-history/`);
+    expect(res.body.partsConsumed).toEqual([{ partId: 'p-1', qty: 1, unit: 'each' }]);
+
+    // StorageService.putJobHistoryPhoto called twice with the expected files.
+    expect(storageStub.putJobHistoryPhoto).toHaveBeenCalledTimes(2);
+    expect(uploadedPhotos.map((p) => p.originalname)).toEqual(['before.jpg', 'after.jpg']);
+
+    // JobInstance flipped to DONE.
+    const inst = await api()
+      .get(`/api/v1/job-instances/${instanceId}`)
+      .set('Authorization', auth())
+      .expect(200);
+    expect(inst.body.status).toBe('DONE');
+
+    // Outbox carries both upserts (JobHistory + JobInstance status change).
+    const historyOutbox = await prisma.outbox.findFirst({
+      where: { tenantId, entityType: 'JobHistory', entityId: res.body.id as string },
+    });
+    expect(historyOutbox?.operation).toBe('upsert');
+  });
+
+  it('GET /job-histories — list now returns the signed-off record', async () => {
+    const res = await api().get('/api/v1/job-histories').set('Authorization', auth()).expect(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].notes).toBe('Replaced impeller');
+  });
+
+  it('POST /job-instances/:id/sign-off — second sign-off on a DONE instance returns 409', async () => {
+    await api()
+      .post(`/api/v1/job-instances/${instanceId}/sign-off`)
+      .set('Authorization', auth())
+      .field('notes', 'Tampering attempt')
+      .expect(409);
+  });
+
+  it('POST /job-instances/:id/sign-off — without JWT returns 401', async () => {
+    await api()
+      .post(`/api/v1/job-instances/${instanceId}/sign-off`)
+      .field('notes', 'Anon')
+      .expect(401);
+  });
+
+  it('JobHistory immutability trigger blocks direct UPDATE of business columns', async () => {
+    const row = await prisma.jobHistory.findFirst({
+      where: { tenantId, jobInstanceId: instanceId },
+    });
+    expect(row).not.toBeNull();
+    await expect(
+      prisma.jobHistory.update({ where: { id: row!.id }, data: { notes: 'rewritten' } }),
+    ).rejects.toThrow(/immutable/);
   });
 
   it('DELETE /components/:id — soft delete writes a delete-outbox row', async () => {

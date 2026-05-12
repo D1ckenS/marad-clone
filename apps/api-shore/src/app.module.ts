@@ -9,6 +9,7 @@ import { JobModule } from './job/job.module';
 import { MasterComponentModule } from './master-component/master-component.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RunningHourReadingModule } from './running-hour-reading/running-hour-reading.module';
+import { StorageModule } from './storage/storage.module';
 import { SyncModule } from './sync/sync.module';
 import { TenantModule } from './tenant/tenant.module';
 import { UserModule } from './user/user.module';
@@ -25,6 +26,7 @@ import { VesselModule } from './vessel/vessel.module';
     }),
     PrismaModule,
     SyncModule,
+    StorageModule,
     AuthModule,
     TenantModule,
     VesselModule,
