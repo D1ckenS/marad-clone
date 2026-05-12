@@ -14,6 +14,7 @@
     "build": "turbo run build",
     "dev:shore": "turbo run dev --filter=@fleetops/api-shore --filter=@fleetops/web-shore",
     "dev:vessel": "turbo run dev --filter=@fleetops/api-vessel --filter=@fleetops/web-shore",
+    "dev:desktop": "pnpm --filter @fleetops/desktop-vessel run dev",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
@@ -37,6 +38,7 @@
       "bcrypt",
       "better-sqlite3",
       "esbuild",
+      "electron",
       "prisma"
     ]
   },

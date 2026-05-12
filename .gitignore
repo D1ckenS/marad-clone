@@ -60,10 +60,10 @@ $RECYCLE.BIN/
 # **/.flutter-plugins-dependencies
 # **/build/
 
-# Electron build artefacts (uncomment in P0-8 / P1)
-# release/
-# *.exe
-# *.msi
-# *.dmg
-# *.AppImage
+# Electron build artefacts
+release/
+*.exe
+*.msi
+*.dmg
+*.AppImage
 .aider*

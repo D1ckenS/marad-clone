@@ -58,8 +58,8 @@ Pin to these versions. When you bump, update this section in the same commit.
 | Web bundler      | Vite                                                           | `5.x`                                                                  |
 | Web styling      | Tailwind CSS                                                   | `3.x`                                                                  |
 | Web table        | TanStack Table                                                 | `8.x`                                                                  |
-| Desktop shell    | Electron                                                       | `30.x`                                                                 |
-| Desktop builder  | electron-builder                                               | `24.x`                                                                 |
+| Desktop shell    | Electron                                                       | `30.x (30.5.1)`                                                        |
+| Desktop builder  | electron-builder                                               | `24.x (24.13.3)`                                                       |
 | Mobile           | Flutter                                                        | `3.22+` (Dart `3.11+`)                                                 |
 | ORM (shore)      | Prisma + `@prisma/client` + `@prisma/adapter-pg`               | `7.x (7.8.0)`                                                          |
 | ORM (vessel)     | Drizzle ORM + drizzle-kit + better-sqlite3                     | `drizzle-orm 0.45.2` / `drizzle-kit 0.31.10` / `better-sqlite3 12.9.0` |
@@ -111,7 +111,7 @@ FleetOps/
     api-shore/
     api-vessel/
     web-shore/
-    desktop-vessel/
+    desktop-vessel/          ← Electron 30 shell (P1-3b)
     mobile/
     docs/
 

@@ -8,6 +8,31 @@
 
 > Most-recent first. Format: `### YYYY-MM-DD — <task> — <summary>` then bullets.
 
+### 2026-05-12 — P1-3b — desktop-vessel Electron shell
+
+| Item                                           | Detail                                                                                                                                                                                                        |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/desktop-vessel/`                         | Electron 30 shell: `src/main/index.ts` (BrowserWindow + lifecycle), `child.ts` (spawns api-vessel via `ELECTRON_RUN_AS_NODE`), `server.ts` (local HTTP server: serves SPA + proxies `/api/*` to api-vessel)   |
+| Dev mode                                       | `!app.isPackaged` → loads Vite dev URL (`http://localhost:5173`); assumes api-vessel + web-shore running externally via `pnpm dev:vessel`                                                                     |
+| Prod mode                                      | Spawns api-vessel from `resources/api-vessel/dist/main.js`; creates local HTTP server on random port; BrowserWindow loads `http://127.0.0.1:<port>`                                                           |
+| electron-builder                               | `electron-builder.yml` — Windows NSIS + Linux AppImage + macOS DMG; bundles api-vessel dist + web-shore dist as extraResources                                                                                |
+| `electron@30.5.1` / `electron-builder@24.13.3` | Added to `apps/desktop-vessel/devDependencies`; `"electron"` added to root `pnpm.onlyBuiltDependencies`                                                                                                       |
+| `.gitignore`                                   | Uncommented `release/`, `*.exe`, `*.msi`, `*.dmg`, `*.AppImage`                                                                                                                                               |
+| Root scripts                                   | Added `dev:desktop`                                                                                                                                                                                           |
+| **Pre-existing fix**                           | `apps/web-shore`: react-router-dom v6 + TypeScript 5.9 JSX type incompatibility — fixed via `src/react-router-compat.d.ts` module augmentation + pinned `@types/react ~18.2.79` / `@types/react-dom ~18.2.25` |
+| CI                                             | `pnpm run ci:full` → 120 ✓ tests, lint clean, typecheck clean, format clean                                                                                                                                   |
+
+**Dev workflow:**
+
+1. Terminal 1: `pnpm run dev:vessel` (starts api-vessel on :3001 + web-shore Vite on :5173)
+2. Terminal 2: `pnpm run dev:desktop` (compiles TS + opens Electron window loading :5173)
+
+**Follow-ups (not blocking P1-4):**
+
+- `api-vessel`: add `app.enableShutdownHooks()` + WAL checkpoint `OnApplicationShutdown`
+- CI: add `ELECTRON_SKIP_BINARY_DOWNLOAD=1` env var to GitHub Actions if binary download causes CI slowness
+- Production packaging: api-vessel has deep NestJS deps — consider `pkg` or `node-sea` bundling
+
 ### 2026-05-12 — P1-3a — ui-kit + web-shore (commit `3a9ef1e`)
 
 | Item              | Detail                                                                                                    |
@@ -68,17 +93,13 @@
 
 > Single, unambiguous next task for any fresh Claude Code session. Update this immediately when a task completes.
 
-**P1-3a done (commit `3a9ef1e`).** Next: **P1-3b — desktop-vessel** — Electron 30 shell embedding the web-shore build + spawning `api-vessel` as a child process.
+**P1-3b done.** Next: **P1-4 — Running-hour scheduling logic** — interval-based job triggering with property-based tests (`fast-check`). Domain: `packages/domain` + pure `RunningHourScheduler` that opens `JobInstance` when `component.running_hours ≥ job.interval_hours`. API: `POST /running-hour-readings` already exists; scheduler hooks into the reading service. Tests cover boundary conditions, monotonicity, and fuzz scenarios.
 
-Three surfaces land together:
-
-- `packages/ui-kit` — shared React + Tailwind components (consumed by web + Electron).
-- `apps/web-shore` — Vite + React SPA against shore API. Screens: login → Component browser → JobInstance list → sign-off modal with photo upload.
-- `apps/desktop-vessel` — Electron 30 + electron-builder shell embedding the same React bundle, with `api-vessel` as a child process. Stretch: MasterComponent browser.
-
-**Outstanding follow-up tickets (deferred, not blocking P1-3):**
+**Outstanding follow-up tickets (deferred, not blocking P1-4):**
 
 - **P0-10 follow-up: real OIDC.** Add `openid-client@5.x`, implement `OidcService.beginLogin/completeLogin` for Microsoft Entra.
 - **P0-10 follow-up: cross-app offline-token e2e.** Boot both apps in one test, login via shore, deliver token via sync, verify offline, write, sync back.
 - **P1-2 follow-up: photo-byte sync vessel↔shore.** Only S3 keys traverse the wire today. Deferred to P5.
 - **P1-2 follow-up: master library replication shore→vessel.** Vessel `master_components` is read-only and empty until a broadcast mechanism lands.
+- **P1-3b follow-up: api-vessel WAL checkpoint.** Add `app.enableShutdownHooks()` + `OnApplicationShutdown` with `PRAGMA wal_checkpoint(TRUNCATE)`.
+- **P1-3b follow-up: CI Electron binary.** Add `ELECTRON_SKIP_BINARY_DOWNLOAD=1` to `.github/workflows/ci.yml` if binary download slows CI.

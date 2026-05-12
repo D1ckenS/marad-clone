@@ -1,0 +1,39 @@
+appId: com.fleetops.desktop-vessel
+productName: FleetOps
+copyright: Copyright © 2026 FleetOps
+
+directories:
+  output: release
+
+# Distribute compiled main-process files and package metadata.
+files:
+  - dist/**
+  - package.json
+
+# Bundle the api-vessel server and the built React SPA into the package's
+# extraResources directory so they are accessible at process.resourcesPath
+# at runtime.
+extraResources:
+  - from: '../api-vessel/dist'
+    to: api-vessel/dist
+    filter:
+      - '**/*.js'
+      - '**/*.json'
+  - from: '../web-shore/dist'
+    to: renderer
+
+win:
+  target: nsis
+  requestedExecutionLevel: asInvoker
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+
+linux:
+  target: AppImage
+  category: Utility
+
+mac:
+  target: dmg
+  category: public.app-category.utilities
