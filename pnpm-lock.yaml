@@ -217,6 +217,9 @@ importers:
       rxjs:
         specifier: 7.8.2
         version: 7.8.2
+      ulidx:
+        specifier: 2.4.1
+        version: 2.4.1
     devDependencies:
       '@nestjs/cli':
         specifier: 11.0.21

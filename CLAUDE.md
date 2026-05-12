@@ -530,22 +530,19 @@ A task is done only if **all** are true:
 
 > Append a dated entry, most-recent first. Format: `### YYYY-MM-DD — <task> — <summary>` then bullets for PR/commit, files added/modified, departures from §11, verify, next.
 
-### 2026-05-06 — P0-10 — auth (RS256 JWT + OIDC scaffold) — PR #11 (feat/p0-10-auth)
+### 2026-05-06 — P1-1 — maintenance schema (PMS) — PR #12 (feat/p1-1-maintenance-schema)
 
-Asymmetric trust model: shore signs with RSA private key, vessel verifies offline with cached public key.
+- **Shore (Prisma)** — 6 models (`Component`, `MasterComponent`, `Job`, `JobInstance`, `JobHistory`, `RunningHourReading`) + 3 enums; self-FK on `Component.parentId`; `MasterComponent` is template (vessel-less, tenant-scoped). All sync-aware (`hlc/deletedAt`, tenant+vessel scope per §7). Migration `20260506173034_add_maintenance_schema` adds tables + RLS `*_tenant_isolation` policies + CHECK `jobs_interval_required_chk` (intervalDays OR intervalRunningHours) + **plpgsql trigger** `job_histories_immutable` (blocks business-column UPDATE; permits `deleted_at/hlc/updated_at` for soft-delete + HLC bumps).
+- **Vessel (Drizzle)** — same schema mirrored; migration `0002_chilly_lionheart.sql` adds equivalent **SQLite trigger** (`RAISE(ABORT, ...)`) + CHECK. `parent_id` left as soft FK (drizzle-kit doesn't emit self-FKs without `AnySQLiteColumn` typing — shore has the strict FK).
+- **Tests** — shore +6 e2e (round-trip with hierarchy, CHECK rejection, sign-off, trigger blocks business UPDATE, sync-meta UPDATE permitted, `pg_policies` present); vessel +4 e2e.
+- **New dep:** `ulidx@2.4.1` on api-vessel.
+- **Verify:** shore test:e2e → 26 ✓; vessel test:e2e → 18 ✓; `ci:full` → 120 ✓; soak both phases PASS.
 
-- `scripts/gen-jwt-keys.mjs` + `pnpm -w run gen:jwt-keys` — RS256 dev keypair into `keys/` (gitignored): `jwt-private.pem` (mode 600, shore only), `jwt-public.pem` (distributed to vessels).
-- **Shore** — `AuthModule` HS256→RS256; `AuthService.login` returns `{access_token, refresh_token, *_expires_in_ms}` (24 h access, 30 d refresh per §11). New `POST /auth/refresh` rotates. JWTs carry `tenantId/vesselId/role/type/jti`, `iss=marad-shore`.
-- **Vessel** — `AuthModule` loads public key only. New `POST /auth/verify-shore-token` validates offline with `algorithms:['RS256']`, `issuer:'marad-shore'`. Local password login retained as separate HS256 path (`VESSEL_LOCAL_JWT_SECRET`) so surfaces can't spoof each other.
-- **OIDC scaffold** — `OidcController` + `OidcService` at `GET /auth/oidc/login` and `POST /auth/oidc/callback`. Returns 503 when `OIDC_AUTHORITY/CLIENT_ID/CLIENT_SECRET/REDIRECT_URI` unset. Real Entra wiring deferred (Azure tenant needed); URL surface locked.
-- **Tests** — shore +8 e2e (issuance, claim shape, refresh, replay rejection, OIDC 503); vessel +6 e2e (valid, expired, refresh-as-access, wrong issuer, malformed, **HS256 algorithm-confusion attack rejected**).
-- **Latent fix** — `prisma-sync-adapter.ts` had a Prisma 7 nullable-JSON type error (needs `Prisma.JsonNull` not raw `null`) that root `tsc --noEmit` skipped because it only checks `packages/*`. Added `pnpm run typecheck:all` (root + every workspace) into `ci:full`.
+---
 
-**New deps (test-only):** `jsonwebtoken` + `@types/jsonwebtoken` on both apps. **Env vars:** `JWT_PRIVATE_KEY_PATH` (shore), `JWT_PUBLIC_KEY_PATH` (both), `JWT_ACCESS_TTL_MS`, `JWT_REFRESH_TTL_MS`, `VESSEL_LOCAL_JWT_SECRET`, `OIDC_*` (all optional in dev).
+### 2026-05-06 — P0-10 — auth (RS256 JWT + OIDC scaffold) — PR #11 / `c4ef4d9`
 
-**Verify:** shore test:e2e → 20 ✓; vessel test:e2e → 14 ✓; `pnpm -w run ci:full` → 112 ✓; soak both phases PASS.
-
-**Deferred (P0-10 follow-up, §16):** real Microsoft Entra OIDC; cross-app live e2e — needs entity-through-outbox wiring (P0-9 follow-up).
+RS256 keypair (`scripts/gen-jwt-keys.mjs` → `keys/`, gitignored). Shore signs access (24 h) + refresh (30 d) + `POST /auth/refresh`; vessel offline-verifies via `POST /auth/verify-shore-token`. Tests reject **HS256 algorithm-confusion**, replay, wrong issuer, expired. Vessel-local password login kept on a separate HS256 path (`VESSEL_LOCAL_JWT_SECRET`). OIDC scaffold returns 503 until `OIDC_*` set — Entra wiring deferred (needs Azure tenant). Latent fix: `pnpm run typecheck:all` (root + every workspace) added to `ci:full` because root `tsc --noEmit` only checked `packages/*` and missed a Prisma 7 nullable-JSON error in `prisma-sync-adapter.ts`. New deps: `jsonwebtoken` + types. +14 e2e (shore +8, vessel +6).
 
 ---
 
@@ -584,13 +581,13 @@ Asymmetric trust model: shore signs with RSA private key, vessel verifies offlin
 
 > Single, unambiguous next task for any fresh Claude Code session.
 
-**Phase 0 is complete.** Begin **Phase 1 — MVP onboard (Maintenance + Inventory + Purchase)**, starting with **P1-1: Maintenance schema**. Spec: §11 → Phase 1 → P1-1. Add the PMS entities (`Component`, `MasterComponent`, `Job`, `JobInstance`, `JobHistory`, `RunningHourReading`) on shore (Prisma) + vessel (Drizzle); make them sync-aware (`hlc`, `deletedAt`, plus tenant/vessel scoping per §7). New ADR not required unless a non-trivial choice surfaces.
+**P1-1 is done.** Next: **P1-2 — Maintenance API**. CRUD endpoints (NestJS controllers + services + `class-validator` DTOs) for the six PMS entities on both apps, plus the **sign-off endpoint** that creates a `JobHistory` with multipart photo upload (→ MinIO/S3, store key in `JobHistory.photos`). The P1-1 DB trigger enforces immutability, so the service layer just inserts. Wire `tenantId/vesselId` from the JWT (P0-10), generate ULIDs server-side, set `hlc` via the existing `HLClock` from `packages/domain`. **The P0-9 follow-up below is now in scope** — creates/updates need to actually replicate.
 
-**Outstanding follow-up tickets (do these whenever the human wants — not blocking Phase 1):**
+**Outstanding follow-up tickets:**
 
-- **P0-9 follow-up: entity → outbox.** Wire one existing entity (e.g. `TenantController.create`) through `SyncEngine.write` so a real domain event hits the outbox and traverses the wire. Closes the "auto-boot transport but no data flows" gap.
-- **P0-10 follow-up: real OIDC.** Add `openid-client@5.x`, implement `OidcService.beginLogin`/`completeLogin` for Microsoft Entra. Needs an Azure tenant + app registration to test end-to-end.
-- **P0-10 follow-up: cross-app offline-token e2e.** Boot both NestJS apps (api-shore + api-vessel) in one test, login via shore, deliver the access token to vessel through the sync stream, verify on vessel offline, perform a write, sync back. Currently we test each side in isolation.
+- **P0-9 follow-up: entity → outbox** (now blocking P1-2). Wire create/update through `SyncEngine.write` so domain events hit the outbox and traverse the wire. Closes the "auto-boot transport but no data flows" gap.
+- **P0-10 follow-up: real OIDC.** Add `openid-client@5.x`, implement `OidcService.beginLogin`/`completeLogin` for Microsoft Entra (needs an Azure tenant + app registration).
+- **P0-10 follow-up: cross-app offline-token e2e.** Boot both apps in one test, login via shore, deliver token to vessel through sync stream, verify offline, perform a write, sync back.
 
 
 ---

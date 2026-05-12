@@ -15,6 +15,13 @@
       "when": 1778014596831,
       "tag": "0001_concerned_william_stryker",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1778088814258,
+      "tag": "0002_chilly_lionheart",
+      "breakpoints": true
     }
   ]
 }

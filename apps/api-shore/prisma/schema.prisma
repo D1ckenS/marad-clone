@@ -18,6 +18,26 @@ enum Role {
   CREW
 }
 
+enum JobInstanceStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+  SKIPPED
+}
+
+enum JobPriority {
+  LOW
+  NORMAL
+  HIGH
+  CRITICAL
+}
+
+enum RunningHourSource {
+  MANUAL
+  API
+  PLC
+}
+
 // ── Tenant ───────────────────────────────────────────────────────────────────
 // Root aggregate. Not sync-aware (shore-only master record).
 
@@ -29,8 +49,14 @@ model Tenant {
   hlc       String?
   deletedAt DateTime? @map("deleted_at")
 
-  vessels Vessel[]
-  users   User[]
+  vessels             Vessel[]
+  users               User[]
+  masterComponents    MasterComponent[]
+  components          Component[]
+  jobs                Job[]
+  jobInstances        JobInstance[]
+  jobHistories        JobHistory[]
+  runningHourReadings RunningHourReading[]
 
   @@map("tenants")
 }
@@ -48,8 +74,13 @@ model Vessel {
   hlc       String?
   deletedAt DateTime? @map("deleted_at")
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-  users  User[]
+  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  users               User[]
+  components          Component[]
+  jobs                Job[]
+  jobInstances        JobInstance[]
+  jobHistories        JobHistory[]
+  runningHourReadings RunningHourReading[]
 
   @@map("vessels")
 }
@@ -74,6 +105,191 @@ model User {
 
   @@unique([tenantId, email])
   @@map("users")
+}
+
+// ── MasterComponent (component template, tenant-scoped, vessel-less) ─────────
+// Sharable library entry. Cloning into a Vessel produces a Component whose
+// masterId points back here. Later updates may cascade — wired in P1-2.
+
+model MasterComponent {
+  id          String  @id
+  tenantId    String  @map("tenant_id")
+  name        String
+  description String?
+  sfi         String?
+  category    String?
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  hlc       String?
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  components Component[]
+
+  @@index([tenantId])
+  @@map("master_components")
+}
+
+// ── Component (real onboard equipment) ───────────────────────────────────────
+// Hierarchical via parentId self-FK. Carries running-hours counter that drives
+// interval-based JobInstance scheduling.
+
+model Component {
+  id           String  @id
+  tenantId     String  @map("tenant_id")
+  vesselId     String  @map("vessel_id")
+  parentId     String? @map("parent_id")
+  masterId     String? @map("master_id")
+  name         String
+  description  String?
+  sfi          String?
+  runningHours Decimal @default(0) @map("running_hours") @db.Decimal(12, 2)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  hlc       String?
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  vessel              Vessel               @relation(fields: [vesselId], references: [id])
+  parent              Component?           @relation("ComponentHierarchy", fields: [parentId], references: [id])
+  children            Component[]          @relation("ComponentHierarchy")
+  master              MasterComponent?     @relation(fields: [masterId], references: [id])
+  jobs                Job[]
+  jobInstances        JobInstance[]
+  jobHistories        JobHistory[]
+  runningHourReadings RunningHourReading[]
+
+  @@index([tenantId, vesselId])
+  @@index([tenantId, vesselId, parentId])
+  @@map("components")
+}
+
+// ── Job (maintenance template attached to a Component) ───────────────────────
+// Either intervalDays or intervalRunningHours (or both) must be set; the
+// scheduler derives the next JobInstance from whichever fires first. The
+// not-both-null check is enforced via DB CHECK constraint in the migration.
+
+model Job {
+  id                   String      @id
+  tenantId             String      @map("tenant_id")
+  vesselId             String      @map("vessel_id")
+  componentId          String      @map("component_id")
+  title                String
+  description          String?
+  intervalDays         Int?        @map("interval_days")
+  intervalRunningHours Decimal?    @map("interval_running_hours") @db.Decimal(12, 2)
+  estimatedHours       Decimal?    @map("estimated_hours") @db.Decimal(8, 2)
+  priority             JobPriority @default(NORMAL)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  hlc       String?
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant    Tenant        @relation(fields: [tenantId], references: [id])
+  vessel    Vessel        @relation(fields: [vesselId], references: [id])
+  component Component     @relation(fields: [componentId], references: [id])
+  instances JobInstance[]
+  histories JobHistory[]
+
+  @@index([tenantId, vesselId, componentId])
+  @@map("jobs")
+}
+
+// ── JobInstance (a scheduled occurrence of a Job) ────────────────────────────
+// Lifecycle: PENDING → IN_PROGRESS → DONE | SKIPPED. Sign-off creates the
+// matching JobHistory row.
+
+model JobInstance {
+  id                String            @id
+  tenantId          String            @map("tenant_id")
+  vesselId          String            @map("vessel_id")
+  jobId             String            @map("job_id")
+  componentId       String            @map("component_id")
+  status            JobInstanceStatus @default(PENDING)
+  dueAt             DateTime?         @map("due_at")
+  dueAtRunningHours Decimal?          @map("due_at_running_hours") @db.Decimal(12, 2)
+  assignedToUserId  String?           @map("assigned_to_user_id")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  hlc       String?
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant    Tenant       @relation(fields: [tenantId], references: [id])
+  vessel    Vessel       @relation(fields: [vesselId], references: [id])
+  job       Job          @relation(fields: [jobId], references: [id])
+  component Component    @relation(fields: [componentId], references: [id])
+  histories JobHistory[]
+
+  @@index([tenantId, vesselId, status, dueAt])
+  @@index([tenantId, vesselId, componentId])
+  @@map("job_instances")
+}
+
+// ── JobHistory (signed-off, immutable record) ────────────────────────────────
+// §9.1: closed records are immutable in the DB. The migration installs a
+// BEFORE UPDATE trigger that aborts when any business column would change;
+// only sync metadata (deletedAt, hlc, updatedAt) may be written after insert.
+
+model JobHistory {
+  id                String   @id
+  tenantId          String   @map("tenant_id")
+  vesselId          String   @map("vessel_id")
+  jobInstanceId     String   @map("job_instance_id")
+  jobId             String   @map("job_id")
+  componentId       String   @map("component_id")
+  completedAt       DateTime @map("completed_at")
+  completedByUserId String   @map("completed_by_user_id")
+  hoursWorked       Decimal? @map("hours_worked") @db.Decimal(8, 2)
+  notes             String?
+  signatureHash     String?  @map("signature_hash")
+  partsConsumed     Json?    @map("parts_consumed")
+  photos            Json?
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  hlc       String?
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  vessel      Vessel      @relation(fields: [vesselId], references: [id])
+  jobInstance JobInstance @relation(fields: [jobInstanceId], references: [id])
+  job         Job         @relation(fields: [jobId], references: [id])
+  component   Component   @relation(fields: [componentId], references: [id])
+
+  @@index([tenantId, vesselId, completedAt])
+  @@index([tenantId, vesselId, jobInstanceId])
+  @@map("job_histories")
+}
+
+// ── RunningHourReading ───────────────────────────────────────────────────────
+// Append-only feed of running-hour values per Component. Consumed by the
+// scheduler to fire RH-interval Jobs.
+
+model RunningHourReading {
+  id               String            @id
+  tenantId         String            @map("tenant_id")
+  vesselId         String            @map("vessel_id")
+  componentId      String            @map("component_id")
+  value            Decimal           @db.Decimal(12, 2)
+  source           RunningHourSource
+  recordedAt       DateTime          @map("recorded_at")
+  recordedByUserId String?           @map("recorded_by_user_id")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  hlc       String?
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  vessel    Vessel    @relation(fields: [vesselId], references: [id])
+  component Component @relation(fields: [componentId], references: [id])
+
+  @@index([tenantId, vesselId, componentId, recordedAt])
+  @@map("running_hour_readings")
 }
 
 // ── Sync engine tables ───────────────────────────────────────────────────────
