@@ -1,23 +1,30 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
-import { VesselService } from './vessel.service';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { AuthCtx } from '../auth/auth-ctx.decorator';
+import type { AuthContext } from '../auth/auth-context';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateVesselDto } from './dto/create-vessel.dto';
+import { VesselService } from './vessel.service';
 
-@Controller('tenants/:tenantId/vessels')
+/**
+ * Vessel-side `/vessels`. Authenticated; tenantId from JWT.
+ */
+@Controller('vessels')
+@UseGuards(JwtAuthGuard)
 export class VesselController {
   constructor(private readonly vessels: VesselService) {}
 
   @Post()
-  create(@Param('tenantId') tenantId: string, @Body() dto: CreateVesselDto) {
-    return this.vessels.create(tenantId, dto);
+  create(@AuthCtx() auth: AuthContext, @Body() dto: CreateVesselDto) {
+    return this.vessels.create(auth.tenantId, dto);
   }
 
   @Get()
-  findAll(@Param('tenantId') tenantId: string) {
-    return this.vessels.findByTenant(tenantId);
+  findAll(@AuthCtx() auth: AuthContext) {
+    return this.vessels.findByTenant(auth.tenantId);
   }
 
   @Get(':id')
-  findOne(@Param('tenantId') tenantId: string, @Param('id') id: string) {
-    return this.vessels.findById(tenantId, id);
+  findOne(@AuthCtx() auth: AuthContext, @Param('id') id: string) {
+    return this.vessels.findById(auth.tenantId, id);
   }
 }

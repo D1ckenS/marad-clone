@@ -1,18 +1,24 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
-import { TenantService } from './tenant.service';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { AuthCtx } from '../auth/auth-ctx.decorator';
+import type { AuthContext } from '../auth/auth-context';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateTenantDto } from './dto/create-tenant.dto';
+import { TenantService } from './tenant.service';
 
 @Controller('tenants')
 export class TenantController {
   constructor(private readonly tenants: TenantService) {}
 
+  /** Bootstrap path — open. Creates tenant + initial TENANT_ADMIN. */
   @Post()
   create(@Body() dto: CreateTenantDto) {
     return this.tenants.create(dto);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.tenants.findById(id);
+  /** Self-lookup: returns the tenant the JWT belongs to. */
+  @Get('self')
+  @UseGuards(JwtAuthGuard)
+  self(@AuthCtx() auth: AuthContext) {
+    return this.tenants.findById(auth.tenantId);
   }
 }

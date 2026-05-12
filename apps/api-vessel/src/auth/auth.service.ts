@@ -78,6 +78,7 @@ export class AuthService {
       {
         sub: user.id,
         tenantId: user.tenantId,
+        ...(user.vesselId !== null && user.vesselId !== undefined && { vesselId: user.vesselId }),
         email: user.email,
         role: user.role,
         type: 'vessel-local',

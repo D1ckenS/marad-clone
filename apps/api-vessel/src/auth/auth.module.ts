@@ -1,10 +1,11 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { UserModule } from '../user/user.module';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
 /**
  * Vessel-side JWT module.
@@ -28,6 +29,7 @@ function loadPublicKey(): string {
   return readFileSync(resolve(process.cwd(), p), 'utf-8');
 }
 
+@Global()
 @Module({
   imports: [
     UserModule,
@@ -45,8 +47,8 @@ function loadPublicKey(): string {
       }),
     }),
   ],
-  providers: [AuthService],
+  providers: [AuthService, JwtAuthGuard],
   controllers: [AuthController],
-  exports: [AuthService],
+  exports: [AuthService, JwtAuthGuard, JwtModule],
 })
 export class AuthModule {}
