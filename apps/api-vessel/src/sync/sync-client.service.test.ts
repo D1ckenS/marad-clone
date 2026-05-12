@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DrizzleSyncAdapter } from './drizzle-sync-adapter';
+import { HlcClockRegistry } from './hlc-clock-registry';
 import { SyncClientService } from './sync-client.service';
 
 const PROTO_PATH = resolve(__dirname, '..', '..', '..', '..', 'packages', 'proto', 'sync.proto');
@@ -50,7 +51,11 @@ describe('SyncClientService', () => {
     adapter: FakeAdapter;
   }> {
     const module = await Test.createTestingModule({
-      providers: [SyncClientService, { provide: DrizzleSyncAdapter, useValue: adapter }],
+      providers: [
+        SyncClientService,
+        HlcClockRegistry,
+        { provide: DrizzleSyncAdapter, useValue: adapter },
+      ],
     }).compile();
     return { svc: module.get(SyncClientService), adapter };
   }

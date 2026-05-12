@@ -1,4 +1,3 @@
-import { HlcClock } from '@marad-clone/domain';
 import { SyncEngine, startSyncServer, type SyncDelta } from '@marad-clone/sync-engine';
 import {
   Inject,
@@ -8,6 +7,7 @@ import {
   OnApplicationShutdown,
 } from '@nestjs/common';
 import { resolve } from 'node:path';
+import { HlcClockRegistry } from './hlc-clock-registry';
 import { PRISMA_SYNC_ADAPTER_FACTORY, type PrismaSyncAdapterFactory } from './sync.tokens';
 
 const PROTO_PATH_DEFAULT = resolve(
@@ -41,6 +41,7 @@ export class SyncGatewayService implements OnApplicationBootstrap, OnApplication
   constructor(
     @Inject(PRISMA_SYNC_ADAPTER_FACTORY)
     private readonly adapterFactory: PrismaSyncAdapterFactory,
+    private readonly clocks: HlcClockRegistry,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -58,8 +59,7 @@ export class SyncGatewayService implements OnApplicationBootstrap, OnApplication
         let engine = this.engines.get(key);
         if (engine === undefined) {
           const adapter = this.adapterFactory(hello.tenantId, hello.vesselId);
-          const nodeId = `${hello.tenantId}-shore`;
-          const clock = new HlcClock({ nodeId, now: () => Date.now() });
+          const { clock, nodeId } = this.clocks.entryFor(hello.tenantId, hello.vesselId);
           engine = new SyncEngine(adapter, clock, nodeId);
           this.engines.set(key, engine);
         }

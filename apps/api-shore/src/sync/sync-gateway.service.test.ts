@@ -2,6 +2,7 @@ import { GrpcSyncTransport, type SyncDelta } from '@marad-clone/sync-engine';
 import { Test } from '@nestjs/testing';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { HlcClockRegistry } from './hlc-clock-registry';
 import { PrismaSyncAdapter } from './prisma-sync-adapter';
 import { SyncGatewayService } from './sync-gateway.service';
 import { PRISMA_SYNC_ADAPTER_FACTORY, type PrismaSyncAdapterFactory } from './sync.tokens';
@@ -46,7 +47,11 @@ describe('SyncGatewayService', () => {
     const factory: PrismaSyncAdapterFactory = (_t, _v) =>
       new FakeAdapter() as unknown as PrismaSyncAdapter;
     const module = await Test.createTestingModule({
-      providers: [SyncGatewayService, { provide: PRISMA_SYNC_ADAPTER_FACTORY, useValue: factory }],
+      providers: [
+        SyncGatewayService,
+        HlcClockRegistry,
+        { provide: PRISMA_SYNC_ADAPTER_FACTORY, useValue: factory },
+      ],
     }).compile();
     return module.get(SyncGatewayService);
   }

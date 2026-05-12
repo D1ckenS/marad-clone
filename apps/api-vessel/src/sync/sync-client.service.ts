@@ -1,8 +1,8 @@
-import { HlcClock } from '@marad-clone/domain';
 import { GrpcSyncTransport, SyncEngine, type SyncDelta } from '@marad-clone/sync-engine';
 import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { resolve } from 'node:path';
 import { DrizzleSyncAdapter } from './drizzle-sync-adapter';
+import { HlcClockRegistry } from './hlc-clock-registry';
 
 const PROTO_PATH_DEFAULT = resolve(
   __dirname,
@@ -42,7 +42,10 @@ export class SyncClientService implements OnApplicationBootstrap, OnApplicationS
   private drainTimer: NodeJS.Timeout | null = null;
   private stopping = false;
 
-  constructor(private readonly adapter: DrizzleSyncAdapter) {}
+  constructor(
+    private readonly adapter: DrizzleSyncAdapter,
+    private readonly clocks: HlcClockRegistry,
+  ) {}
 
   async onApplicationBootstrap(): Promise<void> {
     if (process.env['SYNC_ENABLED'] !== '1') {
@@ -56,8 +59,7 @@ export class SyncClientService implements OnApplicationBootstrap, OnApplicationS
       this.log.error('SYNC_TENANT_ID or SYNC_VESSEL_ID missing — sync disabled');
       return;
     }
-    const nodeId = process.env['SYNC_NODE_ID'] ?? `${vesselId}-vessel`;
-    const clock = new HlcClock({ nodeId, now: () => Date.now() });
+    const { clock, nodeId } = this.clocks.entryFor(tenantId, vesselId);
     this.engine = new SyncEngine(this.adapter, clock, nodeId);
 
     void this.connectLoop({ tenantId, vesselId, nodeId });
