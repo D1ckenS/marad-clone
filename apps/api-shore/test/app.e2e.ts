@@ -5,13 +5,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 
-// ── app bootstrap ─────────────────────────────────────────────────────────────
-
 let app: INestApplication;
 let prisma: PrismaService;
 
-// IDs collected during the test so afterAll can clean up.
-const created = { tenantId: '', vesselId: '', userId: '' };
+// Captured during setup so afterAll can clean up.
+const created = { tenantId: '', adminUserId: '', vesselId: '', chiefUserId: '' };
+let adminToken = '';
+let chiefToken = '';
 
 beforeAll(async () => {
   const moduleRef = await Test.createTestingModule({
@@ -27,9 +27,10 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  // Clean up in FK order: users → vessels → tenant.
-  // The marad user is the table owner so it bypasses RLS — no withTenant needed.
-  if (created.userId) await prisma.user.delete({ where: { id: created.userId } }).catch(() => null);
+  if (created.chiefUserId)
+    await prisma.user.delete({ where: { id: created.chiefUserId } }).catch(() => null);
+  if (created.adminUserId)
+    await prisma.user.delete({ where: { id: created.adminUserId } }).catch(() => null);
   if (created.vesselId)
     await prisma.vessel.delete({ where: { id: created.vesselId } }).catch(() => null);
   if (created.tenantId)
@@ -37,24 +38,45 @@ afterAll(async () => {
   await app.close();
 });
 
-// ── helpers ───────────────────────────────────────────────────────────────────
-
 const api = () => request(app.getHttpServer());
 
-// ── tests ─────────────────────────────────────────────────────────────────────
+describe('P0-7 + P1-2b e2e — bootstrap → JWT → CRUD', () => {
+  it('POST /tenants — bootstraps tenant + initial TENANT_ADMIN', async () => {
+    const res = await api()
+      .post('/api/v1/tenants')
+      .send({
+        name: 'Acme Shipping',
+        admin: { email: 'admin@acme-shipping.test', password: 'AdminP@ss1' },
+      })
+      .expect(201);
 
-describe('P0-7 e2e — tenant → vessel → user → login', () => {
-  it('POST /tenants — creates a tenant', async () => {
-    const res = await api().post('/api/v1/tenants').send({ name: 'Acme Shipping' }).expect(201);
+    expect(res.body.tenant.name).toBe('Acme Shipping');
+    expect(res.body.admin.email).toBe('admin@acme-shipping.test');
+    expect(res.body.admin.role).toBe('TENANT_ADMIN');
+    expect(res.body.admin.passwordHash).toBeUndefined();
 
-    expect(res.body).toMatchObject({ name: 'Acme Shipping' });
-    expect(typeof res.body.id).toBe('string');
-    created.tenantId = res.body.id as string;
+    created.tenantId = res.body.tenant.id as string;
+    created.adminUserId = res.body.admin.id as string;
   });
 
-  it('POST /tenants/:id/vessels — creates a vessel under the tenant', async () => {
+  it('POST /auth/login — admin can log in and receives RS256 tokens', async () => {
     const res = await api()
-      .post(`/api/v1/tenants/${created.tenantId}/vessels`)
+      .post('/api/v1/auth/login')
+      .send({
+        tenantId: created.tenantId,
+        email: 'admin@acme-shipping.test',
+        password: 'AdminP@ss1',
+      })
+      .expect(200);
+
+    expect(typeof res.body.access_token).toBe('string');
+    adminToken = res.body.access_token as string;
+  });
+
+  it('POST /vessels — admin creates a vessel using JWT', async () => {
+    const res = await api()
+      .post('/api/v1/vessels')
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({ name: 'MV Horizon', imoNumber: '9876543' })
       .expect(201);
 
@@ -66,9 +88,14 @@ describe('P0-7 e2e — tenant → vessel → user → login', () => {
     created.vesselId = res.body.id as string;
   });
 
-  it('POST /tenants/:id/users — creates a user under the tenant', async () => {
+  it('POST /vessels — without JWT returns 401', async () => {
+    await api().post('/api/v1/vessels').send({ name: 'No Auth' }).expect(401);
+  });
+
+  it('POST /users — admin creates a CHIEF_ENGINEER bound to the vessel', async () => {
     const res = await api()
-      .post(`/api/v1/tenants/${created.tenantId}/users`)
+      .post('/api/v1/users')
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({
         email: 'chief@acme-shipping.test',
         password: 'S3cur3P@ss!',
@@ -82,12 +109,15 @@ describe('P0-7 e2e — tenant → vessel → user → login', () => {
       role: 'CHIEF_ENGINEER',
       tenantId: created.tenantId,
     });
-    // Password hash must NOT be returned
     expect(res.body.passwordHash).toBeUndefined();
-    created.userId = res.body.id as string;
+    created.chiefUserId = res.body.id as string;
   });
 
-  it('POST /auth/login — returns a JWT for valid credentials', async () => {
+  it('POST /users — without JWT returns 401', async () => {
+    await api().post('/api/v1/users').send({ email: 'x@y.z', password: 'p' }).expect(401);
+  });
+
+  it('POST /auth/login — chief engineer can log in', async () => {
     const res = await api()
       .post('/api/v1/auth/login')
       .send({
@@ -97,15 +127,13 @@ describe('P0-7 e2e — tenant → vessel → user → login', () => {
       })
       .expect(200);
 
-    expect(typeof res.body.access_token).toBe('string');
-
-    // Decode (without verify) and check payload claims.
-    const [, payloadB64] = (res.body.access_token as string).split('.');
+    chiefToken = res.body.access_token as string;
+    const [, payloadB64] = chiefToken.split('.');
     const payload = JSON.parse(Buffer.from(payloadB64!, 'base64url').toString());
     expect(payload.tenantId).toBe(created.tenantId);
     expect(payload.email).toBe('chief@acme-shipping.test');
     expect(payload.role).toBe('CHIEF_ENGINEER');
-    expect(typeof payload.sub).toBe('string');
+    expect(payload.vesselId).toBe(created.vesselId);
   });
 
   it('POST /auth/login — rejects wrong password', async () => {
@@ -130,11 +158,39 @@ describe('P0-7 e2e — tenant → vessel → user → login', () => {
       .expect(401);
   });
 
-  it('POST /tenants/:id/vessels — RLS: vessel belongs to correct tenant', async () => {
-    const vessel = await prisma.withTenant(created.tenantId, (tx) =>
-      tx.vessel.findUnique({ where: { id: created.vesselId } }),
-    );
-    expect(vessel).not.toBeNull();
-    expect(vessel!.tenantId).toBe(created.tenantId);
+  it('GET /vessels — chief can list vessels in their own tenant', async () => {
+    const res = await api()
+      .get('/api/v1/vessels')
+      .set('Authorization', `Bearer ${chiefToken}`)
+      .expect(200);
+
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0]).toMatchObject({ id: created.vesselId, tenantId: created.tenantId });
+  });
+
+  it('POST /vessels — refresh token presented as access is rejected', async () => {
+    const refreshRes = await api()
+      .post('/api/v1/auth/login')
+      .send({
+        tenantId: created.tenantId,
+        email: 'admin@acme-shipping.test',
+        password: 'AdminP@ss1',
+      })
+      .expect(200);
+    const refresh = refreshRes.body.refresh_token as string;
+    await api()
+      .post('/api/v1/vessels')
+      .set('Authorization', `Bearer ${refresh}`)
+      .send({ name: 'Hijacked' })
+      .expect(401);
+  });
+
+  it('GET /tenants/self — returns the JWT holder’s tenant', async () => {
+    const res = await api()
+      .get('/api/v1/tenants/self')
+      .set('Authorization', `Bearer ${chiefToken}`)
+      .expect(200);
+    expect(res.body.id).toBe(created.tenantId);
   });
 });

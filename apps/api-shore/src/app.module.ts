@@ -1,12 +1,18 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
-import { PrismaModule } from './prisma/prisma.module';
-import { TenantModule } from './tenant/tenant.module';
-import { VesselModule } from './vessel/vessel.module';
-import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
+import { ComponentModule } from './component/component.module';
+import { JobHistoryModule } from './job-history/job-history.module';
+import { JobInstanceModule } from './job-instance/job-instance.module';
+import { JobModule } from './job/job.module';
+import { MasterComponentModule } from './master-component/master-component.module';
+import { PrismaModule } from './prisma/prisma.module';
+import { RunningHourReadingModule } from './running-hour-reading/running-hour-reading.module';
 import { SyncModule } from './sync/sync.module';
+import { TenantModule } from './tenant/tenant.module';
+import { UserModule } from './user/user.module';
+import { VesselModule } from './vessel/vessel.module';
 
 @Module({
   imports: [
@@ -18,11 +24,17 @@ import { SyncModule } from './sync/sync.module';
       },
     }),
     PrismaModule,
+    SyncModule,
+    AuthModule,
     TenantModule,
     VesselModule,
     UserModule,
-    AuthModule,
-    SyncModule,
+    MasterComponentModule,
+    ComponentModule,
+    JobModule,
+    JobInstanceModule,
+    JobHistoryModule,
+    RunningHourReadingModule,
   ],
 })
 export class AppModule {}

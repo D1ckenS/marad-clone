@@ -1,10 +1,11 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { UserModule } from '../user/user.module';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { JwtAuthGuard } from './jwt-auth.guard';
 import { OidcController } from './oidc.controller';
 import { OidcService } from './oidc.service';
 
@@ -18,6 +19,7 @@ function loadKey(envVar: 'JWT_PRIVATE_KEY_PATH' | 'JWT_PUBLIC_KEY_PATH'): string
 
 const ACCESS_TTL_MS = Number(process.env['JWT_ACCESS_TTL_MS'] ?? 24 * 60 * 60 * 1000);
 
+@Global()
 @Module({
   imports: [
     UserModule,
@@ -37,8 +39,8 @@ const ACCESS_TTL_MS = Number(process.env['JWT_ACCESS_TTL_MS'] ?? 24 * 60 * 60 * 
       }),
     }),
   ],
-  providers: [AuthService, OidcService],
+  providers: [AuthService, JwtAuthGuard, OidcService],
   controllers: [AuthController, OidcController],
-  exports: [AuthService, OidcService],
+  exports: [AuthService, JwtAuthGuard, JwtModule, OidcService],
 })
 export class AuthModule {}

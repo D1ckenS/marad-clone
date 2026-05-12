@@ -1,6 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import * as jwt from 'jsonwebtoken';
+import * as bcrypt from 'bcrypt';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import request from 'supertest';
@@ -29,6 +30,21 @@ beforeAll(async () => {
 
   await prisma.tenant.create({ data: { id: tenantId, name: 'rs256-test' } });
   await prisma.vessel.create({ data: { id: vesselId, tenantId, name: 'rs256-vessel' } });
+  // The user is created directly here so this test stays focused on JWT
+  // mechanics rather than the HTTP-based create-user flow (covered in
+  // app.e2e.ts via the bootstrap-tenant + JWT-guarded /users path).
+  userId = ulid();
+  const passwordHash = await bcrypt.hash('S3cur3P@ss!', 12);
+  await prisma.user.create({
+    data: {
+      id: userId,
+      tenantId,
+      vesselId,
+      email,
+      passwordHash,
+      role: 'CHIEF_ENGINEER',
+    },
+  });
 });
 
 afterAll(async () => {
@@ -41,14 +57,6 @@ afterAll(async () => {
 const api = () => request(app.getHttpServer());
 
 describe('Shore RS256 JWT — issuance, claims, refresh', () => {
-  it('POST /tenants/:id/users — creates a user', async () => {
-    const res = await api()
-      .post(`/api/v1/tenants/${tenantId}/users`)
-      .send({ email, password: 'S3cur3P@ss!', role: 'CHIEF_ENGINEER', vesselId })
-      .expect(201);
-    userId = res.body.id as string;
-  });
-
   it('POST /auth/login — returns RS256 access + refresh tokens', async () => {
     const res = await api()
       .post('/api/v1/auth/login')
