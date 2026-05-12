@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { newId } from '@marad-clone/domain';
+import { newId } from '@fleetops/domain';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateVesselDto } from './dto/create-vessel.dto';
 

@@ -2,7 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ulid } from 'ulidx';
-import { compareEncodedHlc } from '@marad-clone/sync-engine';
+import { compareEncodedHlc } from '@fleetops/sync-engine';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { HlcClockRegistry } from '../src/sync/hlc-clock-registry';

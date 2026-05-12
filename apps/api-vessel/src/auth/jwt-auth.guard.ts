@@ -30,7 +30,7 @@ type VesselLocalClaims = {
  *
  * The two key materials are kept distinct so neither path can spoof the
  * other: shore tokens carry `iss=marad-shore`, vessel-local tokens carry
- * `iss=marad-vessel`. The matching key/secret only verifies the matching
+ * `iss=fleetops-vessel`. The matching key/secret only verifies the matching
  * issuer.
  */
 @Injectable()
@@ -83,7 +83,7 @@ export class JwtAuthGuard implements CanActivate {
     try {
       const payload = jwt.verify(token, localSecret, {
         algorithms: ['HS256'],
-        issuer: 'marad-vessel',
+        issuer: 'fleetops-vessel',
       }) as VesselLocalClaims;
       if (payload.type !== 'vessel-local') {
         throw new UnauthorizedException('Token is not a vessel-local access token');

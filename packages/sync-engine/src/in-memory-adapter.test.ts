@@ -1,4 +1,4 @@
-import { HlcClock, encodeHlc } from '@marad-clone/domain';
+import { HlcClock, encodeHlc } from '@fleetops/domain';
 import { describe, expect, it } from 'vitest';
 import { InMemoryAdapter } from './in-memory-adapter.js';
 import { createOutboxEntry } from './outbox.js';

@@ -87,7 +87,7 @@ export class AuthService {
         secret: localSecret,
         algorithm: 'HS256',
         expiresIn: VESSEL_LOCAL_TTL_S,
-        issuer: 'marad-vessel',
+        issuer: 'fleetops-vessel',
       },
     );
     return { access_token };

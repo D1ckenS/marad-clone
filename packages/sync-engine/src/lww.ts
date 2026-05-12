@@ -1,4 +1,4 @@
-import { compareHlc, decodeHlc } from '@marad-clone/domain';
+import { compareHlc, decodeHlc } from '@fleetops/domain';
 import type { LwwField, LwwRecord } from './types.js';
 
 /**

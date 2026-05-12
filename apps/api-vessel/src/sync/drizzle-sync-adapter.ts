@@ -6,7 +6,7 @@ import {
   type SyncAdapter,
   type SyncDelta,
   type SyncRecord,
-} from '@marad-clone/sync-engine';
+} from '@fleetops/sync-engine';
 import { sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 

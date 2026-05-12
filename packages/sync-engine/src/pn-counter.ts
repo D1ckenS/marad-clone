@@ -1,4 +1,4 @@
-import { DomainError } from '@marad-clone/domain';
+import { DomainError } from '@fleetops/domain';
 
 /**
  * PN-Counter CRDT for inventory ROB (Remaining On Board).

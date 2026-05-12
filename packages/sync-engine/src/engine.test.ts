@@ -1,4 +1,4 @@
-import { HlcClock, decodeHlc } from '@marad-clone/domain';
+import { HlcClock, decodeHlc } from '@fleetops/domain';
 import { describe, expect, it } from 'vitest';
 import { SyncEngine } from './engine.js';
 import { InMemoryAdapter } from './in-memory-adapter.js';

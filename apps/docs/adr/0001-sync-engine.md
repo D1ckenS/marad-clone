@@ -1,4 +1,4 @@
-# ADR 0001 — Sync Engine Design
+﻿# ADR 0001 — Sync Engine Design
 
 **Date:** 2026-05-05
 **Status:** Accepted
@@ -8,7 +8,7 @@
 
 ## Context
 
-`marad-clone` is an offline-first fleet management system. Vessels operate with full feature parity while disconnected from shore for days or weeks (satellite windows, dry-dock, remote anchorage). When connectivity is restored, vessel and shore databases must converge to the same state with zero data loss.
+`FleetOps` is an offline-first fleet management system. Vessels operate with full feature parity while disconnected from shore for days or weeks (satellite windows, dry-dock, remote anchorage). When connectivity is restored, vessel and shore databases must converge to the same state with zero data loss.
 
 Two database backends are in play:
 
@@ -29,7 +29,7 @@ Every write that must sync is first appended to a local `outbox` table (or in-me
 
 ### 2. Hybrid Logical Clock (HLC) for causality
 
-Every synced record carries an `hlc` field (format: `<12-hex-ms>-<4-hex-counter>-<nodeId>`). The HLC implementation is imported from `@marad-clone/domain/clock` — not duplicated here.
+Every synced record carries an `hlc` field (format: `<12-hex-ms>-<4-hex-counter>-<nodeId>`). The HLC implementation is imported from `@fleetops/domain/clock` — not duplicated here.
 
 **Why:** Wall-clock timestamps alone are unreliable across vessels (clocks drift, NTP is unavailable offshore). HLC advances monotonically even when `Date.now()` goes backwards, and it preserves causal ordering across nodes. The encoded format is lexicographically sortable, which makes `ORDER BY hlc` correct without parsing.
 
@@ -88,4 +88,4 @@ The soak test (`scripts/sync-soak-test.ts`) advances time via an injected `now: 
 - Every sync-aware table **must** include `hlc`, `updated_at`, `deleted_at` (soft delete only). Hard deletes are forbidden on synced tables.
 - Node IDs must be stable per install (vessel ID + role suffix, e.g., `01J...vessel` / `01J...shore`).
 - The outbox must be drained before a vessel database backup is taken, or the backup must include the outbox.
-- The `@marad-clone/domain` package is a dependency of `@marad-clone/sync-engine`; the reverse must never be true.
+- The `@fleetops/domain` package is a dependency of `@fleetops/sync-engine`; the reverse must never be true.

@@ -1,4 +1,4 @@
-import { GrpcSyncTransport, SyncEngine, type SyncDelta } from '@marad-clone/sync-engine';
+import { GrpcSyncTransport, SyncEngine, type SyncDelta } from '@fleetops/sync-engine';
 import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { resolve } from 'node:path';
 import { DrizzleSyncAdapter } from './drizzle-sync-adapter';

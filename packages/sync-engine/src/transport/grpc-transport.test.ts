@@ -1,4 +1,4 @@
-import { HlcClock } from '@marad-clone/domain';
+import { HlcClock } from '@fleetops/domain';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';

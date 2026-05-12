@@ -1,4 +1,4 @@
-import { encodeHlc, type Hlc, newId } from '@marad-clone/domain';
+import { encodeHlc, type Hlc, newId } from '@fleetops/domain';
 import type { LwwRecord, OutboxEntry, SyncOperation } from './types.js';
 
 export function createOutboxEntry(params: {

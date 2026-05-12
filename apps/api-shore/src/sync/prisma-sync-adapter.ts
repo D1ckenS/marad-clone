@@ -7,7 +7,7 @@ import {
   type SyncAdapter,
   type SyncDelta,
   type SyncRecord,
-} from '@marad-clone/sync-engine';
+} from '@fleetops/sync-engine';
 import { Prisma, type PrismaClient } from '@prisma/client';
 
 /**

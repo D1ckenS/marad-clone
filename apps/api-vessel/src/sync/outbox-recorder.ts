@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { encodeHlc, newId } from '@marad-clone/domain';
-import { mergeFields, type LwwRecord } from '@marad-clone/sync-engine';
+import { encodeHlc, newId } from '@fleetops/domain';
+import { mergeFields, type LwwRecord } from '@fleetops/sync-engine';
 import { sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { HlcClockRegistry } from './hlc-clock-registry';

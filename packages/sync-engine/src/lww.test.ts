@@ -1,4 +1,4 @@
-import { encodeHlc } from '@marad-clone/domain';
+import { encodeHlc } from '@fleetops/domain';
 import * as fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { compareEncodedHlc, mergeFields } from './lww.js';

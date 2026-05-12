@@ -1,4 +1,4 @@
-import { startSyncServer, type SyncDelta } from '@marad-clone/sync-engine';
+import { startSyncServer, type SyncDelta } from '@fleetops/sync-engine';
 import { Test } from '@nestjs/testing';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';

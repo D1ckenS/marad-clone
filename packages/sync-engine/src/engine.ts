@@ -1,4 +1,4 @@
-import { decodeHlc, encodeHlc, type HlcClock } from '@marad-clone/domain';
+import { decodeHlc, encodeHlc, type HlcClock } from '@fleetops/domain';
 import { createOutboxEntry } from './outbox.js';
 import type { ApplyResult, LwwRecord, OutboxEntry, SyncAdapter, SyncDelta } from './types.js';
 

@@ -16,7 +16,7 @@
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { HlcClock } from '@marad-clone/domain';
+import { HlcClock } from '@fleetops/domain';
 import {
   GrpcSyncTransport,
   InMemoryAdapter,
@@ -28,7 +28,7 @@ import {
   pnValue,
   startSyncServer,
   type SyncDelta,
-} from '@marad-clone/sync-engine';
+} from '@fleetops/sync-engine';
 
 // ── simulation parameters ─────────────────────────────────────────────────────
 
@@ -325,7 +325,7 @@ async function runGrpcScenario(): Promise<{ passed: boolean; errors: string[] }>
 async function main(): Promise<void> {
   console.log('');
   console.log('═══════════════════════════════════════════════════════════');
-  console.log('  marad-clone sync soak test (P0-6 + P0-9)');
+  console.log('  FleetOps sync soak test (P0-6 + P0-9)');
   console.log('═══════════════════════════════════════════════════════════');
   console.log(`  Simulated horizon : ${HORIZON_MS / 60_000} min`);
 

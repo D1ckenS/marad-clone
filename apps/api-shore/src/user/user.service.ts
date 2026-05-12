@@ -1,7 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-import { newId } from '@marad-clone/domain';
+import { newId } from '@fleetops/domain';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateUserDto } from './dto/create-user.dto';
 

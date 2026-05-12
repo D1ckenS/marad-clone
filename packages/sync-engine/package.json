@@ -1,17 +1,23 @@
 {
-  "name": "@marad-clone/sync-engine",
+  "name": "@fleetops/sync-engine",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
   "types": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "require": "./dist/index.js",
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
   },
   "files": [
-    "src"
+    "src",
+    "dist"
   ],
   "scripts": {
+    "build": "tsc -p tsconfig.build.json && node -e \"require('fs').writeFileSync('dist/package.json', JSON.stringify({type:'commonjs'}))\"",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src",
@@ -20,6 +26,6 @@
   "dependencies": {
     "@grpc/grpc-js": "^1.14.3",
     "@grpc/proto-loader": "^0.8.0",
-    "@marad-clone/domain": "workspace:*"
+    "@fleetops/domain": "workspace:*"
   }
 }

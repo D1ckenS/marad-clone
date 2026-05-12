@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
-import { newId } from '@marad-clone/domain';
+import { newId } from '@fleetops/domain';
 import { DrizzleService } from '../db/drizzle.service';
 import { vessels } from '../db/schema';
 import type { CreateVesselDto } from './dto/create-vessel.dto';

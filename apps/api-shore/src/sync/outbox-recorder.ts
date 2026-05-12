@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { encodeHlc, newId } from '@marad-clone/domain';
-import { mergeFields, type LwwRecord } from '@marad-clone/sync-engine';
+import { encodeHlc, newId } from '@fleetops/domain';
+import { mergeFields, type LwwRecord } from '@fleetops/sync-engine';
 import { Prisma } from '@prisma/client';
 import { HlcClockRegistry } from './hlc-clock-registry';
 

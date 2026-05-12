@@ -1,4 +1,4 @@
-import { SyncEngine, startSyncServer, type SyncDelta } from '@marad-clone/sync-engine';
+import { SyncEngine, startSyncServer, type SyncDelta } from '@fleetops/sync-engine';
 import {
   Inject,
   Injectable,

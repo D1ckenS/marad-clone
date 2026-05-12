@@ -1,7 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 import * as bcrypt from 'bcrypt';
-import { newId } from '@marad-clone/domain';
+import { newId } from '@fleetops/domain';
 import { DrizzleService } from '../db/drizzle.service';
 import { users } from '../db/schema';
 import type { CreateUserDto } from './dto/create-user.dto';

@@ -1,9 +1,9 @@
 {
-  "name": "marad-clone",
+  "name": "fleetops",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Maritime fleet management system. Working title — final product name TBD per CLAUDE.md §17.",
+  "description": "FleetOps — Maritime fleet management system.",
   "license": "UNLICENSED",
   "engines": {
     "node": ">=24.15.0",
@@ -12,6 +12,8 @@
   "packageManager": "pnpm@10.33.2",
   "scripts": {
     "build": "turbo run build",
+    "dev:shore": "turbo run dev --filter=@fleetops/api-shore --filter=@fleetops/web-shore",
+    "dev:vessel": "turbo run dev --filter=@fleetops/api-vessel --filter=@fleetops/web-shore",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
@@ -22,6 +24,7 @@
     "format:check": "prettier --check .",
     "proto:gen": "node scripts/proto-gen.mjs",
     "gen:jwt-keys": "node scripts/gen-jwt-keys.mjs",
+    "seed": "tsx scripts/seed.ts",
     "soak:sync": "tsx scripts/sync-soak-test.ts",
     "typecheck:all": "pnpm run typecheck && pnpm -r --workspace-concurrency=1 run typecheck",
     "ci:full": "pnpm run lint && pnpm run typecheck:all && pnpm run test && pnpm run format:check"
@@ -38,8 +41,8 @@
     ]
   },
   "dependencies": {
-    "@marad-clone/domain": "workspace:*",
-    "@marad-clone/sync-engine": "workspace:*"
+    "@fleetops/domain": "workspace:*",
+    "@fleetops/sync-engine": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "24.12.2",

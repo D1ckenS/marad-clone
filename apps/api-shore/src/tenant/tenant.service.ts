@@ -1,5 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { newId } from '@marad-clone/domain';
+import { newId } from '@fleetops/domain';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateTenantDto } from './dto/create-tenant.dto';

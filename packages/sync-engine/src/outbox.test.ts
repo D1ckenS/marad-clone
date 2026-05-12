@@ -1,4 +1,4 @@
-import { HlcClock, isUlid } from '@marad-clone/domain';
+import { HlcClock, isUlid } from '@fleetops/domain';
 import { describe, expect, it } from 'vitest';
 import { createOutboxEntry } from './outbox.js';
 

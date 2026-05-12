@@ -4,5 +4,6 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["eslint.config.mjs", "vitest.config.ts", "scripts/**/*.mjs", "packages/*/src/**/*"]
+  "include": ["eslint.config.mjs", "vitest.config.ts", "scripts/**/*.mjs", "packages/*/src/**/*"],
+  "exclude": ["**/node_modules", "**/dist", "**/build", "packages/ui-kit"]
 }
