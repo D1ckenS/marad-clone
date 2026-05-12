@@ -1,10 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { newId } from '@fleetops/domain';
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { checkRunningHourThresholds, newId } from '@fleetops/domain';
+import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm';
 import type { AuthContext } from '../auth/auth-context';
 import { requireVesselId } from '../auth/vessel-bound';
 import { DrizzleService } from '../db/drizzle.service';
-import { components, runningHourReadings } from '../db/schema';
+import { components, jobInstances, jobs, runningHourReadings } from '../db/schema';
 import { OutboxRecorder } from '../sync/outbox-recorder';
 import type { CreateRunningHourReadingDto } from './dto/create-running-hour-reading.dto';
 
@@ -95,6 +95,78 @@ export class RunningHourReadingService {
         .set({ runningHours: dto.value, hlc: compHlc, updatedAt: new Date().toISOString() })
         .where(eq(components.id, component.id))
         .run();
+
+      // Running-hour interval scheduling: open a new JobInstance for every
+      // interval boundary the reading crosses.
+      const rhJobs = tx
+        .select({ id: jobs.id, intervalRunningHours: jobs.intervalRunningHours })
+        .from(jobs)
+        .where(
+          and(
+            eq(jobs.componentId, component.id),
+            eq(jobs.tenantId, auth.tenantId),
+            eq(jobs.vesselId, vesselId),
+            isNull(jobs.deletedAt),
+            isNotNull(jobs.intervalRunningHours),
+          ),
+        )
+        .all();
+
+      const prevHours = Number(component.runningHours);
+      const newHoursNum = Number(dto.value);
+
+      for (const job of rhJobs) {
+        const thresholds = checkRunningHourThresholds({
+          intervalHours: Number(job.intervalRunningHours),
+          prevHours,
+          newHours: newHoursNum,
+        });
+
+        for (const threshold of thresholds) {
+          const thresholdStr = threshold.toString();
+          // Idempotency: skip if a JobInstance already exists at this threshold.
+          const existing = tx
+            .select({ id: jobInstances.id })
+            .from(jobInstances)
+            .where(
+              and(
+                eq(jobInstances.jobId, job.id),
+                eq(jobInstances.tenantId, auth.tenantId),
+                eq(jobInstances.dueAtRunningHours, thresholdStr),
+                isNull(jobInstances.deletedAt),
+              ),
+            )
+            .get();
+          if (existing !== undefined) continue;
+
+          const iid = newId();
+          const { hlc: ihlc } = this.recorder.recordUpsert(
+            tx,
+            { tenantId: auth.tenantId, vesselId },
+            'JobInstance',
+            iid,
+            {
+              jobId: job.id,
+              componentId: component.id,
+              status: 'PENDING',
+              dueAtRunningHours: thresholdStr,
+              vesselId,
+            },
+          );
+          tx.insert(jobInstances)
+            .values({
+              id: iid,
+              tenantId: auth.tenantId,
+              vesselId,
+              jobId: job.id,
+              componentId: component.id,
+              status: 'PENDING',
+              dueAtRunningHours: thresholdStr,
+              hlc: ihlc,
+            })
+            .run();
+        }
+      }
 
       return reading;
     });

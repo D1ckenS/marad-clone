@@ -296,6 +296,69 @@ describe('P1-2c — maintenance CRUD on vessel (vessel-bound writes)', () => {
     ).toThrow(/immutable/);
   });
 
+  it('POST /running-hour-readings — auto-schedules a JobInstance when crossing RH boundary', async () => {
+    // Component is at 1300h; job intervalRunningHours = 500.
+    // floor(1300/500) = 2 → next threshold at 3×500 = 1500.
+    await api()
+      .post('/api/v1/running-hour-readings')
+      .set('Authorization', auth())
+      .send({
+        componentId,
+        value: '1800.00',
+        source: 'MANUAL',
+        recordedAt: '2026-05-07T10:00:00.000Z',
+      })
+      .expect(201);
+
+    const res = await api().get('/api/v1/job-instances').set('Authorization', auth()).expect(200);
+    const autoInst = (
+      res.body as Array<{ jobId: string; dueAtRunningHours: string; status: string }>
+    ).find((i) => i.jobId === jobId && i.dueAtRunningHours === '1500');
+    expect(autoInst).toBeDefined();
+    expect(autoInst?.status).toBe('PENDING');
+  });
+
+  it('POST /running-hour-readings — idempotent: no duplicate instance at same threshold', async () => {
+    // floor(1900/500) = 3 = floor(1800/500) → no new threshold crossed.
+    await api()
+      .post('/api/v1/running-hour-readings')
+      .set('Authorization', auth())
+      .send({
+        componentId,
+        value: '1900.00',
+        source: 'MANUAL',
+        recordedAt: '2026-05-07T11:00:00.000Z',
+      })
+      .expect(201);
+
+    const res = await api().get('/api/v1/job-instances').set('Authorization', auth()).expect(200);
+    const at1500 = (res.body as Array<{ jobId: string; dueAtRunningHours: string }>).filter(
+      (i) => i.jobId === jobId && i.dueAtRunningHours === '1500',
+    );
+    expect(at1500).toHaveLength(1);
+  });
+
+  it('POST /running-hour-readings — crossing next boundary opens second auto-instance', async () => {
+    // Component at 1900; reading of 2001 → floor(2001/500)=4, triggers at 2000.
+    await api()
+      .post('/api/v1/running-hour-readings')
+      .set('Authorization', auth())
+      .send({
+        componentId,
+        value: '2001.00',
+        source: 'MANUAL',
+        recordedAt: '2026-05-07T12:00:00.000Z',
+      })
+      .expect(201);
+
+    const res = await api().get('/api/v1/job-instances').set('Authorization', auth()).expect(200);
+    const at2000 = (
+      res.body as Array<{ jobId: string; dueAtRunningHours: string; status: string }>
+    ).find((i) => i.jobId === jobId && i.dueAtRunningHours === '2000');
+    expect(at2000).toBeDefined();
+    expect(at2000?.status).toBe('PENDING');
+  });
+
   it('DELETE /components/:id — soft delete writes a delete-outbox row', async () => {
     await api()
       .delete(`/api/v1/components/${componentId}`)

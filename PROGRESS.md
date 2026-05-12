@@ -8,6 +8,18 @@
 
 > Most-recent first. Format: `### YYYY-MM-DD — <task> — <summary>` then bullets.
 
+### 2026-05-12 — P1-4 — Running-hour scheduling logic
+
+| Item                                                 | Detail                                                                                                                                      |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/domain/src/running-hour-scheduler.ts`      | Pure `checkRunningHourThresholds(input)` — returns all interval thresholds crossed by a reading update                                      |
+| `packages/domain/src/running-hour-scheduler.test.ts` | 12 unit tests + 7 property-based tests (fast-check, 500 runs each): count, multiples, bounds, sort, purity                                  |
+| `packages/domain/src/index.ts`                       | Re-exports `checkRunningHourThresholds` + `RunHourCheckInput`                                                                               |
+| `apps/api-shore/…/running-hour-reading.service.ts`   | After bumping component runningHours, queries RH-interval jobs, calls scheduler, creates `JobInstance` per threshold with idempotency guard |
+| `apps/api-vessel/…/running-hour-reading.service.ts`  | Same on Drizzle/SQLite; `isNotNull` + `jobs`/`jobInstances` added to imports                                                                |
+| e2e — both apps                                      | +3 tests each: boundary crossing auto-creates instance; no dupe in same interval; second boundary creates second instance                   |
+| CI                                                   | `pnpm run ci:full` → 139 ✓ tests (+19), lint clean, typecheck clean, format clean                                                           |
+
 ### 2026-05-12 — P1-3b — desktop-vessel Electron shell
 
 | Item                                           | Detail                                                                                                                                                                                                        |
@@ -93,7 +105,7 @@
 
 > Single, unambiguous next task for any fresh Claude Code session. Update this immediately when a task completes.
 
-**P1-3b done.** Next: **P1-4 — Running-hour scheduling logic** — interval-based job triggering with property-based tests (`fast-check`). Domain: `packages/domain` + pure `RunningHourScheduler` that opens `JobInstance` when `component.running_hours ≥ job.interval_hours`. API: `POST /running-hour-readings` already exists; scheduler hooks into the reading service. Tests cover boundary conditions, monotonicity, and fuzz scenarios.
+**P1-4 done.** Next: **P1-5 — Inventory schema** — `Part`, `PartCategory`, `StockLocation`, `StockLevel`, `StockMovement`, `BarcodeBinding` on both shore (Prisma/Postgres) and vessel (Drizzle/SQLite), sync-enabled. ROB derived from replaying `StockMovement` only (no snapshot column). RLS policies on shore. Migrations idempotent.
 
 **Outstanding follow-up tickets (deferred, not blocking P1-4):**
 

@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { newId } from '@fleetops/domain';
+import { checkRunningHourThresholds, newId } from '@fleetops/domain';
 import { Prisma } from '@prisma/client';
 import type { AuthContext } from '../auth/auth-context';
 import { requireVesselId } from '../auth/vessel-bound';
@@ -87,6 +87,73 @@ export class RunningHourReadingService {
         where: { id: component.id },
         data: { runningHours: value, hlc: compHlc },
       });
+
+      // Running-hour interval scheduling: open a new JobInstance for every
+      // interval boundary the reading crosses.
+      const rhJobs = await tx.job.findMany({
+        where: {
+          componentId: component.id,
+          tenantId: auth.tenantId,
+          vesselId,
+          deletedAt: null,
+          intervalRunningHours: { not: null },
+        },
+        select: { id: true, intervalRunningHours: true },
+      });
+
+      const prevHours = Number(component.runningHours);
+      const newHoursNum = Number(dto.value);
+
+      for (const job of rhJobs) {
+        const thresholds = checkRunningHourThresholds({
+          intervalHours: Number(job.intervalRunningHours),
+          prevHours,
+          newHours: newHoursNum,
+        });
+
+        for (const threshold of thresholds) {
+          const thresholdDec = new Prisma.Decimal(threshold);
+          // Idempotency: skip if a JobInstance already exists at this threshold.
+          const existing = await tx.jobInstance.findFirst({
+            where: {
+              jobId: job.id,
+              tenantId: auth.tenantId,
+              dueAtRunningHours: thresholdDec,
+              deletedAt: null,
+            },
+            select: { id: true },
+          });
+          if (existing !== null) continue;
+
+          const iid = newId();
+          const instanceFields = {
+            jobId: job.id,
+            componentId: component.id,
+            status: 'PENDING',
+            dueAtRunningHours: threshold.toString(),
+            vesselId,
+          };
+          const { hlc: ihlc } = await this.recorder.recordUpsert(
+            tx as unknown as Prisma.TransactionClient,
+            { tenantId: auth.tenantId, vesselId },
+            'JobInstance',
+            iid,
+            instanceFields,
+          );
+          await tx.jobInstance.create({
+            data: {
+              id: iid,
+              tenantId: auth.tenantId,
+              vesselId,
+              jobId: job.id,
+              componentId: component.id,
+              status: 'PENDING',
+              dueAtRunningHours: thresholdDec,
+              hlc: ihlc,
+            },
+          });
+        }
+      }
 
       return reading;
     });
