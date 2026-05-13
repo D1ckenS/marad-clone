@@ -82,7 +82,7 @@ describe('Shore RS256 JWT — issuance, claims, refresh', () => {
     const publicKey = readFileSync(resolve(process.cwd(), pubPath!), 'utf-8');
     const decoded = jwt.verify(accessToken, publicKey, {
       algorithms: ['RS256'],
-      issuer: 'marad-shore',
+      issuer: 'fleetops-shore',
     }) as Record<string, unknown>;
 
     expect(decoded.tenantId).toBe(tenantId);
@@ -90,7 +90,7 @@ describe('Shore RS256 JWT — issuance, claims, refresh', () => {
     expect(decoded.role).toBe('CHIEF_ENGINEER');
     expect(decoded.vesselId).toBe(vesselId);
     expect(decoded.type).toBe('access');
-    expect(decoded.iss).toBe('marad-shore');
+    expect(decoded.iss).toBe('fleetops-shore');
   });
 
   it('POST /auth/refresh — issues fresh access + rotated refresh', async () => {

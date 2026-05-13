@@ -6,7 +6,7 @@ const apiTarget = process.env['API_TARGET'] ?? 'http://localhost:3000';
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173,
+    port: 5342,
     proxy: {
       '/api': {
         target: apiTarget,

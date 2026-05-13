@@ -27,4 +27,8 @@ export class UpdateJobDto {
   @IsOptional()
   @IsEnum(JobPriority)
   priority?: JobPriority;
+
+  @IsOptional()
+  @IsString()
+  typicalPartsJson?: string;
 }

@@ -42,7 +42,7 @@ function loadPublicKey(): string {
         // be confused.
         verifyOptions: {
           algorithms: ['RS256'],
-          issuer: 'marad-shore',
+          issuer: 'fleetops-shore',
         },
       }),
     }),

@@ -31,6 +31,7 @@ export class JobService {
         intervalRunningHours: dto.intervalRunningHours ?? null,
         estimatedHours: dto.estimatedHours ?? null,
         priority: dto.priority ?? 'NORMAL',
+        typicalPartsJson: dto.typicalPartsJson ?? null,
         vesselId,
       };
       const { hlc } = this.recorder.recordUpsert(
@@ -53,6 +54,7 @@ export class JobService {
           intervalRunningHours: dto.intervalRunningHours ?? null,
           estimatedHours: dto.estimatedHours ?? null,
           priority: dto.priority ?? 'NORMAL',
+          typicalPartsJson: dto.typicalPartsJson ?? null,
           hlc,
         })
         .returning()
@@ -103,6 +105,7 @@ export class JobService {
       fields['intervalRunningHours'] = dto.intervalRunningHours;
     if (dto.estimatedHours !== undefined) fields['estimatedHours'] = dto.estimatedHours;
     if (dto.priority !== undefined) fields['priority'] = dto.priority;
+    if (dto.typicalPartsJson !== undefined) fields['typicalPartsJson'] = dto.typicalPartsJson;
 
     return this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordUpsert(
@@ -123,6 +126,7 @@ export class JobService {
           }),
           ...(dto.estimatedHours !== undefined && { estimatedHours: dto.estimatedHours }),
           ...(dto.priority !== undefined && { priority: dto.priority }),
+          ...(dto.typicalPartsJson !== undefined && { typicalPartsJson: dto.typicalPartsJson }),
           hlc,
           updatedAt: new Date().toISOString(),
         })

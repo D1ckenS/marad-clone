@@ -69,12 +69,12 @@ interface SyncServiceDef {
   SyncService: grpc.ServiceClientConstructor;
 }
 
-interface MaradSyncV1 {
-  marad: { sync: { v1: SyncServiceDef } };
+interface FleetopsSyncV1 {
+  fleetops: { sync: { v1: SyncServiceDef } };
 }
 
 function syncServiceFrom(proto: grpc.GrpcObject): SyncServiceDef {
-  return (proto as unknown as MaradSyncV1).marad.sync.v1;
+  return (proto as unknown as FleetopsSyncV1).fleetops.sync.v1;
 }
 
 // ── delta conversion ──────────────────────────────────────────────────────────

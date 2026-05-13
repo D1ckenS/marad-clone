@@ -1,0 +1,22 @@
+name: fleetops_mobile
+description: FleetOps onboard companion — maintenance sign-off, inventory, barcode scan.
+version: 1.0.0+1
+publish_to: none
+
+environment:
+  sdk: ^3.4.0
+  flutter: '>=3.22.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.1
+  flutter_secure_storage: ^9.0.0
+  mobile_scanner: ^5.2.3
+  image_picker: ^1.1.2
+  provider: ^6.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0

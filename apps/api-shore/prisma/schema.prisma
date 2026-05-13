@@ -38,6 +38,45 @@ enum RunningHourSource {
   PLC
 }
 
+enum StockMovementType {
+  CONSUMPTION  // stock removed (job sign-off, manual)
+  RECEIPT      // stock added (GRN)
+  ADJUSTMENT   // cycle-count variance (signed quantity)
+  TRANSFER_IN  // received from another location
+  TRANSFER_OUT // sent to another location
+}
+
+enum RequisitionStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  ACKNOWLEDGED
+  IN_TRANSIT
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CLOSED
+  CANCELLED
+}
+
+enum RfqStatus {
+  DRAFT
+  SENT
+  CLOSED
+}
+
+enum QuoteStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
 // ── Tenant ───────────────────────────────────────────────────────────────────
 // Root aggregate. Not sync-aware (shore-only master record).
 
@@ -57,6 +96,24 @@ model Tenant {
   jobInstances        JobInstance[]
   jobHistories        JobHistory[]
   runningHourReadings RunningHourReading[]
+  partCategories      PartCategory[]
+  parts               Part[]
+  stockLocations      StockLocation[]
+  stockLevels         StockLevel[]
+  stockMovements      StockMovement[]
+  barcodeBindings     BarcodeBinding[]
+  suppliers           Supplier[]
+  approvalFlows       ApprovalFlow[]
+  approvalSteps       ApprovalStep[]
+  requisitions        Requisition[]
+  requisitionLines    RequisitionLine[]
+  rfqs                Rfq[]
+  quotes              Quote[]
+  quoteLines          QuoteLine[]
+  purchaseOrders      PurchaseOrder[]
+  poLines             POLine[]
+  goodsReceipts       GoodsReceipt[]
+  goodsReceiptLines   GoodsReceiptLine[]
 
   @@map("tenants")
 }
@@ -81,6 +138,18 @@ model Vessel {
   jobInstances        JobInstance[]
   jobHistories        JobHistory[]
   runningHourReadings RunningHourReading[]
+  stockLocations      StockLocation[]
+  stockLevels         StockLevel[]
+  stockMovements      StockMovement[]
+  requisitions        Requisition[]
+  requisitionLines    RequisitionLine[]
+  rfqs                Rfq[]
+  quotes              Quote[]
+  quoteLines          QuoteLine[]
+  purchaseOrders      PurchaseOrder[]
+  poLines             POLine[]
+  goodsReceipts       GoodsReceipt[]
+  goodsReceiptLines   GoodsReceiptLine[]
 
   @@map("vessels")
 }
@@ -182,6 +251,8 @@ model Job {
   intervalRunningHours Decimal?    @map("interval_running_hours") @db.Decimal(12, 2)
   estimatedHours       Decimal?    @map("estimated_hours") @db.Decimal(8, 2)
   priority             JobPriority @default(NORMAL)
+  /// JSON array: [{ partId, partName, typicalQuantity, unit }]
+  typicalPartsJson     String?     @map("typical_parts_json")
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -290,6 +361,491 @@ model RunningHourReading {
 
   @@index([tenantId, vesselId, componentId, recordedAt])
   @@map("running_hour_readings")
+}
+
+// ── Inventory (P1-5) ─────────────────────────────────────────────────────────
+
+// PartCategory — hierarchical part classification (fleet-wide, tenant-scoped).
+model PartCategory {
+  id          String    @id
+  tenantId    String    @map("tenant_id")
+  parentId    String?   @map("parent_id")
+  name        String
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  hlc         String?
+  deletedAt   DateTime? @map("deleted_at")
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id])
+  parent   PartCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children PartCategory[] @relation("CategoryHierarchy")
+  parts    Part[]
+
+  @@index([tenantId])
+  @@map("part_categories")
+}
+
+// Part — spare-part catalog entry (fleet-wide, tenant-scoped; not vessel-scoped).
+model Part {
+  id          String    @id
+  tenantId    String    @map("tenant_id")
+  categoryId  String?   @map("category_id")
+  name        String
+  description String?
+  partNumber  String?   @map("part_number")
+  unit        String    @default("pcs")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  hlc         String?
+  deletedAt   DateTime? @map("deleted_at")
+
+  tenant             Tenant             @relation(fields: [tenantId], references: [id])
+  category           PartCategory?      @relation(fields: [categoryId], references: [id])
+  stockLevels        StockLevel[]
+  stockMovements     StockMovement[]
+  barcodeBindings    BarcodeBinding[]
+  requisitionLines   RequisitionLine[]
+  quoteLines         QuoteLine[]
+  poLines            POLine[]
+  goodsReceiptLines  GoodsReceiptLine[]
+
+  @@index([tenantId])
+  @@index([tenantId, partNumber])
+  @@map("parts")
+}
+
+// StockLocation — named storage location onboard (vessel-scoped).
+model StockLocation {
+  id          String    @id
+  tenantId    String    @map("tenant_id")
+  vesselId    String    @map("vessel_id")
+  name        String
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  hlc         String?
+  deletedAt   DateTime? @map("deleted_at")
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  vessel         Vessel          @relation(fields: [vesselId], references: [id])
+  stockLevels    StockLevel[]
+  stockMovements StockMovement[]
+
+  @@index([tenantId, vesselId])
+  @@map("stock_locations")
+}
+
+// StockLevel — min/max/reorder configuration per Part × StockLocation.
+// The ROB quantity is NOT stored here; compute it by SUM(StockMovement.quantity).
+model StockLevel {
+  id           String   @id
+  tenantId     String   @map("tenant_id")
+  vesselId     String   @map("vessel_id")
+  partId       String   @map("part_id")
+  locationId   String   @map("location_id")
+  minStock     Decimal  @default(0) @map("min_stock") @db.Decimal(14, 4)
+  maxStock     Decimal? @map("max_stock") @db.Decimal(14, 4)
+  reorderPoint Decimal? @map("reorder_point") @db.Decimal(14, 4)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  hlc          String?
+  deletedAt    DateTime? @map("deleted_at")
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id])
+  vessel   Vessel        @relation(fields: [vesselId], references: [id])
+  part     Part          @relation(fields: [partId], references: [id])
+  location StockLocation @relation(fields: [locationId], references: [id])
+
+  @@unique([tenantId, vesselId, partId, locationId])
+  @@index([tenantId, vesselId])
+  @@map("stock_levels")
+}
+
+// StockMovement — append-only ledger; ROB = SUM(quantity) per (vessel, part, location).
+// Signed quantity: positive = stock added, negative = stock removed.
+model StockMovement {
+  id               String            @id
+  tenantId         String            @map("tenant_id")
+  vesselId         String            @map("vessel_id")
+  partId           String            @map("part_id")
+  locationId       String            @map("location_id")
+  movementType     StockMovementType @map("movement_type")
+  quantity         Decimal           @db.Decimal(14, 4)
+  referenceType    String?           @map("reference_type")
+  referenceId      String?           @map("reference_id")
+  notes            String?
+  recordedByUserId String?           @map("recorded_by_user_id")
+  recordedAt       DateTime          @map("recorded_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  hlc              String?
+  deletedAt        DateTime? @map("deleted_at")
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id])
+  vessel   Vessel        @relation(fields: [vesselId], references: [id])
+  part     Part          @relation(fields: [partId], references: [id])
+  location StockLocation @relation(fields: [locationId], references: [id])
+
+  @@index([tenantId, vesselId, partId, locationId, recordedAt])
+  @@index([tenantId, vesselId, movementType, recordedAt])
+  @@map("stock_movements")
+}
+
+// BarcodeBinding — maps a barcode string to a Part (for mobile barcode scan).
+model BarcodeBinding {
+  id              String    @id
+  tenantId        String    @map("tenant_id")
+  partId          String    @map("part_id")
+  barcode         String
+  createdByUserId String?   @map("created_by_user_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  hlc             String?
+  deletedAt       DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  part   Part   @relation(fields: [partId], references: [id])
+
+  @@unique([tenantId, barcode])
+  @@index([tenantId, partId])
+  @@map("barcode_bindings")
+}
+
+// ── Purchase (P1-7) ──────────────────────────────────────────────────────────
+
+// Supplier — fleet-wide vendor catalogue (tenant-scoped; no vessel_id).
+model Supplier {
+  id           String    @id
+  tenantId     String    @map("tenant_id")
+  name         String
+  contactName  String?   @map("contact_name")
+  contactEmail String?   @map("contact_email")
+  contactPhone String?   @map("contact_phone")
+  address      String?
+  country      String?
+  notes        String?
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  hlc          String?
+  deletedAt    DateTime? @map("deleted_at")
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  quotes         Quote[]
+  purchaseOrders PurchaseOrder[]
+
+  @@index([tenantId])
+  @@map("suppliers")
+}
+
+// ApprovalFlow — named approval policy (tenant-scoped; company-wide).
+model ApprovalFlow {
+  id          String    @id
+  tenantId    String    @map("tenant_id")
+  name        String
+  description String?
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  hlc         String?
+  deletedAt   DateTime? @map("deleted_at")
+
+  tenant       Tenant         @relation(fields: [tenantId], references: [id])
+  steps        ApprovalStep[]
+  requisitions Requisition[]
+
+  @@index([tenantId])
+  @@map("approval_flows")
+}
+
+// ApprovalStep — one step in an ApprovalFlow. limitAmount = max a role can approve;
+// null means no financial limit for this step.
+model ApprovalStep {
+  id             String   @id
+  tenantId       String   @map("tenant_id")
+  flowId         String   @map("flow_id")
+  stepOrder      Int      @map("step_order")
+  approverRole   Role     @map("approver_role")
+  limitAmount    Decimal? @map("limit_amount") @db.Decimal(14, 2)
+  limitCurrency  String   @default("USD") @map("limit_currency")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  hlc            String?
+  deletedAt      DateTime? @map("deleted_at")
+
+  tenant Tenant       @relation(fields: [tenantId], references: [id])
+  flow   ApprovalFlow @relation(fields: [flowId], references: [id])
+
+  @@unique([flowId, stepOrder])
+  @@index([tenantId])
+  @@map("approval_steps")
+}
+
+// Requisition — purchase request raised on a vessel.
+// CHECK (status != 'APPROVED' OR approved_by_user_id IS NOT NULL) added in migration.
+model Requisition {
+  id               String            @id
+  tenantId         String            @map("tenant_id")
+  vesselId         String            @map("vessel_id")
+  title            String
+  notes            String?
+  status           RequisitionStatus @default(DRAFT)
+  totalAmount      Decimal           @default(0) @map("total_amount") @db.Decimal(14, 2)
+  currency         String            @default("USD")
+  requestedByUserId String?          @map("requested_by_user_id")
+  requestedAt      DateTime          @map("requested_at")
+  approvalFlowId   String?           @map("approval_flow_id")
+  approvedByUserId String?           @map("approved_by_user_id")
+  approvedAt       DateTime?         @map("approved_at")
+  rejectedByUserId String?           @map("rejected_by_user_id")
+  rejectedAt       DateTime?         @map("rejected_at")
+  rejectionReason  String?           @map("rejection_reason")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  hlc              String?
+  deletedAt        DateTime? @map("deleted_at")
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  vessel       Vessel        @relation(fields: [vesselId], references: [id])
+  approvalFlow ApprovalFlow? @relation(fields: [approvalFlowId], references: [id])
+  lines        RequisitionLine[]
+  rfqs         Rfq[]
+  purchaseOrders PurchaseOrder[]
+
+  @@index([tenantId, vesselId, status])
+  @@index([tenantId, vesselId, requestedAt])
+  @@map("requisitions")
+}
+
+// RequisitionLine — one line item within a Requisition.
+model RequisitionLine {
+  id                  String    @id
+  tenantId            String    @map("tenant_id")
+  vesselId            String    @map("vessel_id")
+  requisitionId       String    @map("requisition_id")
+  partId              String?   @map("part_id")
+  description         String
+  quantity            Decimal   @db.Decimal(14, 4)
+  unit                String    @default("pcs")
+  estimatedUnitPrice  Decimal?  @map("estimated_unit_price") @db.Decimal(14, 2)
+  estimatedTotalPrice Decimal?  @map("estimated_total_price") @db.Decimal(14, 2)
+  currency            String?
+  notes               String?
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+  hlc                 String?
+  deletedAt           DateTime? @map("deleted_at")
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  vessel      Vessel      @relation(fields: [vesselId], references: [id])
+  requisition Requisition @relation(fields: [requisitionId], references: [id])
+  part        Part?       @relation(fields: [partId], references: [id])
+  poLines     POLine[]
+
+  @@index([tenantId, vesselId, requisitionId])
+  @@map("requisition_lines")
+}
+
+// Rfq — Request For Quote issued to one or more suppliers for a requisition.
+model Rfq {
+  id              String    @id
+  tenantId        String    @map("tenant_id")
+  vesselId        String    @map("vessel_id")
+  requisitionId   String?   @map("requisition_id")
+  title           String
+  notes           String?
+  status          RfqStatus @default(DRAFT)
+  issuedAt        DateTime? @map("issued_at")
+  dueAt           DateTime? @map("due_at")
+  createdByUserId String?   @map("created_by_user_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  hlc             String?
+  deletedAt       DateTime? @map("deleted_at")
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  vessel        Vessel        @relation(fields: [vesselId], references: [id])
+  requisition   Requisition?  @relation(fields: [requisitionId], references: [id])
+  quotes        Quote[]
+  purchaseOrders PurchaseOrder[]
+
+  @@index([tenantId, vesselId, status])
+  @@map("rfqs")
+}
+
+// Quote — one supplier's response to an Rfq.
+model Quote {
+  id          String      @id
+  tenantId    String      @map("tenant_id")
+  vesselId    String      @map("vessel_id")
+  rfqId       String      @map("rfq_id")
+  supplierId  String      @map("supplier_id")
+  validUntil  DateTime?   @map("valid_until")
+  totalAmount Decimal     @default(0) @map("total_amount") @db.Decimal(14, 2)
+  currency    String      @default("USD")
+  notes       String?
+  status      QuoteStatus @default(PENDING)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  hlc         String?
+  deletedAt   DateTime? @map("deleted_at")
+
+  tenant   Tenant      @relation(fields: [tenantId], references: [id])
+  vessel   Vessel      @relation(fields: [vesselId], references: [id])
+  rfq      Rfq         @relation(fields: [rfqId], references: [id])
+  supplier Supplier    @relation(fields: [supplierId], references: [id])
+  lines    QuoteLine[]
+
+  @@index([tenantId, vesselId, rfqId])
+  @@map("quotes")
+}
+
+// QuoteLine — one line item in a Quote (mirrors a requisition line).
+model QuoteLine {
+  id          String    @id
+  tenantId    String    @map("tenant_id")
+  vesselId    String    @map("vessel_id")
+  quoteId     String    @map("quote_id")
+  partId      String?   @map("part_id")
+  description String
+  quantity    Decimal   @db.Decimal(14, 4)
+  unit        String    @default("pcs")
+  unitPrice   Decimal   @map("unit_price") @db.Decimal(14, 2)
+  totalPrice  Decimal   @map("total_price") @db.Decimal(14, 2)
+  currency    String    @default("USD")
+  notes       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  hlc         String?
+  deletedAt   DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  vessel Vessel @relation(fields: [vesselId], references: [id])
+  quote  Quote  @relation(fields: [quoteId], references: [id])
+  part   Part?  @relation(fields: [partId], references: [id])
+
+  @@index([tenantId, vesselId, quoteId])
+  @@map("quote_lines")
+}
+
+// PurchaseOrder — formal order sent to a supplier.
+// CHECK (status = 'DRAFT' OR supplier_id IS NOT NULL) added in migration.
+model PurchaseOrder {
+  id                 String              @id
+  tenantId           String              @map("tenant_id")
+  vesselId           String              @map("vessel_id")
+  requisitionId      String?             @map("requisition_id")
+  rfqId              String?             @map("rfq_id")
+  supplierId         String?             @map("supplier_id")
+  poNumber           String?             @map("po_number")
+  title              String
+  notes              String?
+  status             PurchaseOrderStatus @default(DRAFT)
+  totalAmount        Decimal             @default(0) @map("total_amount") @db.Decimal(14, 2)
+  currency           String              @default("USD")
+  orderedByUserId    String?             @map("ordered_by_user_id")
+  orderedAt          DateTime?           @map("ordered_at")
+  expectedDeliveryAt DateTime?           @map("expected_delivery_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  hlc                String?
+  deletedAt          DateTime? @map("deleted_at")
+
+  tenant      Tenant         @relation(fields: [tenantId], references: [id])
+  vessel      Vessel         @relation(fields: [vesselId], references: [id])
+  requisition Requisition?   @relation(fields: [requisitionId], references: [id])
+  rfq         Rfq?           @relation(fields: [rfqId], references: [id])
+  supplier    Supplier?      @relation(fields: [supplierId], references: [id])
+  lines       POLine[]
+  receipts    GoodsReceipt[]
+
+  @@index([tenantId, vesselId, status])
+  @@index([tenantId, vesselId, supplierId])
+  @@map("purchase_orders")
+}
+
+// POLine — one line item in a PurchaseOrder.
+model POLine {
+  id               String    @id
+  tenantId         String    @map("tenant_id")
+  vesselId         String    @map("vessel_id")
+  poId             String    @map("po_id")
+  partId           String?   @map("part_id")
+  description      String
+  quantity         Decimal   @db.Decimal(14, 4)
+  unit             String    @default("pcs")
+  unitPrice        Decimal   @map("unit_price") @db.Decimal(14, 2)
+  totalPrice       Decimal   @map("total_price") @db.Decimal(14, 2)
+  currency         String    @default("USD")
+  requisitionLineId String?  @map("requisition_line_id")
+  quoteLineId      String?   @map("quote_line_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  hlc              String?
+  deletedAt        DateTime? @map("deleted_at")
+
+  tenant           Tenant           @relation(fields: [tenantId], references: [id])
+  vessel           Vessel           @relation(fields: [vesselId], references: [id])
+  po               PurchaseOrder    @relation(fields: [poId], references: [id])
+  part             Part?            @relation(fields: [partId], references: [id])
+  requisitionLine  RequisitionLine? @relation(fields: [requisitionLineId], references: [id])
+  receiptLines     GoodsReceiptLine[]
+
+  @@index([tenantId, vesselId, poId])
+  @@map("po_lines")
+}
+
+// GoodsReceipt — a delivery event against a PurchaseOrder.
+model GoodsReceipt {
+  id              String    @id
+  tenantId        String    @map("tenant_id")
+  vesselId        String    @map("vessel_id")
+  poId            String    @map("po_id")
+  receivedByUserId String?  @map("received_by_user_id")
+  receivedAt      DateTime  @map("received_at")
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  hlc             String?
+  deletedAt       DateTime? @map("deleted_at")
+
+  tenant Tenant             @relation(fields: [tenantId], references: [id])
+  vessel Vessel             @relation(fields: [vesselId], references: [id])
+  po     PurchaseOrder      @relation(fields: [poId], references: [id])
+  lines  GoodsReceiptLine[]
+
+  @@index([tenantId, vesselId, poId])
+  @@map("goods_receipts")
+}
+
+// GoodsReceiptLine — per-line received quantities (supports partial receipts).
+model GoodsReceiptLine {
+  id               String    @id
+  tenantId         String    @map("tenant_id")
+  vesselId         String    @map("vessel_id")
+  receiptId        String    @map("receipt_id")
+  poLineId         String    @map("po_line_id")
+  partId           String?   @map("part_id")
+  description      String?
+  quantityOrdered  Decimal   @map("quantity_ordered") @db.Decimal(14, 4)
+  quantityReceived Decimal   @map("quantity_received") @db.Decimal(14, 4)
+  unit             String    @default("pcs")
+  notes            String?
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  hlc              String?
+  deletedAt        DateTime? @map("deleted_at")
+
+  tenant  Tenant       @relation(fields: [tenantId], references: [id])
+  vessel  Vessel       @relation(fields: [vesselId], references: [id])
+  receipt GoodsReceipt @relation(fields: [receiptId], references: [id])
+  poLine  POLine       @relation(fields: [poLineId], references: [id])
+  part    Part?        @relation(fields: [partId], references: [id])
+
+  @@index([tenantId, vesselId, receiptId])
+  @@index([tenantId, vesselId, poLineId])
+  @@map("goods_receipt_lines")
 }
 
 // ── Sync engine tables ───────────────────────────────────────────────────────

@@ -34,4 +34,9 @@ export class CreateJobDto {
   @IsOptional()
   @IsEnum(JobPriority)
   priority?: JobPriority;
+
+  /** JSON-encoded array of typical parts: [{ partId, partName, typicalQuantity, unit }] */
+  @IsOptional()
+  @IsString()
+  typicalPartsJson?: string;
 }

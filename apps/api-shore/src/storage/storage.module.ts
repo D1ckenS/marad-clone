@@ -11,7 +11,7 @@ import { StorageService } from './storage.service';
  *   S3_REGION            (default us-east-1)
  *   S3_ACCESS_KEY_ID     (required)
  *   S3_SECRET_ACCESS_KEY (required)
- *   S3_BUCKET            (default marad-photos)
+ *   S3_BUCKET            (default fleetops-photos)
  *   S3_FORCE_PATH_STYLE  (default '1' for MinIO compatibility)
  */
 @Global()
@@ -23,7 +23,7 @@ import { StorageService } from './storage.service';
         const accessKeyId = process.env['S3_ACCESS_KEY_ID'] ?? '';
         const secretAccessKey = process.env['S3_SECRET_ACCESS_KEY'] ?? '';
         const region = process.env['S3_REGION'] ?? 'us-east-1';
-        const bucket = process.env['S3_BUCKET'] ?? 'marad-photos';
+        const bucket = process.env['S3_BUCKET'] ?? 'fleetops-photos';
         const endpoint = process.env['S3_ENDPOINT'];
         const forcePathStyle = (process.env['S3_FORCE_PATH_STYLE'] ?? '1') === '1';
 

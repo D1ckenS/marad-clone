@@ -29,7 +29,7 @@ type VesselLocalClaims = {
  * success, attaches `AuthContext` to `req.authCtx`.
  *
  * The two key materials are kept distinct so neither path can spoof the
- * other: shore tokens carry `iss=marad-shore`, vessel-local tokens carry
+ * other: shore tokens carry `iss=fleetops-shore`, vessel-local tokens carry
  * `iss=fleetops-vessel`. The matching key/secret only verifies the matching
  * issuer.
  */
@@ -60,7 +60,7 @@ export class JwtAuthGuard implements CanActivate {
     try {
       const payload = jwt.verify(token, this.publicKey, {
         algorithms: ['RS256'],
-        issuer: 'marad-shore',
+        issuer: 'fleetops-shore',
       }) as ShoreClaims;
       if (payload.type !== 'access') {
         throw new UnauthorizedException('Token is not an access token');

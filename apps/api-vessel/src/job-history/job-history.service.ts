@@ -6,17 +6,47 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { newId } from '@fleetops/domain';
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { AuthContext } from '../auth/auth-context';
 import { requireVesselId } from '../auth/vessel-bound';
 import { DrizzleService } from '../db/drizzle.service';
-import { jobHistories, jobInstances } from '../db/schema';
+import {
+  jobHistories,
+  jobInstances,
+  parts,
+  requisitionLines,
+  requisitions,
+  stockLevels,
+  stockMovements,
+} from '../db/schema';
 import { StorageService } from '../storage/storage.service';
 import { OutboxRecorder } from '../sync/outbox-recorder';
 import type { SignOffJobInstanceDto } from './dto/sign-off-job-instance.dto';
 
 const HISTORY_ENTITY = 'JobHistory';
 const INSTANCE_ENTITY = 'JobInstance';
+
+interface PartConsumed {
+  partId: string;
+  locationId: string;
+  quantity: string;
+}
+
+function extractValidConsumed(val: unknown): PartConsumed[] {
+  if (!Array.isArray(val)) return [];
+  return val.filter((item): item is PartConsumed => {
+    if (typeof item !== 'object' || item === null) return false;
+    const o = item as Record<string, unknown>;
+    return (
+      typeof o['partId'] === 'string' &&
+      o['partId'] !== '' &&
+      typeof o['locationId'] === 'string' &&
+      o['locationId'] !== '' &&
+      typeof o['quantity'] === 'string' &&
+      o['quantity'] !== ''
+    );
+  });
+}
 
 type JobHistoryRow = typeof jobHistories.$inferSelect;
 
@@ -204,6 +234,165 @@ export class JobHistoryService {
       this.log.log(
         `signoff history=${historyId} instance=${jobInstanceId} tenant=${auth.tenantId} vessel=${vesselId} photos=${photoKeys.length}`,
       );
+
+      // P1-10: consume parts → StockMovements → reorder check → draft Requisition
+      const consumed = extractValidConsumed(partsConsumed);
+      if (consumed.length > 0) {
+        for (const item of consumed) {
+          const movId = newId();
+          const negQty = String(-parseFloat(item.quantity));
+          const { hlc: movHlc } = this.recorder.recordUpsert(
+            tx,
+            { tenantId: auth.tenantId, vesselId },
+            'StockMovement',
+            movId,
+            {
+              vesselId,
+              partId: item.partId,
+              locationId: item.locationId,
+              movementType: 'CONSUMPTION',
+              quantity: negQty,
+              referenceType: 'JobHistory',
+              referenceId: historyId,
+              recordedAt: completedAtIso,
+            },
+          );
+          tx.insert(stockMovements)
+            .values({
+              id: movId,
+              tenantId: auth.tenantId,
+              vesselId,
+              partId: item.partId,
+              locationId: item.locationId,
+              movementType: 'CONSUMPTION',
+              quantity: negQty,
+              referenceType: 'JobHistory',
+              referenceId: historyId,
+              recordedAt: completedAtIso,
+              hlc: movHlc,
+            })
+            .run();
+        }
+
+        const checkedKeys = new Set<string>();
+        const reorderTriggers: Array<{ partId: string; locationId: string; qty: string }> = [];
+
+        for (const item of consumed) {
+          const key = `${item.partId}:${item.locationId}`;
+          if (checkedKeys.has(key)) continue;
+          checkedKeys.add(key);
+
+          const robRow = tx
+            .select({
+              rob: sql<string>`COALESCE(SUM(CAST(${stockMovements.quantity} AS REAL)), 0)`,
+            })
+            .from(stockMovements)
+            .where(
+              and(
+                eq(stockMovements.tenantId, auth.tenantId),
+                eq(stockMovements.vesselId, vesselId),
+                eq(stockMovements.partId, item.partId),
+                eq(stockMovements.locationId, item.locationId),
+                isNull(stockMovements.deletedAt),
+              ),
+            )
+            .get();
+          const rob = parseFloat(robRow?.rob ?? '0');
+
+          const level = tx
+            .select()
+            .from(stockLevels)
+            .where(
+              and(
+                eq(stockLevels.tenantId, auth.tenantId),
+                eq(stockLevels.vesselId, vesselId),
+                eq(stockLevels.partId, item.partId),
+                eq(stockLevels.locationId, item.locationId),
+                isNull(stockLevels.deletedAt),
+              ),
+            )
+            .get();
+
+          if (level?.reorderPoint != null) {
+            const reorder = parseFloat(level.reorderPoint);
+            if (rob <= reorder) {
+              const deficit = reorder - rob;
+              reorderTriggers.push({
+                partId: item.partId,
+                locationId: item.locationId,
+                qty: String(Math.max(deficit, 1)),
+              });
+            }
+          }
+        }
+
+        if (reorderTriggers.length > 0) {
+          const reqId = newId();
+          const reqTitle = `Restock — job sign-off ${jobInstanceId}`;
+          const { hlc: reqHlc } = this.recorder.recordUpsert(
+            tx,
+            { tenantId: auth.tenantId, vesselId },
+            'Requisition',
+            reqId,
+            { vesselId, title: reqTitle, status: 'DRAFT', requestedAt: completedAtIso },
+          );
+          tx.insert(requisitions)
+            .values({
+              id: reqId,
+              tenantId: auth.tenantId,
+              vesselId,
+              title: reqTitle,
+              status: 'DRAFT',
+              totalAmount: '0',
+              currency: 'USD',
+              requestedByUserId: auth.userId ?? null,
+              requestedAt: completedAtIso,
+              hlc: reqHlc,
+            })
+            .run();
+
+          for (const trigger of reorderTriggers) {
+            const partRow = tx
+              .select({ name: parts.name, unit: parts.unit })
+              .from(parts)
+              .where(and(eq(parts.id, trigger.partId), eq(parts.tenantId, auth.tenantId)))
+              .get();
+            const lineId = newId();
+            const description = partRow?.name ?? trigger.partId;
+            const { hlc: lineHlc } = this.recorder.recordUpsert(
+              tx,
+              { tenantId: auth.tenantId, vesselId },
+              'RequisitionLine',
+              lineId,
+              {
+                vesselId,
+                requisitionId: reqId,
+                partId: trigger.partId,
+                description,
+                quantity: trigger.qty,
+              },
+            );
+            tx.insert(requisitionLines)
+              .values({
+                id: lineId,
+                tenantId: auth.tenantId,
+                vesselId,
+                requisitionId: reqId,
+                partId: trigger.partId,
+                description,
+                quantity: trigger.qty,
+                unit: partRow?.unit ?? 'pcs',
+                hlc: lineHlc,
+              })
+              .run();
+          }
+
+          this.log.log(
+            `reorder-suggest req=${reqId} triggers=${reorderTriggers.length} instance=${jobInstanceId}`,
+          );
+        }
+      }
+
       return history === undefined ? null : deserialize(history);
     });
   }

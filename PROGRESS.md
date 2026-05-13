@@ -8,6 +8,165 @@
 
 > Most-recent first. Format: `### YYYY-MM-DD — <task> — <summary>` then bullets.
 
+### 2026-05-13 — P1-11 — Mobile app (Flutter)
+
+| Item                                               | Detail                                                                                                                                                                                         |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/mobile/pubspec.yaml`                         | Flutter 3.22+ app; deps: `http ^1.2.1`, `flutter_secure_storage ^9.0.0`, `mobile_scanner ^5.2.3`, `image_picker ^1.1.2`, `provider ^6.1.2`                                                     |
+| `apps/mobile/lib/utils/jwt.dart`                   | `decodeJwtPayload()` — base64url-decodes JWT payload without signature verification (client-side claim read only)                                                                              |
+| `apps/mobile/lib/services/api_client.dart`         | `ApiClient` — `get`, `post`, `postMultipart`; throws `ApiException` on non-2xx; token injection via `setToken()`                                                                               |
+| `apps/mobile/lib/providers/auth_provider.dart`     | `AuthProvider` (`ChangeNotifier`) — `login()` → `POST /auth/login` → token stored in `flutter_secure_storage`; `init()` restores token + base URL on startup; JWT claims extracted client-side |
+| `apps/mobile/lib/models/job_instance.dart`         | `JobModel.fromJson`, `JobInstance.fromJson` with `isDone / isPending / isInProgress` helpers                                                                                                   |
+| `apps/mobile/lib/models/inventory_item.dart`       | `InventoryItem.fromJson` (maps `stockLevels[]` from inventory-summary API); `overallStatus` propagates worst status (red > amber > purple > green)                                             |
+| `apps/mobile/lib/screens/login_screen.dart`        | Login form: tenantId, email, password, expandable vessel API URL field                                                                                                                         |
+| `apps/mobile/lib/screens/home_screen.dart`         | `IndexedStack` TabBar — Jobs + Inventory; sign-out with confirmation dialog                                                                                                                    |
+| `apps/mobile/lib/screens/jobs_screen.dart`         | Fetches `GET /job-instances` + `GET /jobs` in parallel; joined client-side; tap → `SignOffScreen`                                                                                              |
+| `apps/mobile/lib/screens/sign_off_screen.dart`     | `POST /job-instances/:id/sign-off` multipart; camera + gallery photo picker; hoursWorked / notes / signatureHash fields                                                                        |
+| `apps/mobile/lib/screens/inventory_screen.dart`    | `GET /parts/inventory-summary`; ROB chips per location; FAB → barcode scan; tap → `AdjustStockScreen`                                                                                          |
+| `apps/mobile/lib/screens/barcode_scan_screen.dart` | `MobileScanner` widget; on detect → `GET /barcode-bindings/lookup/:barcode`; returns `BarcodeScanResult` to caller                                                                             |
+| `apps/mobile/lib/screens/adjust_stock_screen.dart` | `POST /stock-movements` (ADJUSTMENT / RECEIPT / CONSUMPTION); fetches `GET /stock-locations` for dropdown when no locationId pre-supplied                                                      |
+| `apps/mobile/lib/widgets/job_status_badge.dart`    | Colored badge for PENDING / IN_PROGRESS / DONE                                                                                                                                                 |
+| `apps/mobile/lib/widgets/rob_status_chip.dart`     | Icon-based chip for green / amber / red / purple ROB status                                                                                                                                    |
+| `apps/mobile/test/models_test.dart`                | 12 unit tests: `JobInstance`, `JobModel`, `InventoryItem`, `StockLevelEntry` fromJson parsing and business logic                                                                               |
+| `apps/mobile/test/jwt_decode_test.dart`            | 5 unit tests: claim extraction, missing claims, format errors                                                                                                                                  |
+| CI                                                 | Flutter SDK not installed in this environment — `flutter test` must be run locally. Dart SDK 3.11.5 present.                                                                                   |
+
+**Key design decisions:**
+
+- `AuthProvider.init()` is called before `runApp` so the first frame shows the correct screen (no login flash)
+- Token + base URL both persisted in `flutter_secure_storage` — survives app restart without re-login
+- Barcode lookup returns flat `{ partId, partName, partNumber }` — used directly in `AdjustStockScreen`
+- `AdjustStockScreen` fetches `GET /stock-locations` lazily when no locationId is pre-supplied (barcode scan flow); pre-supplied locationId (from inventory list tap) skips the fetch
+- `ADJUSTMENT` quantity is signed (positive = add, negative = remove) — labelled in the form helper text
+- `IndexedStack` keeps both tabs alive so their scroll position is preserved across tab switches
+
+### 2026-05-13 — P1-12 — Pilot deployment runbook + Phase 1 checklist
+
+| Item                                 | Detail                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/docs/runbooks/pilot-deploy.md` | 13-section runbook covering: prerequisites (shore server + vessel workstation specs), Docker Compose infra, MinIO bucket creation, JWT keypair generation, shore .env config, Prisma migrate deploy, systemd service, seed script, Electron installer build + distribution, vessel .env config, SQLite migration, gRPC sync enable + verify, 6-section smoke-test checklist (auth / PMS / inventory / purchase / barcode / sync), day-2 ops (logs, backups, upgrade, photo lifecycle), adding a second vessel, rollback procedure |
+| `apps/docs/checklists/phase1.md`     | Phase 1 verification checklist with 10 sections (A–J): CI, auth, PMS, inventory, purchase, cross-module P1-10, Electron, mobile, sync, runbook sign-off; sign-off table for lead engineer + QA + IT officer                                                                                                                                                                                                                                                                                                                       |
+
+**Key design decisions:**
+
+- Runbook targets a systemd service for shore (not Docker for api-shore itself) — keeps the production setup simpler and avoids nested Docker complexity
+- `VESSEL_LOCAL_JWT_SECRET` explicitly called out as per-vessel (not shared across fleet)
+- Smoke tests written as step-by-step with concrete values (e.g. exact ROB thresholds) so a non-developer can execute them
+- Backup commands are copy-paste-ready (cron syntax for shore Postgres, PowerShell for vessel SQLite)
+
+### 2026-05-13 — P1-10 — Cross-module: job sign-off → StockMovement → reorder Requisition
+
+| Item                                                     | Detail                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `apps/api-shore/src/job-history/job-history.service.ts`  | Added `PartConsumed` interface + `extractValidConsumed()` helper; P1-10 block inside the `withTenant` tx: (1) creates a CONSUMPTION `StockMovement` per consumed item, referencing the JobHistory; (2) deduplicates (partId, locationId) pairs; (3) checks post-movement ROB via `$queryRaw` SUM; (4) if ROB ≤ `StockLevel.reorderPoint`, auto-creates a draft `Requisition` + `RequisitionLine`; return shape unchanged (backward compat) |
+| `apps/api-vessel/src/job-history/job-history.service.ts` | Mirror of shore but Drizzle/sync: added `stockMovements, stockLevels, requisitions, requisitionLines, parts` imports; same helper + P1-10 block inside `db.transaction()`; uses `parseFloat()` for Decimal comparison                                                                                                                                                                                                                      |
+| `apps/api-shore/test/sign-off-cross-module.e2e.ts`       | 5 e2e tests: no partsConsumed → no movement; old-format (missing locationId/quantity) → backward-compat skip; valid format → CONSUMPTION movement with negated qty; ROB 14 > reorder 10 → no requisition; ROB 8 ≤ reorder 10 → draft Requisition with line qty=2 (deficit)                                                                                                                                                                 |
+| `apps/api-vessel/test/sign-off-cross-module.e2e.ts`      | 4 e2e tests: same coverage on SQLite                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `packages/domain/src/running-hour-scheduler.test.ts`     | Added 15 000 ms per-test timeout to all 5 property-based tests (numRuns=500 each) that were consistently hitting the 5 000 ms default under CI load                                                                                                                                                                                                                                                                                        |
+| CI                                                       | `pnpm run lint` ✓; `pnpm run typecheck` ✓; 139 ✓ unit; shore e2e → 100 ✓ (11 files); vessel e2e → 80 ✓ (10 files)                                                                                                                                                                                                                                                                                                                          |
+
+**Key design decisions:**
+
+- `extractValidConsumed` uses duck-typing: items missing `locationId` or `quantity` (the old free-form format) are silently skipped — ensures backward compat with the P1-2 sign-off test
+- Movements and reorder check happen inside the same `withTenant` / `db.transaction` as the JobHistory insert — fully atomic; if the requisition create fails, no orphan movements are committed
+- Return value of `signOff()` is unchanged (still the `JobHistory` record) — the suggested Requisition is created silently; UI discovers it via `GET /requisitions?status=DRAFT`
+- Deficit qty = `max(reorderPoint - rob, 1)` so the requisition line is never zero-quantity
+
+### 2026-05-13 — P1-9 — Purchase UI (web-shore)
+
+| Item                                                       | Detail                                                                                                                                                                                                                                                                                           |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `apps/web-shore/src/pages/PurchasePage.tsx`                | Two-tab page (Requisitions / Purchase Orders); `RequisitionsTab` with ALL/DRAFT/SUBMITTED/APPROVED/REJECTED filter, inline Submit/Approve/Reject actions per row; `PurchaseOrdersTab` with ALL/DRAFT/SENT/IN_TRANSIT/PARTIALLY_RECEIVED/RECEIVED filter, inline Send action, click-row to detail |
+| `apps/web-shore/src/components/CreateRequisitionModal.tsx` | Form modal: title (required), notes, totalAmount, currency; `POST /requisitions`; resets on close                                                                                                                                                                                                |
+| `apps/web-shore/src/components/RejectRequisitionModal.tsx` | Reject modal with optional reason textarea; `POST /requisitions/:id/reject`                                                                                                                                                                                                                      |
+| `apps/web-shore/src/components/PODetailModal.tsx`          | PO detail: header grid (status badge, supplier, total, PO#, expected delivery, notes); order lines table; receipt history; inline `GrnSection` for receivable POs with per-line qty inputs + `POST /purchase-orders/:id/receive`                                                                 |
+| `apps/web-shore/src/App.tsx`                               | Added `🛒 Purchase` nav link at `/purchase`; changed Jobs icon to `🗂️` to free `📋`; added `<Route path="purchase">`                                                                                                                                                                             |
+| CI                                                         | `pnpm run lint` ✓; `pnpm run typecheck` ✓; `pnpm --filter web-shore exec tsc --noEmit` ✓; 139 ✓ unit tests                                                                                                                                                                                       |
+
+**Key design decisions:**
+
+- Types defined in `PurchasePage.tsx` (exported for sibling tabs) and re-declared locally in `PODetailModal.tsx` to avoid circular imports
+- `useCallback` + `useEffect([load])` pattern for re-fetchable data with filter dependency
+- GRN entry is an inline section inside `PODetailModal` (no nested modal), only rendered when `canReceive(po.status) && po.lines.length > 0`
+- `stopPropagation` on action-column cells prevents row-click from opening the detail modal when clicking Send/Receive buttons
+
+### 2026-05-13 — P1-8 — Purchase API (Requisition + approval + PO + GRN)
+
+| Item                                                                                | Detail                                                                                                                                                                 |
+| ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api-shore/src/{supplier,approval-flow,requisition,rfq,quote,purchase-order}/` | 6 NestJS modules (controller + service + DTOs + module) for all purchase entities; tenant-scoped modules skip OutboxRecorder; vessel-scoped modules use OutboxRecorder |
+| `apps/api-vessel/src/`                                                              | Mirror of all 6 modules using Drizzle/SQLite patterns                                                                                                                  |
+| `POST /requisitions/:id/submit`                                                     | DRAFT → SUBMITTED                                                                                                                                                      |
+| `POST /requisitions/:id/approve`                                                    | SUBMITTED → APPROVED; enforces `ApprovalStep.limitAmount` per role (403 if over limit)                                                                                 |
+| `POST /requisitions/:id/reject`                                                     | SUBMITTED → REJECTED with optional reason                                                                                                                              |
+| `POST /purchase-orders/:id/send`                                                    | DRAFT → SENT; requires `supplierId` (400 otherwise)                                                                                                                    |
+| `POST /purchase-orders/:id/receive`                                                 | Creates `GoodsReceipt` + `GoodsReceiptLine` records; sets PO → `PARTIALLY_RECEIVED` or `RECEIVED` based on totals across all receipts                                  |
+| `apps/api-shore/test/purchase-api.e2e.ts`                                           | 8 HTTP e2e tests covering all key acceptance criteria                                                                                                                  |
+| `apps/api-vessel/test/purchase-api.e2e.ts`                                          | 5 HTTP e2e tests covering same on SQLite                                                                                                                               |
+| CI                                                                                  | `pnpm run ci:full` → 139 ✓ unit; shore e2e → 95 ✓ (10 files); vessel e2e → 76 ✓ (9 files); lint/typecheck/format clean                                                 |
+
+**Key design decisions:**
+
+- `Supplier`, `ApprovalFlow`, `ApprovalStep` services have no OutboxRecorder (tenant-scoped only)
+- Approval limit comparison uses `Prisma.Decimal.greaterThan` (shore) and `parseFloat` (vessel)
+- GRN partial check: sums all receipts across all `GoodsReceiptLine` rows matching each PO line
+- PO `send` validates supplierId presence at application layer (mirrors the DB CHECK constraint)
+
+### 2026-05-13 — P1-7 — Purchase schema (Requisition → GoodsReceipt)
+
+| Item                                                                   | Detail                                                                                                                                                                                                                                                                                                                          |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api-shore/prisma/schema.prisma`                                  | 4 new enums (`RequisitionStatus`, `PurchaseOrderStatus`, `RfqStatus`, `QuoteStatus`) + 12 new models: `Supplier`, `ApprovalFlow`, `ApprovalStep`, `Requisition`, `RequisitionLine`, `Rfq`, `Quote`, `QuoteLine`, `PurchaseOrder`, `POLine`, `GoodsReceipt`, `GoodsReceiptLine`; relations added to `Tenant` + `Vessel` + `Part` |
+| `apps/api-shore/prisma/migrations/20260512205903_add_purchase_schema/` | Prisma-generated migration; hand-appended CHECK constraints (`requisitions_approved_requires_approver_chk`, `purchase_orders_non_draft_requires_supplier_chk`) + RLS tenant-isolation policies on all 12 tables                                                                                                                 |
+| `apps/api-vessel/src/db/schema.ts`                                     | Mirror of all 12 purchase tables in Drizzle/SQLite; 4 new status const arrays; same CHECK constraints via Drizzle `check()`                                                                                                                                                                                                     |
+| `apps/api-vessel/drizzle/0004_wise_venus.sql`                          | Drizzle-generated migration; applied via `drizzle-kit migrate`                                                                                                                                                                                                                                                                  |
+| `apps/api-shore/test/purchase-schema.e2e.ts`                           | 8 e2e tests: Supplier round-trip, ApprovalFlow+Step, duplicate step constraint, Requisition+Lines, CHECK approved_requires_approver, CHECK PO non-draft requires supplier, full procurement chain, RLS policy presence                                                                                                          |
+| `apps/api-vessel/test/purchase-schema.e2e.ts`                          | 6 e2e tests: same coverage on SQLite                                                                                                                                                                                                                                                                                            |
+| CI                                                                     | `pnpm run ci:full` → 139 ✓ unit; shore e2e → 87 ✓ (9 files); vessel e2e → 71 ✓ (8 files); lint/typecheck/format clean                                                                                                                                                                                                           |
+
+**Key design decisions:**
+
+- `Supplier`, `ApprovalFlow`, `ApprovalStep` are **tenant-scoped only** (no `vessel_id`) — fleet-wide catalogs replicated shore→vessel
+- `ApprovalStep.limitAmount` = max amount the role can approve; `null` = no limit
+- Requisition CHECK: `status != 'APPROVED' OR approved_by_user_id IS NOT NULL` (Postgres + SQLite)
+- PurchaseOrder CHECK: `status = 'DRAFT' OR supplier_id IS NOT NULL` — supplier required before leaving DRAFT
+- `GoodsReceiptLine` enables partial GRN receipts (`quantityOrdered` vs `quantityReceived`)
+- `POLine.quoteLineId` is a soft FK (traceability only)
+
+### 2026-05-12 — P1-6 — Inventory API + UI
+
+| Item                                                                                                 | Detail                                                                                                                                                                     |
+| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api-shore/src/{part-category,part,stock-location,stock-level,stock-movement,barcode-binding}/` | 6 NestJS modules (controller + service + DTOs + module) for all inventory entities; tenant-scoped entities skip OutboxRecorder (same pattern as MasterComponent)           |
+| `apps/api-vessel/src/`                                                                               | Mirror of all 6 modules using Drizzle/SQLite patterns                                                                                                                      |
+| `GET /parts/inventory-summary`                                                                       | Single-call endpoint returning all parts enriched with per-location ROB (computed via `SUM(quantity)`) and color status (`green/amber/red/purple`); available on both apps |
+| `GET /stock-movements/rob`                                                                           | Raw ROB aggregation endpoint per `(partId, locationId)`                                                                                                                    |
+| `GET /barcode-bindings/lookup/:barcode`                                                              | Resolves barcode → part (for mobile scan)                                                                                                                                  |
+| `apps/web-shore/src/pages/InventoryPage.tsx`                                                         | Parts list with color-status chips, filter buttons (All / Low+Reorder / Out), per-location ROB                                                                             |
+| `apps/web-shore/src/App.tsx`                                                                         | Added `📦 Inventory` nav link at `/inventory`                                                                                                                              |
+| `apps/api-shore/test/inventory-api.e2e.ts`                                                           | 14 e2e tests: full CRUD chain + ROB verification + color status + barcode lookup                                                                                           |
+| `apps/api-vessel/test/inventory-api.e2e.ts`                                                          | 11 e2e tests: same coverage on vessel                                                                                                                                      |
+| CI                                                                                                   | `pnpm run ci:full` → 139 ✓ unit tests; shore e2e → 79 ✓ (8 files); vessel e2e → 65 ✓ (7 files); lint/typecheck/format clean                                                |
+
+### 2026-05-12 — P1-5 — Inventory schema
+
+| Item                                                                    | Detail                                                                                                                                                                    |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api-shore/prisma/schema.prisma`                                   | `StockMovementType` enum + 6 new models: `PartCategory`, `Part`, `StockLocation`, `StockLevel`, `StockMovement`, `BarcodeBinding`; relations added to `Tenant` + `Vessel` |
+| `apps/api-shore/prisma/migrations/20260512173641_add_inventory_schema/` | Auto-generated Prisma migration (tables, indexes, FKs) + hand-appended RLS policies for all 6 tables (same shape as maintenance migration)                                |
+| `apps/api-vessel/src/db/schema.ts`                                      | Same 6 tables in Drizzle/SQLite; `STOCK_MOVEMENT_TYPES` as TS const array; `PartCategory.parentId` is a soft FK (no SQLite circular FK)                                   |
+| `apps/api-vessel/drizzle/0003_small_ultron.sql`                         | Drizzle-generated migration; applied via `drizzle-kit migrate`                                                                                                            |
+| `apps/api-shore/test/inventory-schema.e2e.ts`                           | 7 e2e tests: category hierarchy, part CRUD, StockLevel unique constraint, ROB-by-SUM, barcode uniqueness, RLS policy verification                                         |
+| `apps/api-vessel/test/inventory-schema.e2e.ts`                          | 6 e2e tests: same coverage on SQLite                                                                                                                                      |
+| CI                                                                      | `pnpm run ci:full` → 139 ✓ unit tests; shore e2e → 65 ✓; vessel e2e → 53 ✓; lint/typecheck/format clean                                                                   |
+
+**Key design decisions:**
+
+- `quantity` in `StockMovement` is **signed** (+ = stock in, − = stock out). ROB = `SUM(quantity)` per (vessel, part, location). No snapshot column.
+- `PartCategory` and `Part` are **tenant-scoped only** (no `vessel_id`) — fleet-wide catalog replicated shore→vessel.
+- `BarcodeBinding` has a unique constraint on `(tenant_id, barcode)` — one barcode maps to one part per fleet.
+- `StockLevel` unique on `(tenant_id, vessel_id, part_id, location_id)` — one config row per part×location.
+
 ### 2026-05-12 — P1-4 — Running-hour scheduling logic
 
 | Item                                                 | Detail                                                                                                                                      |
@@ -105,7 +264,7 @@
 
 > Single, unambiguous next task for any fresh Claude Code session. Update this immediately when a task completes.
 
-**P1-4 done.** Next: **P1-5 — Inventory schema** — `Part`, `PartCategory`, `StockLocation`, `StockLevel`, `StockMovement`, `BarcodeBinding` on both shore (Prisma/Postgres) and vessel (Drizzle/SQLite), sync-enabled. ROB derived from replaying `StockMovement` only (no snapshot column). RLS policies on shore. Migrations idempotent.
+**P1-12 done. Phase 1 complete.** Next: **Phase 1 verification** — run the full Phase 1 verification command and work through `apps/docs/checklists/phase1.md`. Command: `pnpm run ci:full && pnpm run e2e:phase1 && pnpm run soak:sync`. After all checklist items are green, begin **P2-1 — Certificates** (expiry alerts, email/in-app notifications).
 
 **Outstanding follow-up tickets (deferred, not blocking P1-4):**
 

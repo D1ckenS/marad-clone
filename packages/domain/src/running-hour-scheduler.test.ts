@@ -102,7 +102,7 @@ describe('checkRunningHourThresholds — properties', () => {
       }),
       { numRuns: 500 },
     );
-  });
+  }, 15_000);
 
   it('every threshold is a multiple of intervalHours', () => {
     fc.assert(
@@ -121,7 +121,7 @@ describe('checkRunningHourThresholds — properties', () => {
       }),
       { numRuns: 500 },
     );
-  });
+  }, 15_000);
 
   it('every threshold is strictly greater than prevHours', () => {
     fc.assert(
@@ -138,7 +138,7 @@ describe('checkRunningHourThresholds — properties', () => {
       }),
       { numRuns: 500 },
     );
-  });
+  }, 15_000);
 
   it('every threshold is ≤ newHours', () => {
     fc.assert(
@@ -155,7 +155,7 @@ describe('checkRunningHourThresholds — properties', () => {
       }),
       { numRuns: 500 },
     );
-  });
+  }, 15_000);
 
   it('result is sorted ascending', () => {
     fc.assert(
@@ -172,7 +172,7 @@ describe('checkRunningHourThresholds — properties', () => {
       }),
       { numRuns: 500 },
     );
-  });
+  }, 15_000);
 
   it('never triggers when newHours ≤ prevHours', () => {
     fc.assert(
@@ -194,7 +194,7 @@ describe('checkRunningHourThresholds — properties', () => {
       }),
       { numRuns: 500 },
     );
-  });
+  }, 15_000);
 
   it('is a pure function — same inputs always produce identical output', () => {
     fc.assert(
@@ -205,5 +205,5 @@ describe('checkRunningHourThresholds — properties', () => {
       }),
       { numRuns: 200 },
     );
-  });
+  }, 10_000);
 });

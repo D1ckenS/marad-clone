@@ -58,7 +58,7 @@ class ClientMessage extends $pb.GeneratedMessage {
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'ClientMessage',
-      package: const $pb.PackageName(_omitMessageNames ? '' : 'marad.sync.v1'),
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
       createEmptyInstance: create)
     ..oo(0, [1, 2, 3, 4])
     ..aOM<Hello>(1, _omitFieldNames ? '' : 'hello', subBuilder: Hello.create)
@@ -184,7 +184,7 @@ class ServerMessage extends $pb.GeneratedMessage {
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'ServerMessage',
-      package: const $pb.PackageName(_omitMessageNames ? '' : 'marad.sync.v1'),
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
       createEmptyInstance: create)
     ..oo(0, [1, 2, 3, 4, 5])
     ..aOM<Welcome>(1, _omitFieldNames ? '' : 'welcome',
@@ -312,7 +312,7 @@ class Hello extends $pb.GeneratedMessage {
 
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'Hello',
-      package: const $pb.PackageName(_omitMessageNames ? '' : 'marad.sync.v1'),
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
       createEmptyInstance: create)
     ..aOS(1, _omitFieldNames ? '' : 'tenantId')
     ..aOS(2, _omitFieldNames ? '' : 'vesselId')
@@ -321,7 +321,7 @@ class Hello extends $pb.GeneratedMessage {
         entryClassName: 'Hello.CursorsEntry',
         keyFieldType: $pb.PbFieldType.OS,
         valueFieldType: $pb.PbFieldType.OS,
-        packageName: const $pb.PackageName('marad.sync.v1'))
+        packageName: const $pb.PackageName('fleetops.sync.v1'))
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -397,13 +397,13 @@ class Welcome extends $pb.GeneratedMessage {
 
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'Welcome',
-      package: const $pb.PackageName(_omitMessageNames ? '' : 'marad.sync.v1'),
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
       createEmptyInstance: create)
     ..m<$core.String, $core.String>(1, _omitFieldNames ? '' : 'cursors',
         entryClassName: 'Welcome.CursorsEntry',
         keyFieldType: $pb.PbFieldType.OS,
         valueFieldType: $pb.PbFieldType.OS,
-        packageName: const $pb.PackageName('marad.sync.v1'))
+        packageName: const $pb.PackageName('fleetops.sync.v1'))
     ..aOS(2, _omitFieldNames ? '' : 'sessionId')
     ..hasRequiredFields = false;
 
@@ -471,7 +471,7 @@ class Delta extends $pb.GeneratedMessage {
 
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'Delta',
-      package: const $pb.PackageName(_omitMessageNames ? '' : 'marad.sync.v1'),
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
       createEmptyInstance: create)
     ..aOS(1, _omitFieldNames ? '' : 'entityType')
     ..aOS(2, _omitFieldNames ? '' : 'entityId')
@@ -578,7 +578,7 @@ class DeltaBatch extends $pb.GeneratedMessage {
 
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'DeltaBatch',
-      package: const $pb.PackageName(_omitMessageNames ? '' : 'marad.sync.v1'),
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
       createEmptyInstance: create)
     ..pPM<Delta>(1, _omitFieldNames ? '' : 'deltas', subBuilder: Delta.create)
     ..hasRequiredFields = false;
@@ -629,13 +629,13 @@ class Ack extends $pb.GeneratedMessage {
 
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'Ack',
-      package: const $pb.PackageName(_omitMessageNames ? '' : 'marad.sync.v1'),
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
       createEmptyInstance: create)
     ..m<$core.String, $core.String>(1, _omitFieldNames ? '' : 'appliedCursors',
         entryClassName: 'Ack.AppliedCursorsEntry',
         keyFieldType: $pb.PbFieldType.OS,
         valueFieldType: $pb.PbFieldType.OS,
-        packageName: const $pb.PackageName('marad.sync.v1'))
+        packageName: const $pb.PackageName('fleetops.sync.v1'))
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -684,7 +684,7 @@ class Heartbeat extends $pb.GeneratedMessage {
 
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'Heartbeat',
-      package: const $pb.PackageName(_omitMessageNames ? '' : 'marad.sync.v1'),
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
       createEmptyInstance: create)
     ..aOS(1, _omitFieldNames ? '' : 'nodeId')
     ..aOS(2, _omitFieldNames ? '' : 'hlc')
@@ -759,7 +759,7 @@ class Error extends $pb.GeneratedMessage {
 
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'Error',
-      package: const $pb.PackageName(_omitMessageNames ? '' : 'marad.sync.v1'),
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
       createEmptyInstance: create)
     ..aE<ErrorCode>(1, _omitFieldNames ? '' : 'code',
         enumValues: ErrorCode.values)

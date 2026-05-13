@@ -7,7 +7,7 @@
 /* eslint-disable */
 import { Observable } from "rxjs";
 
-export const protobufPackage = "marad.sync.v1";
+export const protobufPackage = "fleetops.sync.v1";
 
 export enum SyncOperation {
   SYNC_OPERATION_UNSPECIFIED = 0,

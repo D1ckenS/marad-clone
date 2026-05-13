@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package marad.sync.v1;
+package fleetops.sync.v1;
 
 // --------------------------------------------------------------------
 // Service

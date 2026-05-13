@@ -112,7 +112,7 @@ FleetOps/
     api-vessel/
     web-shore/
     desktop-vessel/          ← Electron 30 shell (P1-3b)
-    mobile/
+    mobile/                    ← Flutter 3.22 companion app (P1-11)
     docs/
 
   infra/

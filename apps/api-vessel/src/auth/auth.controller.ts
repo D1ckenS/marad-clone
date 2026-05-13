@@ -32,7 +32,7 @@ export class AuthController {
       vesselId: payload.vesselId ?? null,
       email: payload.email,
       role: payload.role,
-      issuer: payload.iss ?? 'marad-shore',
+      issuer: payload.iss ?? 'fleetops-shore',
       expiresAtUnixMs: payload.exp !== undefined ? payload.exp * 1000 : null,
     };
   }

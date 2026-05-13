@@ -57,7 +57,7 @@ const ClientMessage$json = {
       '3': 1,
       '4': 1,
       '5': 11,
-      '6': '.marad.sync.v1.Hello',
+      '6': '.fleetops.sync.v1.Hello',
       '9': 0,
       '10': 'hello'
     },
@@ -66,7 +66,7 @@ const ClientMessage$json = {
       '3': 2,
       '4': 1,
       '5': 11,
-      '6': '.marad.sync.v1.DeltaBatch',
+      '6': '.fleetops.sync.v1.DeltaBatch',
       '9': 0,
       '10': 'deltas'
     },
@@ -75,7 +75,7 @@ const ClientMessage$json = {
       '3': 3,
       '4': 1,
       '5': 11,
-      '6': '.marad.sync.v1.Ack',
+      '6': '.fleetops.sync.v1.Ack',
       '9': 0,
       '10': 'ack'
     },
@@ -84,7 +84,7 @@ const ClientMessage$json = {
       '3': 4,
       '4': 1,
       '5': 11,
-      '6': '.marad.sync.v1.Heartbeat',
+      '6': '.fleetops.sync.v1.Heartbeat',
       '9': 0,
       '10': 'heartbeat'
     },
@@ -111,7 +111,7 @@ const ServerMessage$json = {
       '3': 1,
       '4': 1,
       '5': 11,
-      '6': '.marad.sync.v1.Welcome',
+      '6': '.fleetops.sync.v1.Welcome',
       '9': 0,
       '10': 'welcome'
     },
@@ -120,7 +120,7 @@ const ServerMessage$json = {
       '3': 2,
       '4': 1,
       '5': 11,
-      '6': '.marad.sync.v1.DeltaBatch',
+      '6': '.fleetops.sync.v1.DeltaBatch',
       '9': 0,
       '10': 'deltas'
     },
@@ -129,7 +129,7 @@ const ServerMessage$json = {
       '3': 3,
       '4': 1,
       '5': 11,
-      '6': '.marad.sync.v1.Ack',
+      '6': '.fleetops.sync.v1.Ack',
       '9': 0,
       '10': 'ack'
     },
@@ -138,7 +138,7 @@ const ServerMessage$json = {
       '3': 4,
       '4': 1,
       '5': 11,
-      '6': '.marad.sync.v1.Heartbeat',
+      '6': '.fleetops.sync.v1.Heartbeat',
       '9': 0,
       '10': 'heartbeat'
     },
@@ -147,7 +147,7 @@ const ServerMessage$json = {
       '3': 5,
       '4': 1,
       '5': 11,
-      '6': '.marad.sync.v1.Error',
+      '6': '.fleetops.sync.v1.Error',
       '9': 0,
       '10': 'error'
     },
@@ -177,7 +177,7 @@ const Hello$json = {
       '3': 4,
       '4': 3,
       '5': 11,
-      '6': '.marad.sync.v1.Hello.CursorsEntry',
+      '6': '.fleetops.sync.v1.Hello.CursorsEntry',
       '10': 'cursors'
     },
   ],
@@ -210,7 +210,7 @@ const Welcome$json = {
       '3': 1,
       '4': 3,
       '5': 11,
-      '6': '.marad.sync.v1.Welcome.CursorsEntry',
+      '6': '.fleetops.sync.v1.Welcome.CursorsEntry',
       '10': 'cursors'
     },
     {'1': 'session_id', '3': 2, '4': 1, '5': 9, '10': 'sessionId'},
@@ -245,7 +245,7 @@ const Delta$json = {
       '3': 3,
       '4': 1,
       '5': 14,
-      '6': '.marad.sync.v1.SyncOperation',
+      '6': '.fleetops.sync.v1.SyncOperation',
       '10': 'operation'
     },
     {'1': 'hlc', '3': 4, '4': 1, '5': 9, '10': 'hlc'},
@@ -270,7 +270,7 @@ const DeltaBatch$json = {
       '3': 1,
       '4': 3,
       '5': 11,
-      '6': '.marad.sync.v1.Delta',
+      '6': '.fleetops.sync.v1.Delta',
       '10': 'deltas'
     },
   ],
@@ -290,7 +290,7 @@ const Ack$json = {
       '3': 1,
       '4': 3,
       '5': 11,
-      '6': '.marad.sync.v1.Ack.AppliedCursorsEntry',
+      '6': '.fleetops.sync.v1.Ack.AppliedCursorsEntry',
       '10': 'appliedCursors'
     },
   ],
@@ -337,7 +337,7 @@ const Error$json = {
       '3': 1,
       '4': 1,
       '5': 14,
-      '6': '.marad.sync.v1.ErrorCode',
+      '6': '.fleetops.sync.v1.ErrorCode',
       '10': 'code'
     },
     {'1': 'message', '3': 2, '4': 1, '5': 9, '10': 'message'},
@@ -354,8 +354,8 @@ const $core.Map<$core.String, $core.dynamic> SyncServiceBase$json = {
   '2': [
     {
       '1': 'Stream',
-      '2': '.marad.sync.v1.ClientMessage',
-      '3': '.marad.sync.v1.ServerMessage',
+      '2': '.fleetops.sync.v1.ClientMessage',
+      '3': '.fleetops.sync.v1.ServerMessage',
       '5': true,
       '6': true
     },
@@ -365,18 +365,18 @@ const $core.Map<$core.String, $core.dynamic> SyncServiceBase$json = {
 @$core.Deprecated('Use syncServiceDescriptor instead')
 const $core.Map<$core.String, $core.Map<$core.String, $core.dynamic>>
     SyncServiceBase$messageJson = {
-  '.marad.sync.v1.ClientMessage': ClientMessage$json,
-  '.marad.sync.v1.Hello': Hello$json,
-  '.marad.sync.v1.Hello.CursorsEntry': Hello_CursorsEntry$json,
-  '.marad.sync.v1.DeltaBatch': DeltaBatch$json,
-  '.marad.sync.v1.Delta': Delta$json,
-  '.marad.sync.v1.Ack': Ack$json,
-  '.marad.sync.v1.Ack.AppliedCursorsEntry': Ack_AppliedCursorsEntry$json,
-  '.marad.sync.v1.Heartbeat': Heartbeat$json,
-  '.marad.sync.v1.ServerMessage': ServerMessage$json,
-  '.marad.sync.v1.Welcome': Welcome$json,
-  '.marad.sync.v1.Welcome.CursorsEntry': Welcome_CursorsEntry$json,
-  '.marad.sync.v1.Error': Error$json,
+  '.fleetops.sync.v1.ClientMessage': ClientMessage$json,
+  '.fleetops.sync.v1.Hello': Hello$json,
+  '.fleetops.sync.v1.Hello.CursorsEntry': Hello_CursorsEntry$json,
+  '.fleetops.sync.v1.DeltaBatch': DeltaBatch$json,
+  '.fleetops.sync.v1.Delta': Delta$json,
+  '.fleetops.sync.v1.Ack': Ack$json,
+  '.fleetops.sync.v1.Ack.AppliedCursorsEntry': Ack_AppliedCursorsEntry$json,
+  '.fleetops.sync.v1.Heartbeat': Heartbeat$json,
+  '.fleetops.sync.v1.ServerMessage': ServerMessage$json,
+  '.fleetops.sync.v1.Welcome': Welcome$json,
+  '.fleetops.sync.v1.Welcome.CursorsEntry': Welcome_CursorsEntry$json,
+  '.fleetops.sync.v1.Error': Error$json,
 };
 
 /// Descriptor for `SyncService`. Decode as a `google.protobuf.ServiceDescriptorProto`.

@@ -3,15 +3,15 @@ services:
     image: postgres:16
     restart: unless-stopped
     environment:
-      POSTGRES_USER: marad
-      POSTGRES_PASSWORD: marad_dev
-      POSTGRES_DB: marad_shore
+      POSTGRES_USER: fleetops
+      POSTGRES_PASSWORD: fleetops_dev
+      POSTGRES_DB: fleetops_shore
     ports:
       - '5433:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U marad -d marad_shore']
+      test: ['CMD-SHELL', 'pg_isready -U fleetops -d fleetops_shore']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -21,8 +21,8 @@ services:
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: marad_minio
-      MINIO_ROOT_PASSWORD: marad_minio_dev
+      MINIO_ROOT_USER: fleetops_minio
+      MINIO_ROOT_PASSWORD: fleetops_minio_dev
     ports:
       - '9000:9000'
       - '9001:9001'
@@ -38,7 +38,7 @@ services:
     image: getmeili/meilisearch:v1.8
     restart: unless-stopped
     environment:
-      MEILI_MASTER_KEY: marad_meili_dev
+      MEILI_MASTER_KEY: fleetops_meili_dev
       MEILI_ENV: development
     ports:
       - '7700:7700'

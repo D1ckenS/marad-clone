@@ -17,6 +17,30 @@ import type { SignOffJobInstanceDto } from './dto/sign-off-job-instance.dto';
 const HISTORY_ENTITY = 'JobHistory';
 const INSTANCE_ENTITY = 'JobInstance';
 
+/** Shape expected in partsConsumedJson for cross-module stock integration (P1-10). */
+interface PartConsumed {
+  partId: string;
+  locationId: string;
+  quantity: string; // positive decimal string; negated before creating StockMovement
+}
+
+/** Filters the free-form partsConsumed array down to only fully-typed entries. */
+function extractValidConsumed(val: unknown): PartConsumed[] {
+  if (!Array.isArray(val)) return [];
+  return val.filter((item): item is PartConsumed => {
+    if (typeof item !== 'object' || item === null) return false;
+    const o = item as Record<string, unknown>;
+    return (
+      typeof o['partId'] === 'string' &&
+      o['partId'] !== '' &&
+      typeof o['locationId'] === 'string' &&
+      o['locationId'] !== '' &&
+      typeof o['quantity'] === 'string' &&
+      o['quantity'] !== ''
+    );
+  });
+}
+
 @Injectable()
 export class JobHistoryService {
   private readonly log = new Logger(JobHistoryService.name);
@@ -170,6 +194,154 @@ export class JobHistoryService {
       this.log.log(
         `signoff history=${historyId} instance=${jobInstanceId} tenant=${auth.tenantId} vessel=${vesselId} photos=${photoKeys.length}`,
       );
+
+      // P1-10: consume parts → StockMovements → reorder check → draft Requisition
+      const consumed = extractValidConsumed(partsConsumed);
+      if (consumed.length > 0) {
+        const nowIso = completedAt.toISOString();
+
+        for (const item of consumed) {
+          const movId = newId();
+          const negQty = new Prisma.Decimal(item.quantity).times(-1);
+          const { hlc: movHlc } = await this.recorder.recordUpsert(
+            tx as unknown as Prisma.TransactionClient,
+            { tenantId: auth.tenantId, vesselId },
+            'StockMovement',
+            movId,
+            {
+              vesselId,
+              partId: item.partId,
+              locationId: item.locationId,
+              movementType: 'CONSUMPTION',
+              quantity: negQty.toString(),
+              referenceType: 'JobHistory',
+              referenceId: historyId,
+              recordedAt: nowIso,
+            },
+          );
+          await tx.stockMovement.create({
+            data: {
+              id: movId,
+              tenantId: auth.tenantId,
+              vesselId,
+              partId: item.partId,
+              locationId: item.locationId,
+              movementType: 'CONSUMPTION',
+              quantity: negQty,
+              referenceType: 'JobHistory',
+              referenceId: historyId,
+              recordedAt: completedAt,
+              hlc: movHlc,
+            },
+          });
+        }
+
+        // Dedup (partId, locationId) pairs before reorder check
+        const checkedKeys = new Set<string>();
+        const reorderTriggers: Array<{ partId: string; locationId: string; qty: Prisma.Decimal }> =
+          [];
+
+        for (const item of consumed) {
+          const key = `${item.partId}:${item.locationId}`;
+          if (checkedKeys.has(key)) continue;
+          checkedKeys.add(key);
+
+          const [robRow] = await tx.$queryRaw<{ rob: string }[]>`
+            SELECT COALESCE(SUM(quantity), 0)::text AS rob
+            FROM stock_movements
+            WHERE tenant_id = ${auth.tenantId}
+              AND vessel_id = ${vesselId}
+              AND part_id = ${item.partId}
+              AND location_id = ${item.locationId}
+              AND deleted_at IS NULL
+          `;
+          const rob = new Prisma.Decimal(robRow?.rob ?? '0');
+
+          const level = await tx.stockLevel.findFirst({
+            where: {
+              tenantId: auth.tenantId,
+              vesselId,
+              partId: item.partId,
+              locationId: item.locationId,
+              deletedAt: null,
+            },
+          });
+
+          if (level?.reorderPoint != null && rob.lessThanOrEqualTo(level.reorderPoint)) {
+            const deficit = level.reorderPoint.minus(rob);
+            reorderTriggers.push({
+              partId: item.partId,
+              locationId: item.locationId,
+              qty: deficit.greaterThan(0) ? deficit : new Prisma.Decimal('1'),
+            });
+          }
+        }
+
+        if (reorderTriggers.length > 0) {
+          const reqId = newId();
+          const reqTitle = `Restock — job sign-off ${jobInstanceId}`;
+          const { hlc: reqHlc } = await this.recorder.recordUpsert(
+            tx as unknown as Prisma.TransactionClient,
+            { tenantId: auth.tenantId, vesselId },
+            'Requisition',
+            reqId,
+            { vesselId, title: reqTitle, status: 'DRAFT', requestedAt: nowIso },
+          );
+          await tx.requisition.create({
+            data: {
+              id: reqId,
+              tenantId: auth.tenantId,
+              vesselId,
+              title: reqTitle,
+              status: 'DRAFT',
+              totalAmount: new Prisma.Decimal(0),
+              currency: 'USD',
+              requestedByUserId: auth.userId ?? null,
+              requestedAt: completedAt,
+              hlc: reqHlc,
+            },
+          });
+
+          for (const trigger of reorderTriggers) {
+            const part = await tx.part.findFirst({
+              where: { id: trigger.partId, tenantId: auth.tenantId },
+            });
+            const lineId = newId();
+            const description = part?.name ?? trigger.partId;
+            const { hlc: lineHlc } = await this.recorder.recordUpsert(
+              tx as unknown as Prisma.TransactionClient,
+              { tenantId: auth.tenantId, vesselId },
+              'RequisitionLine',
+              lineId,
+              {
+                vesselId,
+                requisitionId: reqId,
+                partId: trigger.partId,
+                description,
+                quantity: trigger.qty.toString(),
+              },
+            );
+            await tx.requisitionLine.create({
+              data: {
+                id: lineId,
+                tenantId: auth.tenantId,
+                vesselId,
+                requisitionId: reqId,
+                partId: trigger.partId,
+                description,
+                quantity: trigger.qty,
+                unit: part?.unit ?? 'pcs',
+                hlc: lineHlc,
+              },
+            });
+          }
+
+          this.log.log(
+            `reorder-suggest req=${reqId} triggers=${reorderTriggers.length} instance=${jobInstanceId} tenant=${auth.tenantId}`,
+          );
+        }
+      }
+
       return history;
     });
   }

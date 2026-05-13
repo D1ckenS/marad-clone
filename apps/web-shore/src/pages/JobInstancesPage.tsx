@@ -1,8 +1,9 @@
-﻿import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Badge, Button, Spinner } from '@fleetops/ui-kit';
 import type { BadgeColor } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 import { SignOffModal } from '../components/SignOffModal.js';
+import { CreateJobInstanceModal } from '../components/CreateJobInstanceModal.js';
 
 interface JobInstance {
   id: string;
@@ -31,16 +32,27 @@ const statusLabel: Record<JobInstance['status'], string> = {
 };
 
 export function JobInstancesPage() {
+  interface JobMeta {
+    id: string;
+    typicalPartsJson?: string | null;
+  }
   const [instances, setInstances] = useState<JobInstance[]>([]);
+  const [jobsById, setJobsById] = useState<Map<string, JobMeta>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [signOffId, setSignOffId] = useState<string | null>(null);
+  const [signOffTarget, setSignOffTarget] = useState<{
+    instanceId: string;
+    typicalPartsJson?: string | null | undefined;
+  } | null>(null);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
-    api
-      .get<JobInstance[]>('/job-instances')
-      .then(setInstances)
+    Promise.all([api.get<JobInstance[]>('/job-instances'), api.get<JobMeta[]>('/jobs')])
+      .then(([insts, jobs]) => {
+        setInstances(insts);
+        setJobsById(new Map(jobs.map((j) => [j.id, j])));
+      })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
   }, []);
@@ -51,9 +63,14 @@ export function JobInstancesPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-slate-900">Job Instances</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Scheduled maintenance tasks for this vessel</p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Job Instances</h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Scheduled maintenance tasks for this vessel
+          </p>
+        </div>
+        <Button onClick={() => setScheduleOpen(true)}>+ Schedule Job</Button>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -64,7 +81,12 @@ export function JobInstancesPage() {
         )}
         {error && <div className="p-6 text-sm text-red-600">{error}</div>}
         {!loading && !error && instances.length === 0 && (
-          <div className="p-8 text-center text-slate-500 text-sm">No job instances found.</div>
+          <div className="p-8 text-center text-slate-500 text-sm">
+            No job instances found.{' '}
+            <button className="text-blue-600 hover:underline" onClick={() => setScheduleOpen(true)}>
+              Schedule the first one.
+            </button>
+          </div>
         )}
         {!loading && !error && instances.length > 0 && (
           <table className="w-full text-sm">
@@ -102,7 +124,16 @@ export function JobInstancesPage() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     {ji.status !== 'DONE' && (
-                      <Button variant="secondary" size="sm" onClick={() => setSignOffId(ji.id)}>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() =>
+                          setSignOffTarget({
+                            instanceId: ji.id,
+                            typicalPartsJson: jobsById.get(ji.jobId)?.typicalPartsJson,
+                          })
+                        }
+                      >
                         Sign Off
                       </Button>
                     )}
@@ -115,10 +146,19 @@ export function JobInstancesPage() {
       </div>
 
       <SignOffModal
-        jobInstanceId={signOffId}
-        onClose={() => setSignOffId(null)}
+        jobInstanceId={signOffTarget?.instanceId ?? null}
+        typicalPartsJson={signOffTarget?.typicalPartsJson}
+        onClose={() => setSignOffTarget(null)}
         onSuccess={() => {
-          setSignOffId(null);
+          setSignOffTarget(null);
+          load();
+        }}
+      />
+      <CreateJobInstanceModal
+        open={scheduleOpen}
+        onClose={() => setScheduleOpen(false)}
+        onCreated={() => {
+          setScheduleOpen(false);
           load();
         }}
       />

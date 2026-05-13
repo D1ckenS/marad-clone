@@ -57,7 +57,7 @@ function mintShoreToken(opts: {
     {
       algorithm: opts.algorithm ?? 'RS256',
       expiresIn: opts.expiresIn ?? '24h',
-      issuer: opts.issuer ?? 'marad-shore',
+      issuer: opts.issuer ?? 'fleetops-shore',
     } as jwt.SignOptions,
   );
 }
@@ -74,7 +74,7 @@ describe('Vessel — verify shore-issued RS256 access token (offline)', () => {
     expect(res.body.vesselId).toBe(vesselId);
     expect(res.body.email).toBe('master@vessel.test');
     expect(res.body.role).toBe('MASTER');
-    expect(res.body.issuer).toBe('marad-shore');
+    expect(res.body.issuer).toBe('fleetops-shore');
     expect(typeof res.body.expiresAtUnixMs).toBe('number');
   });
 
@@ -104,7 +104,7 @@ describe('Vessel — verify shore-issued RS256 access token (offline)', () => {
     const token = jwt.sign(
       { sub: 'attacker', tenantId, type: 'access' },
       'attacker-shared-secret',
-      { algorithm: 'HS256', expiresIn: '24h', issuer: 'marad-shore' },
+      { algorithm: 'HS256', expiresIn: '24h', issuer: 'fleetops-shore' },
     );
     await api().post('/api/v1/auth/verify-shore-token').send({ access_token: token }).expect(401);
   });

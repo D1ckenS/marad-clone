@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
+    "predev": "node ../../scripts/kill-port.mjs 3000",
     "dev": "nest start --watch",
     "start:dev": "nest start --watch",
     "lint": "eslint src",

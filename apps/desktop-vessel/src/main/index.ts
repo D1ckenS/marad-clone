@@ -5,7 +5,7 @@ import { spawnApiVessel } from './child';
 import { createRendererServer } from './server';
 
 const isDev = !app.isPackaged;
-const VITE_DEV_URL = process.env['VITE_DEV_SERVER_URL'] ?? 'http://localhost:5173';
+const VITE_DEV_URL = process.env['VITE_DEV_SERVER_URL'] ?? 'http://localhost:5342';
 const VESSEL_PORT = Number(process.env['VESSEL_PORT'] ?? 3001);
 
 let mainWindow: BrowserWindow | null = null;

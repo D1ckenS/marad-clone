@@ -30,6 +30,7 @@ export class JobService {
         intervalRunningHours: dto.intervalRunningHours ?? null,
         estimatedHours: dto.estimatedHours ?? null,
         priority: dto.priority ?? 'NORMAL',
+        typicalPartsJson: dto.typicalPartsJson ?? null,
         vesselId,
       };
       const { hlc } = await this.recorder.recordUpsert(
@@ -55,6 +56,7 @@ export class JobService {
           estimatedHours:
             dto.estimatedHours !== undefined ? new Prisma.Decimal(dto.estimatedHours) : null,
           priority: dto.priority ?? 'NORMAL',
+          typicalPartsJson: dto.typicalPartsJson ?? null,
           hlc,
         },
       });
@@ -94,6 +96,7 @@ export class JobService {
       fields['intervalRunningHours'] = dto.intervalRunningHours;
     if (dto.estimatedHours !== undefined) fields['estimatedHours'] = dto.estimatedHours;
     if (dto.priority !== undefined) fields['priority'] = dto.priority;
+    if (dto.typicalPartsJson !== undefined) fields['typicalPartsJson'] = dto.typicalPartsJson;
 
     return this.prisma.withTenant(auth.tenantId, async (tx) => {
       const { hlc } = await this.recorder.recordUpsert(
@@ -116,6 +119,7 @@ export class JobService {
             estimatedHours: new Prisma.Decimal(dto.estimatedHours),
           }),
           ...(dto.priority !== undefined && { priority: dto.priority }),
+          ...(dto.typicalPartsJson !== undefined && { typicalPartsJson: dto.typicalPartsJson }),
           hlc,
         },
       });

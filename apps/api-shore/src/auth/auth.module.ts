@@ -30,11 +30,11 @@ const ACCESS_TTL_MS = Number(process.env['JWT_ACCESS_TTL_MS'] ?? 24 * 60 * 60 * 
         signOptions: {
           algorithm: 'RS256',
           expiresIn: Math.floor(ACCESS_TTL_MS / 1000),
-          issuer: 'marad-shore',
+          issuer: 'fleetops-shore',
         },
         verifyOptions: {
           algorithms: ['RS256'],
-          issuer: 'marad-shore',
+          issuer: 'fleetops-shore',
         },
       }),
     }),

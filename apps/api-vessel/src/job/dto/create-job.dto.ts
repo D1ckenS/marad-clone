@@ -29,4 +29,8 @@ export class CreateJobDto {
   @IsOptional()
   @IsIn(JOB_PRIORITIES)
   priority?: JobPriority;
+
+  @IsOptional()
+  @IsString()
+  typicalPartsJson?: string;
 }
