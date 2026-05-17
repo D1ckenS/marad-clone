@@ -8,6 +8,15 @@ import type { CreateBarcodeBindingDto } from './dto/create-barcode-binding.dto';
 export class BarcodeBindingService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async findAll(auth: AuthContext, partId?: string) {
+    return this.prisma.withTenant(auth.tenantId, (tx) =>
+      tx.barcodeBinding.findMany({
+        where: { tenantId: auth.tenantId, deletedAt: null, ...(partId && { partId }) },
+        orderBy: { barcode: 'asc' },
+      }),
+    );
+  }
+
   async create(auth: AuthContext, dto: CreateBarcodeBindingDto) {
     return this.prisma.withTenant(auth.tenantId, async (tx) => {
       const existing = await tx.barcodeBinding.findFirst({

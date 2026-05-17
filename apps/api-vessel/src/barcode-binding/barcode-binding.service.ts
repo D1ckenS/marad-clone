@@ -10,6 +10,21 @@ import type { CreateBarcodeBindingDto } from './dto/create-barcode-binding.dto';
 export class BarcodeBindingService {
   constructor(private readonly drizzle: DrizzleService) {}
 
+  findAll(auth: AuthContext, partId?: string) {
+    return this.drizzle.db
+      .select()
+      .from(barcodeBindings)
+      .where(
+        and(
+          eq(barcodeBindings.tenantId, auth.tenantId),
+          isNull(barcodeBindings.deletedAt),
+          ...(partId ? [eq(barcodeBindings.partId, partId)] : []),
+        ),
+      )
+      .orderBy(barcodeBindings.barcode)
+      .all();
+  }
+
   create(auth: AuthContext, dto: CreateBarcodeBindingDto) {
     const existing = this.drizzle.db
       .select()

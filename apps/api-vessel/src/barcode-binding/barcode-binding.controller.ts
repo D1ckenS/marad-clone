@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { AuthCtx } from '../auth/auth-ctx.decorator';
@@ -19,6 +20,11 @@ import { CreateBarcodeBindingDto } from './dto/create-barcode-binding.dto';
 @UseGuards(JwtAuthGuard)
 export class BarcodeBindingController {
   constructor(private readonly svc: BarcodeBindingService) {}
+
+  @Get()
+  findAll(@AuthCtx() auth: AuthContext, @Query('partId') partId?: string) {
+    return this.svc.findAll(auth, partId);
+  }
 
   @Post()
   create(@AuthCtx() auth: AuthContext, @Body() dto: CreateBarcodeBindingDto) {

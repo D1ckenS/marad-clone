@@ -46,6 +46,16 @@ export function JobInstancesPage() {
   } | null>(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
 
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this job instance?')) return;
+    try {
+      await api.delete(`/job-instances/${id}`);
+      load();
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Delete failed');
+    }
+  };
+
   const load = useCallback(() => {
     setLoading(true);
     Promise.all([api.get<JobInstance[]>('/job-instances'), api.get<JobMeta[]>('/jobs')])
@@ -123,20 +133,29 @@ export function JobInstancesPage() {
                     {ji.jobId}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {ji.status !== 'DONE' && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() =>
-                          setSignOffTarget({
-                            instanceId: ji.id,
-                            typicalPartsJson: jobsById.get(ji.jobId)?.typicalPartsJson,
-                          })
-                        }
+                    <div className="flex justify-end gap-2">
+                      {ji.status !== 'DONE' && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() =>
+                            setSignOffTarget({
+                              instanceId: ji.id,
+                              typicalPartsJson: jobsById.get(ji.jobId)?.typicalPartsJson,
+                            })
+                          }
+                        >
+                          Sign Off
+                        </Button>
+                      )}
+                      <button
+                        onClick={() => handleDelete(ji.id)}
+                        className="text-xs text-red-400 hover:text-red-600 transition-colors px-1"
+                        title="Delete instance"
                       >
-                        Sign Off
-                      </Button>
-                    )}
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

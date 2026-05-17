@@ -2,8 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Bearing design tokens ─────────────────────────────────────────── */
+:root {
+  --bg: #fafaf7;
+  --surface: #ffffff;
+  --surface-2: #f4f2ec;
+  --surface-sunk: #efede6;
+  --surface-tint: #f8f6f0;
+
+  --ink: #0a1f33;
+  --ink-2: #41546a;
+  --ink-3: #8893a0;
+  --ink-4: #b6bdc6;
+  --ink-on-dark: #f4f2ec;
+
+  --hairline: #eeebe2;
+  --border: #e5e3da;
+  --border-strong: #cecabe;
+
+  --navy: #0a1f33;
+  --navy-2: #14304b;
+
+  --sig-green: #2f7d4f;
+  --sig-green-bg: #e2eee6;
+  --sig-amber: #b5731e;
+  --sig-amber-bg: #f4e7d0;
+  --sig-red: #ab382e;
+  --sig-red-bg: #f2ddd8;
+  --sig-purple: #5e479f;
+  --sig-purple-bg: #e7e0f1;
+  --sig-blue: #1f5b9d;
+  --sig-blue-bg: #dde7f3;
+
+  --font-ui: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --r-1: 4px;
+  --r-2: 6px;
+  --r-3: 10px;
+
+  --shadow-1: 0 1px 0 rgba(10, 31, 51, 0.04), 0 1px 2px rgba(10, 31, 51, 0.04);
+  --shadow-pop: 0 8px 24px rgba(10, 31, 51, 0.1), 0 1px 0 rgba(10, 31, 51, 0.04);
+}
+
 @layer base {
   html {
     -webkit-font-smoothing: antialiased;
+    font-feature-settings: 'ss01', 'cv11';
+  }
+  body {
+    font-family: var(--font-ui);
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .font-mono,
+  code,
+  kbd,
+  samp {
+    font-family: var(--font-mono);
+    font-feature-settings: 'tnum';
   }
 }
