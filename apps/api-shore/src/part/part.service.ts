@@ -20,11 +20,11 @@ export class PartService {
   constructor(private readonly prisma: PrismaService) {}
 
   create(auth: AuthContext, dto: CreatePartDto) {
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.part.create({
         data: {
           id: newId(),
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           name: dto.name,
           description: dto.description ?? null,
           partNumber: dto.partNumber ?? null,
@@ -36,17 +36,17 @@ export class PartService {
   }
 
   findAll(auth: AuthContext) {
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.part.findMany({
-        where: { tenantId: auth.tenantId, deletedAt: null },
+        where: { tenantId: auth.tenantId!, deletedAt: null },
         orderBy: { name: 'asc' },
       }),
     );
   }
 
   async findOne(auth: AuthContext, id: string) {
-    const row = await this.prisma.withTenant(auth.tenantId, (tx) =>
-      tx.part.findFirst({ where: { id, tenantId: auth.tenantId, deletedAt: null } }),
+    const row = await this.prisma.withTenant(auth.tenantId!, (tx) =>
+      tx.part.findFirst({ where: { id, tenantId: auth.tenantId!, deletedAt: null } }),
     );
     if (row === null) throw new NotFoundException(`Part ${id} not found`);
     return row;
@@ -54,7 +54,7 @@ export class PartService {
 
   async update(auth: AuthContext, id: string, dto: UpdatePartDto) {
     await this.findOne(auth, id);
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.part.update({
         where: { id },
         data: {
@@ -70,7 +70,7 @@ export class PartService {
 
   async softDelete(auth: AuthContext, id: string) {
     await this.findOne(auth, id);
-    await this.prisma.withTenant(auth.tenantId, (tx) =>
+    await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.part.update({ where: { id }, data: { deletedAt: new Date() } }),
     );
   }
@@ -78,20 +78,20 @@ export class PartService {
   /** Returns all parts enriched with stock levels and computed ROB for the caller's vessel. */
   async inventorySummary(auth: AuthContext) {
     const vesselId = requireVesselId(auth);
-    return this.prisma.withTenant(auth.tenantId, async (tx) => {
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
       const [parts, levels, robRows] = await Promise.all([
         tx.part.findMany({
-          where: { tenantId: auth.tenantId, deletedAt: null },
+          where: { tenantId: auth.tenantId!, deletedAt: null },
           orderBy: { name: 'asc' },
         }),
         tx.stockLevel.findMany({
-          where: { tenantId: auth.tenantId, vesselId, deletedAt: null },
+          where: { tenantId: auth.tenantId!, vesselId, deletedAt: null },
           include: { location: true },
         }),
         tx.$queryRaw<{ part_id: string; location_id: string; rob: string }[]>`
           SELECT part_id, location_id, COALESCE(SUM(quantity), 0)::text AS rob
           FROM stock_movements
-          WHERE tenant_id = ${auth.tenantId}
+          WHERE tenant_id = ${auth.tenantId!}
             AND vessel_id = ${vesselId}
             AND deleted_at IS NULL
           GROUP BY part_id, location_id

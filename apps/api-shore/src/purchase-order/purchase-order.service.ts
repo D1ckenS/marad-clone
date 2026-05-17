@@ -22,11 +22,11 @@ export class PurchaseOrderService {
   async create(auth: AuthContext, dto: CreatePurchaseOrderDto) {
     const vesselId = requireVesselId(auth);
     const id = newId();
-    return this.prisma.withTenant(auth.tenantId, async (tx) => {
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
       const fields = { vesselId, title: dto.title, status: 'DRAFT' as const };
       const { hlc } = await this.recorder.recordUpsert(
         tx as unknown as Prisma.TransactionClient,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -34,7 +34,7 @@ export class PurchaseOrderService {
       return tx.purchaseOrder.create({
         data: {
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           title: dto.title,
           notes: dto.notes ?? null,
@@ -55,10 +55,10 @@ export class PurchaseOrderService {
 
   findAll(auth: AuthContext, status?: string) {
     const vesselId = requireVesselId(auth);
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.purchaseOrder.findMany({
         where: {
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           deletedAt: null,
           ...(status && { status: status as never }),
@@ -74,9 +74,9 @@ export class PurchaseOrderService {
 
   async findOne(auth: AuthContext, id: string) {
     const vesselId = requireVesselId(auth);
-    const row = await this.prisma.withTenant(auth.tenantId, (tx) =>
+    const row = await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.purchaseOrder.findFirst({
-        where: { id, tenantId: auth.tenantId, vesselId, deletedAt: null },
+        where: { id, tenantId: auth.tenantId!, vesselId, deletedAt: null },
         include: {
           lines: { where: { deletedAt: null } },
           supplier: true,
@@ -92,7 +92,7 @@ export class PurchaseOrderService {
     const po = await this.findOne(auth, id);
     if (po.status !== 'DRAFT')
       throw new BadRequestException('Only DRAFT purchase orders can be updated');
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.purchaseOrder.update({
         where: { id },
         data: {
@@ -116,7 +116,7 @@ export class PurchaseOrderService {
     const po = await this.findOne(auth, id);
     if (po.status !== 'DRAFT')
       throw new BadRequestException('Only DRAFT purchase orders can be deleted');
-    await this.prisma.withTenant(auth.tenantId, (tx) =>
+    await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.purchaseOrder.update({ where: { id }, data: { deletedAt: new Date() } }),
     );
   }
@@ -127,11 +127,11 @@ export class PurchaseOrderService {
       throw new BadRequestException('Lines can only be added to DRAFT purchase orders');
     const vesselId = requireVesselId(auth);
     const id = newId();
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.pOLine.create({
         data: {
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           poId,
           partId: dto.partId ?? null,
@@ -154,7 +154,7 @@ export class PurchaseOrderService {
       throw new BadRequestException('Only DRAFT purchase orders can be sent');
     if (!po.supplierId)
       throw new BadRequestException('A supplier must be set before sending a purchase order');
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.purchaseOrder.update({
         where: { id },
         data: { status: 'SENT', orderedAt: new Date() },
@@ -171,11 +171,11 @@ export class PurchaseOrderService {
     const vesselId = requireVesselId(auth);
     const receiptId = newId();
 
-    return this.prisma.withTenant(auth.tenantId, async (tx) => {
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
       const receipt = await tx.goodsReceipt.create({
         data: {
           id: receiptId,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           poId: id,
           receivedByUserId: auth.userId,
@@ -190,7 +190,7 @@ export class PurchaseOrderService {
         return tx.goodsReceiptLine.create({
           data: {
             id: newId(),
-            tenantId: auth.tenantId,
+            tenantId: auth.tenantId!,
             vesselId,
             receiptId,
             poLineId: l.poLineId,
@@ -208,7 +208,7 @@ export class PurchaseOrderService {
 
       // Determine new PO status by comparing total received vs ordered across all receipts
       const allReceipts = await tx.goodsReceipt.findMany({
-        where: { poId: id, tenantId: auth.tenantId, deletedAt: null },
+        where: { poId: id, tenantId: auth.tenantId!, deletedAt: null },
         include: { lines: true },
       });
 

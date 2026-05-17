@@ -12,11 +12,11 @@ export class ApprovalFlowService {
   constructor(private readonly prisma: PrismaService) {}
 
   create(auth: AuthContext, dto: CreateApprovalFlowDto) {
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.approvalFlow.create({
         data: {
           id: newId(),
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           name: dto.name,
           description: dto.description ?? null,
           isActive: dto.isActive ?? true,
@@ -26,9 +26,9 @@ export class ApprovalFlowService {
   }
 
   findAll(auth: AuthContext) {
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.approvalFlow.findMany({
-        where: { tenantId: auth.tenantId, deletedAt: null },
+        where: { tenantId: auth.tenantId!, deletedAt: null },
         include: { steps: { where: { deletedAt: null }, orderBy: { stepOrder: 'asc' } } },
         orderBy: { name: 'asc' },
       }),
@@ -36,9 +36,9 @@ export class ApprovalFlowService {
   }
 
   async findOne(auth: AuthContext, id: string) {
-    const row = await this.prisma.withTenant(auth.tenantId, (tx) =>
+    const row = await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.approvalFlow.findFirst({
-        where: { id, tenantId: auth.tenantId, deletedAt: null },
+        where: { id, tenantId: auth.tenantId!, deletedAt: null },
         include: { steps: { where: { deletedAt: null }, orderBy: { stepOrder: 'asc' } } },
       }),
     );
@@ -48,7 +48,7 @@ export class ApprovalFlowService {
 
   async update(auth: AuthContext, id: string, dto: UpdateApprovalFlowDto) {
     await this.findOne(auth, id);
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.approvalFlow.update({
         where: { id },
         data: {
@@ -62,18 +62,18 @@ export class ApprovalFlowService {
 
   async softDelete(auth: AuthContext, id: string) {
     await this.findOne(auth, id);
-    await this.prisma.withTenant(auth.tenantId, (tx) =>
+    await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.approvalFlow.update({ where: { id }, data: { deletedAt: new Date() } }),
     );
   }
 
   async addStep(auth: AuthContext, flowId: string, dto: CreateApprovalStepDto) {
     await this.findOne(auth, flowId);
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.approvalStep.create({
         data: {
           id: newId(),
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           flowId,
           stepOrder: dto.stepOrder,
           approverRole: dto.approverRole as Role,
@@ -86,9 +86,9 @@ export class ApprovalFlowService {
 
   async removeStep(auth: AuthContext, flowId: string, stepId: string) {
     await this.findOne(auth, flowId);
-    await this.prisma.withTenant(auth.tenantId, (tx) =>
+    await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.approvalStep.updateMany({
-        where: { id: stepId, flowId, tenantId: auth.tenantId },
+        where: { id: stepId, flowId, tenantId: auth.tenantId! },
         data: { deletedAt: new Date() },
       }),
     );

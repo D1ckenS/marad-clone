@@ -20,11 +20,11 @@ export class RfqService {
   async create(auth: AuthContext, dto: CreateRfqDto) {
     const vesselId = requireVesselId(auth);
     const id = newId();
-    return this.prisma.withTenant(auth.tenantId, async (tx) => {
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
       const fields = { vesselId, title: dto.title, status: 'DRAFT' as const };
       const { hlc } = await this.recorder.recordUpsert(
         tx as unknown as Prisma.TransactionClient,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -32,7 +32,7 @@ export class RfqService {
       return tx.rfq.create({
         data: {
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           title: dto.title,
           notes: dto.notes ?? null,
@@ -49,9 +49,9 @@ export class RfqService {
 
   findAll(auth: AuthContext) {
     const vesselId = requireVesselId(auth);
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.rfq.findMany({
-        where: { tenantId: auth.tenantId, vesselId, deletedAt: null },
+        where: { tenantId: auth.tenantId!, vesselId, deletedAt: null },
         include: { quotes: { where: { deletedAt: null } } },
         orderBy: { createdAt: 'desc' },
       }),
@@ -60,9 +60,9 @@ export class RfqService {
 
   async findOne(auth: AuthContext, id: string) {
     const vesselId = requireVesselId(auth);
-    const row = await this.prisma.withTenant(auth.tenantId, (tx) =>
+    const row = await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.rfq.findFirst({
-        where: { id, tenantId: auth.tenantId, vesselId, deletedAt: null },
+        where: { id, tenantId: auth.tenantId!, vesselId, deletedAt: null },
         include: { quotes: { where: { deletedAt: null }, include: { lines: true } } },
       }),
     );
@@ -73,7 +73,7 @@ export class RfqService {
   async update(auth: AuthContext, id: string, dto: UpdateRfqDto) {
     const rfq = await this.findOne(auth, id);
     if (rfq.status === 'CLOSED') throw new BadRequestException('Closed RFQs cannot be updated');
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.rfq.update({
         where: { id },
         data: {
@@ -91,7 +91,7 @@ export class RfqService {
   async send(auth: AuthContext, id: string) {
     const rfq = await this.findOne(auth, id);
     if (rfq.status !== 'DRAFT') throw new BadRequestException('Only DRAFT RFQs can be sent');
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.rfq.update({
         where: { id },
         data: { status: 'SENT', issuedAt: new Date() },
@@ -101,7 +101,7 @@ export class RfqService {
 
   async softDelete(auth: AuthContext, id: string) {
     await this.findOne(auth, id);
-    await this.prisma.withTenant(auth.tenantId, (tx) =>
+    await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.rfq.update({ where: { id }, data: { deletedAt: new Date() } }),
     );
   }

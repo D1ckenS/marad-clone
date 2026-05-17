@@ -46,6 +46,16 @@ enum StockMovementType {
   TRANSFER_OUT // sent to another location
 }
 
+enum CertificateSubjectType {
+  VESSEL
+  COMPONENT
+  CREW_MEMBER
+}
+
+enum NotificationType {
+  CERTIFICATE_EXPIRY
+}
+
 enum RequisitionStatus {
   DRAFT
   SUBMITTED
@@ -77,43 +87,78 @@ enum QuoteStatus {
   REJECTED
 }
 
+enum DrillStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum WorkPermitStatus {
+  REQUESTED
+  APPROVED
+  ACTIVE
+  CLOSED
+  CANCELLED
+}
+
+enum WorkPermitType {
+  HOT_WORK
+  CONFINED_SPACE
+  WORKING_AT_HEIGHT
+  ELECTRICAL_ISOLATION
+  COLD_WORK
+  DIVING
+  OVERSIDE_WORK
+}
+
 // ── Tenant ───────────────────────────────────────────────────────────────────
 // Root aggregate. Not sync-aware (shore-only master record).
 
 model Tenant {
   id        String    @id @default(cuid())
   name      String
+  shortName String?   @map("short_name")
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   hlc       String?
   deletedAt DateTime? @map("deleted_at")
 
-  vessels             Vessel[]
-  users               User[]
-  masterComponents    MasterComponent[]
-  components          Component[]
-  jobs                Job[]
-  jobInstances        JobInstance[]
-  jobHistories        JobHistory[]
-  runningHourReadings RunningHourReading[]
-  partCategories      PartCategory[]
-  parts               Part[]
-  stockLocations      StockLocation[]
-  stockLevels         StockLevel[]
-  stockMovements      StockMovement[]
-  barcodeBindings     BarcodeBinding[]
-  suppliers           Supplier[]
-  approvalFlows       ApprovalFlow[]
-  approvalSteps       ApprovalStep[]
-  requisitions        Requisition[]
-  requisitionLines    RequisitionLine[]
-  rfqs                Rfq[]
-  quotes              Quote[]
-  quoteLines          QuoteLine[]
-  purchaseOrders      PurchaseOrder[]
-  poLines             POLine[]
-  goodsReceipts       GoodsReceipt[]
-  goodsReceiptLines   GoodsReceiptLine[]
+  vessels              Vessel[]
+  users                User[]
+  masterComponents     MasterComponent[]
+  components           Component[]
+  jobs                 Job[]
+  jobInstances         JobInstance[]
+  jobHistories         JobHistory[]
+  runningHourReadings  RunningHourReading[]
+  partCategories       PartCategory[]
+  parts                Part[]
+  stockLocations       StockLocation[]
+  stockLevels          StockLevel[]
+  stockMovements       StockMovement[]
+  barcodeBindings      BarcodeBinding[]
+  suppliers            Supplier[]
+  approvalFlows        ApprovalFlow[]
+  approvalSteps        ApprovalStep[]
+  requisitions         Requisition[]
+  requisitionLines     RequisitionLine[]
+  rfqs                 Rfq[]
+  quotes               Quote[]
+  quoteLines           QuoteLine[]
+  purchaseOrders       PurchaseOrder[]
+  poLines              POLine[]
+  goodsReceipts        GoodsReceipt[]
+  goodsReceiptLines    GoodsReceiptLine[]
+  certificateTypes     CertificateType[]
+  certificates         Certificate[]
+  certificateAttachments CertificateAttachment[]
+  notifications        Notification[]
+  drillTypes           DrillType[]
+  drills               Drill[]
+  drillRecords         DrillRecord[]
+  permitTemplates      PermitTemplate[]
+  workPermits          WorkPermit[]
+  permitApprovals      PermitApproval[]
 
   @@map("tenants")
 }
@@ -131,37 +176,46 @@ model Vessel {
   hlc       String?
   deletedAt DateTime? @map("deleted_at")
 
-  tenant              Tenant               @relation(fields: [tenantId], references: [id])
-  users               User[]
-  components          Component[]
-  jobs                Job[]
-  jobInstances        JobInstance[]
-  jobHistories        JobHistory[]
-  runningHourReadings RunningHourReading[]
-  stockLocations      StockLocation[]
-  stockLevels         StockLevel[]
-  stockMovements      StockMovement[]
-  requisitions        Requisition[]
-  requisitionLines    RequisitionLine[]
-  rfqs                Rfq[]
-  quotes              Quote[]
-  quoteLines          QuoteLine[]
-  purchaseOrders      PurchaseOrder[]
-  poLines             POLine[]
-  goodsReceipts       GoodsReceipt[]
-  goodsReceiptLines   GoodsReceiptLine[]
+  tenant               Tenant               @relation(fields: [tenantId], references: [id])
+  users                User[]
+  components           Component[]
+  jobs                 Job[]
+  jobInstances         JobInstance[]
+  jobHistories         JobHistory[]
+  runningHourReadings  RunningHourReading[]
+  stockLocations       StockLocation[]
+  stockLevels          StockLevel[]
+  stockMovements       StockMovement[]
+  requisitions         Requisition[]
+  requisitionLines     RequisitionLine[]
+  rfqs                 Rfq[]
+  quotes               Quote[]
+  quoteLines           QuoteLine[]
+  purchaseOrders       PurchaseOrder[]
+  poLines              POLine[]
+  goodsReceipts        GoodsReceipt[]
+  goodsReceiptLines    GoodsReceiptLine[]
+  certificates         Certificate[]
+  certificateAttachments CertificateAttachment[]
+  drills               Drill[]
+  drillRecords         DrillRecord[]
+  workPermits          WorkPermit[]
+  permitApprovals      PermitApproval[]
 
   @@map("vessels")
 }
 
 // ── User ─────────────────────────────────────────────────────────────────────
-// Tenant-scoped. passwordHash is nullable for OIDC-only users (P0-10).
+// tenantId is nullable — SUPER_ADMIN users have no tenant assignment.
+// A partial unique index (WHERE tenant_id IS NULL) on email prevents duplicate
+// super-admin accounts; see migration SQL.
 
 model User {
   id           String    @id
-  tenantId     String    @map("tenant_id")
+  tenantId     String?   @map("tenant_id")
   vesselId     String?   @map("vessel_id")
   email        String
+  username     String?   @map("username")
   passwordHash String?   @map("password_hash")
   role         Role      @default(OFFICER)
   createdAt    DateTime  @default(now()) @map("created_at")
@@ -169,10 +223,11 @@ model User {
   hlc          String?
   deletedAt    DateTime? @map("deleted_at")
 
-  tenant Tenant  @relation(fields: [tenantId], references: [id])
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
   vessel Vessel? @relation(fields: [vesselId], references: [id])
 
   @@unique([tenantId, email])
+  @@unique([tenantId, username])
   @@map("users")
 }
 
@@ -846,6 +901,257 @@ model GoodsReceiptLine {
   @@index([tenantId, vesselId, receiptId])
   @@index([tenantId, vesselId, poLineId])
   @@map("goods_receipt_lines")
+}
+
+// ── Certificates (P2-1) ──────────────────────────────────────────────────────
+// Polymorphic: a Certificate can belong to a vessel, a component, or a crew
+// member. The subject is identified by subjectType + subjectId (soft FK).
+// CertificateType is the tenant-scoped catalog entry (fleet-wide, like Part).
+// Certificate and CertificateAttachment are vessel-scoped and sync-aware.
+
+model CertificateType {
+  id          String  @id
+  tenantId    String  @map("tenant_id")
+  name        String
+  description String?
+  /// JSON: [90, 60, 30, 7] — days before expiry to alert
+  alertDaysJson String? @map("alert_days_json")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  certificates Certificate[]
+
+  @@index([tenantId])
+  @@map("certificate_types")
+}
+
+model Certificate {
+  id                String                 @id
+  tenantId          String                 @map("tenant_id")
+  vesselId          String?                @map("vessel_id")
+  certificateTypeId String                 @map("certificate_type_id")
+  subjectType       CertificateSubjectType @map("subject_type")
+  subjectId         String                 @map("subject_id")
+  number            String?
+  issuedAt          DateTime?              @map("issued_at")
+  expiresAt         DateTime?              @map("expires_at")
+  issuedBy          String?                @map("issued_by")
+  notes             String?
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  hlc       String?
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant          Tenant                  @relation(fields: [tenantId], references: [id])
+  vessel          Vessel?                 @relation(fields: [vesselId], references: [id])
+  certificateType CertificateType         @relation(fields: [certificateTypeId], references: [id])
+  attachments     CertificateAttachment[]
+
+  @@index([tenantId, vesselId])
+  @@index([tenantId, subjectType, subjectId])
+  @@index([tenantId, expiresAt])
+  @@map("certificates")
+}
+
+model CertificateAttachment {
+  id            String @id
+  tenantId      String @map("tenant_id")
+  vesselId      String? @map("vessel_id")
+  certificateId String @map("certificate_id")
+  fileName      String @map("file_name")
+  storageKey    String @map("storage_key")
+  mimeType      String? @map("mime_type")
+  sizeBytes     Int?    @map("size_bytes")
+
+  uploadedAt DateTime  @default(now()) @map("uploaded_at")
+  hlc        String?
+  deletedAt  DateTime? @map("deleted_at")
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  vessel      Vessel?     @relation(fields: [vesselId], references: [id])
+  certificate Certificate @relation(fields: [certificateId], references: [id])
+
+  @@index([tenantId, certificateId])
+  @@map("certificate_attachments")
+}
+
+// ── Notifications (P2-1, shore-only) ────────────────────────────────────────
+// In-app alert records. Created by the expiry-check job when a Certificate
+// is approaching its expiresAt date. Not sync-aware (shore read-only).
+
+model Notification {
+  id       String           @id
+  tenantId String           @map("tenant_id")
+  vesselId String?          @map("vessel_id")
+  type     NotificationType
+  title    String
+  message  String
+  refId    String?          @map("ref_id")
+  readAt   DateTime?        @map("read_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, readAt])
+  @@index([tenantId, type, refId])
+  @@map("notifications")
+}
+
+// ── Safety (P2-2) ─────────────────────────────────────────────────────────────
+// DrillType is tenant-scoped (fleet-wide catalog). Drill, DrillRecord,
+// WorkPermit, and PermitApproval are vessel-scoped and sync-aware.
+// PermitTemplate is tenant-scoped (checklist definitions per permit type).
+// CHECK: HOT_WORK permit cannot be ACTIVE without risk_assessment_json — enforced
+// at application layer + DB constraint added in migration.
+
+model DrillType {
+  id          String    @id
+  tenantId    String    @map("tenant_id")
+  name        String
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id])
+  drills Drill[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("drill_types")
+}
+
+model Drill {
+  id              String      @id
+  tenantId        String      @map("tenant_id")
+  vesselId        String      @map("vessel_id")
+  drillTypeId     String      @map("drill_type_id")
+  status          DrillStatus @default(SCHEDULED)
+  scheduledAt     DateTime    @map("scheduled_at")
+  conductedAt     DateTime?   @map("conducted_at")
+  durationMinutes Int?        @map("duration_minutes")
+  location        String?
+  leadOfficer     String?     @map("lead_officer")
+  notes           String?
+  reportKey       String?     @map("report_key")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+  hlc             String?
+  deletedAt       DateTime?   @map("deleted_at")
+
+  tenant    Tenant        @relation(fields: [tenantId], references: [id])
+  vessel    Vessel        @relation(fields: [vesselId], references: [id])
+  drillType DrillType     @relation(fields: [drillTypeId], references: [id])
+  records   DrillRecord[]
+
+  @@index([tenantId, vesselId, status])
+  @@index([tenantId, vesselId, scheduledAt])
+  @@map("drills")
+}
+
+model DrillRecord {
+  id              String    @id
+  tenantId        String    @map("tenant_id")
+  vesselId        String    @map("vessel_id")
+  drillId         String    @map("drill_id")
+  participantName String    @map("participant_name")
+  role            String?
+  signedAt        DateTime? @map("signed_at")
+  signatureHash   String?   @map("signature_hash")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  hlc             String?
+  deletedAt       DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  vessel Vessel @relation(fields: [vesselId], references: [id])
+  drill  Drill  @relation(fields: [drillId], references: [id])
+
+  @@index([tenantId, vesselId, drillId])
+  @@map("drill_records")
+}
+
+// PermitTemplate — tenant-scoped checklist catalog per permit type.
+// checklistItemsJson: JSON [{id, description, required}]
+model PermitTemplate {
+  id                 String         @id
+  tenantId           String         @map("tenant_id")
+  permitType         WorkPermitType @map("permit_type")
+  name               String
+  checklistItemsJson String?        @map("checklist_items_json")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+  deletedAt          DateTime?      @map("deleted_at")
+
+  tenant  Tenant       @relation(fields: [tenantId], references: [id])
+  permits WorkPermit[]
+
+  @@index([tenantId])
+  @@map("permit_templates")
+}
+
+// WorkPermit — vessel-scoped, sync-aware.
+// riskAssessmentJson: [{itemId, description, checked}]
+// gasTestJson: [{time, testedBy, o2Pct, lelPct, h2sPpm}]
+// hazardsJson: [{hazard, controls}]
+model WorkPermit {
+  id                String           @id
+  tenantId          String           @map("tenant_id")
+  vesselId          String           @map("vessel_id")
+  permitType        WorkPermitType   @map("permit_type")
+  templateId        String?          @map("template_id")
+  status            WorkPermitStatus @default(REQUESTED)
+  title             String
+  location          String?
+  workDescription   String?          @map("work_description")
+  requestedByUserId String?          @map("requested_by_user_id")
+  validFrom         DateTime?        @map("valid_from")
+  validUntil        DateTime?        @map("valid_until")
+  closedAt          DateTime?        @map("closed_at")
+  riskAssessmentJson String?         @map("risk_assessment_json")
+  gasTestJson       String?          @map("gas_test_json")
+  hazardsJson       String?          @map("hazards_json")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+  hlc               String?
+  deletedAt         DateTime?        @map("deleted_at")
+
+  tenant    Tenant          @relation(fields: [tenantId], references: [id])
+  vessel    Vessel          @relation(fields: [vesselId], references: [id])
+  template  PermitTemplate? @relation(fields: [templateId], references: [id])
+  approvals PermitApproval[]
+
+  @@index([tenantId, vesselId, status])
+  @@index([tenantId, vesselId, permitType])
+  @@map("work_permits")
+}
+
+// PermitApproval — sign-off record on a WorkPermit.
+model PermitApproval {
+  id            String    @id
+  tenantId      String    @map("tenant_id")
+  vesselId      String    @map("vessel_id")
+  permitId      String    @map("permit_id")
+  approvedBy    String    @map("approved_by")
+  role          String
+  approvedAt    DateTime  @map("approved_at")
+  signatureHash String?   @map("signature_hash")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  hlc           String?
+  deletedAt     DateTime? @map("deleted_at")
+
+  tenant Tenant     @relation(fields: [tenantId], references: [id])
+  vessel Vessel     @relation(fields: [vesselId], references: [id])
+  permit WorkPermit @relation(fields: [permitId], references: [id])
+
+  @@index([tenantId, vesselId, permitId])
+  @@map("permit_approvals")
 }
 
 // ── Sync engine tables ───────────────────────────────────────────────────────

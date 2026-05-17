@@ -18,11 +18,11 @@ export class MasterComponentService {
   constructor(private readonly prisma: PrismaService) {}
 
   create(auth: AuthContext, dto: CreateMasterComponentDto) {
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.masterComponent.create({
         data: {
           id: newId(),
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           name: dto.name,
           description: dto.description ?? null,
           sfi: dto.sfi ?? null,
@@ -33,18 +33,18 @@ export class MasterComponentService {
   }
 
   findAll(auth: AuthContext) {
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.masterComponent.findMany({
-        where: { tenantId: auth.tenantId, deletedAt: null },
+        where: { tenantId: auth.tenantId!, deletedAt: null },
         orderBy: { name: 'asc' },
       }),
     );
   }
 
   async findOne(auth: AuthContext, id: string) {
-    const row = await this.prisma.withTenant(auth.tenantId, (tx) =>
+    const row = await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.masterComponent.findFirst({
-        where: { id, tenantId: auth.tenantId, deletedAt: null },
+        where: { id, tenantId: auth.tenantId!, deletedAt: null },
       }),
     );
     if (row === null) throw new NotFoundException(`MasterComponent ${id} not found`);
@@ -53,7 +53,7 @@ export class MasterComponentService {
 
   async update(auth: AuthContext, id: string, dto: UpdateMasterComponentDto) {
     await this.findOne(auth, id);
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.masterComponent.update({
         where: { id },
         data: {
@@ -68,7 +68,7 @@ export class MasterComponentService {
 
   async softDelete(auth: AuthContext, id: string) {
     await this.findOne(auth, id);
-    await this.prisma.withTenant(auth.tenantId, (tx) =>
+    await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.masterComponent.update({
         where: { id },
         data: { deletedAt: new Date() },

@@ -48,6 +48,56 @@ Decisions only Ziad can make. Ask before acting.
 
 ---
 
+## 18. Platform Super-Admin Setup
+
+The platform super-admin (Ziad) has **no company assignment** — `tenant_id IS NULL` in the database.
+
+### Creating / resetting the super-admin account
+
+1. Add `PLATFORM_BOOTSTRAP_KEY=<secret>` to `apps/api-shore/.env` and restart the server.
+2. In PowerShell:
+```powershell
+$body = @{ bootstrapKey = "<secret>"; email = "<email>"; password = "<password>" } | ConvertTo-Json
+Invoke-RestMethod -Uri "http://localhost:3000/api/v1/auth/bootstrap-super-admin" -Method POST -ContentType "application/json" -Body $body
+```
+3. Returns 201 on first creation, 409 if email already exists.
+
+### Resetting the password (if locked out)
+
+```powershell
+# 1. Generate hash (run from apps/api-shore/)
+cd apps/api-shore
+node -e "const bcrypt = require('bcrypt'); bcrypt.hash('NewPassword', 12).then(h => console.log(h))"
+cd ../..
+
+# 2. Write hash to DB
+docker exec infra-postgres-1 psql -U fleetops -d fleetops_shore -c "UPDATE users SET password_hash = '<hash>' WHERE email = '<email>' AND role = 'SUPER_ADMIN';"
+```
+
+### Logging in
+
+At `http://localhost:5342` click **"Platform admin login"** (bottom of the login form) — this hides the Organisation ID field. Email + password only.
+
+### What super-admin can do
+
+- **Companies page** (`/companies`) — create, rename, view all companies with vessel/user counts.
+- Cannot access vessel modules (Maintenance, Inventory, etc.) — those are company-scoped.
+
+### Known test-data pollution
+
+The e2e test suite creates throwaway tenants (`Demo Shipping Co.`, `purchase-api-test`, etc.) on every run against the dev database. They appear in the Companies list. Clean them up with:
+
+```powershell
+docker exec infra-postgres-1 psql -U fleetops -d fleetops_shore -c "DELETE FROM tenants WHERE name IN ('Demo Shipping Co.', 'purchase-api-test') OR name LIKE '%-api-%' OR name LIKE '%-test%';"
+```
+
+Or delete individual companies by ID via the API:
+```powershell
+# Not yet implemented — add DELETE /tenants/:id when needed (Phase 4).
+```
+
+---
+
 ## 19. Companion Document
 
 `MARAD-equivalent-build-plan.docx` (same folder) is the stakeholder-facing version. It is informational and not maintained alongside code. **This `CLAUDE.md` (+ companion files) is the source of truth for execution.**
@@ -109,6 +159,7 @@ These settings exist for reasons. Do not alter them without explicit instruction
 
 | Setting | Location | Value | Reason |
 |---|---|---|---|
-| `ignoreDeprecations` | All tsconfig files | `"5.0"` | Project TypeScript is 5.9.3; the only valid value is `"5.0"`. Silences the `moduleResolution: Node10` deprecation warning. |
+| `moduleResolution` in CJS tsconfigs | api-shore, api-vessel, desktop-vessel, domain/tsconfig.build.json, sync-engine/tsconfig.build.json | **NOT SET** (implicit) | TypeScript 5.9.3 emits TS5107 for any EXPLICIT `moduleResolution: node/node10`. The fix: do not specify `moduleResolution` in CJS tsconfigs — TypeScript derives `node10` implicitly from `module: CommonJS`, which does not trigger TS5107. Also removed `moduleResolution` from `tsconfig.base.json` for this reason. |
+| `ignoreDeprecations` | Removed from all CJS tsconfigs | n/a | No longer needed after switching to implicit moduleResolution. |
 | Vite port | `apps/web-shore/vite.config.ts` | `5342` | Port 5173 is in Windows Hyper-V excluded range 5141–5240; 5342 is the first available port after the exclusion. |
 | Proto namespace | `packages/proto/sync.proto` | `fleetops.sync.v1` | Was `marad.sync.v1`; renamed during branding to FleetOps. All generated code references this namespace. |

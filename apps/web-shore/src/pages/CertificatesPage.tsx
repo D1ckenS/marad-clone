@@ -1150,7 +1150,7 @@ export function CertificatesPage() {
           Certificates
         </h1>
         <span className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
-          MV HALCYON · {certs.length} certs
+          {certs.length} cert{certs.length !== 1 ? 's' : ''}
         </span>
         {overdueCount > 0 && <Badge color="red">{overdueCount} OVERDUE</Badge>}
         {windowCount > 0 && <Badge color="amber">{windowCount} IN WINDOW</Badge>}

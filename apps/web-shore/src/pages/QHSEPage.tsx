@@ -1478,7 +1478,7 @@ export function QHSEPage() {
           QHSE
         </h1>
         <span className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
-          MV HALCYON · ISM + DryBMS + ISO 14001
+          ISM + DryBMS + ISO 14001
         </span>
         {offTarget > 0 && <Badge color="amber">{offTarget} OFF TARGET</Badge>}
         <div className="flex-1" />

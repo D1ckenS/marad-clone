@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { ForbiddenException, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
@@ -24,7 +24,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
    * safe with connection pooling and concurrent requests.
    */
   async withTenant<T>(
-    tenantId: string,
+    tenantId: string | null,
     fn: (
       tx: Omit<
         PrismaClient,
@@ -32,9 +32,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       >,
     ) => Promise<T>,
   ): Promise<T> {
+    // SUPER_ADMIN has no tenantId — they must not reach tenant-scoped endpoints.
+    if (!tenantId) {
+      throw new ForbiddenException('This endpoint is not accessible to platform-level accounts');
+    }
     // Validate tenantId is a ULID before interpolating into raw SQL.
-    // PostgreSQL SET does not accept parameterised ($1) values, so we must
-    // use $executeRawUnsafe — safe only because we verify the ULID format.
     if (!/^[0-9A-HJKMNP-TV-Z]{26}$/.test(tenantId)) {
       throw new Error(`withTenant: invalid tenantId format: ${tenantId}`);
     }

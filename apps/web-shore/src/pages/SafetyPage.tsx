@@ -1466,7 +1466,7 @@ export function SafetyPage() {
           Safety
         </h1>
         <span className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
-          MV HALCYON · ISM 2006
+          ISM 2006
         </span>
         {activePermits > 0 && <Badge color="green">{activePermits} ACTIVE</Badge>}
         {awaitingPermits > 0 && <Badge color="amber">{awaitingPermits} AWAITING</Badge>}

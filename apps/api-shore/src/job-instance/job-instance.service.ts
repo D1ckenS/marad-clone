@@ -21,7 +21,7 @@ export class JobInstanceService {
     const vesselId = requireVesselId(auth);
     const id = newId();
 
-    return this.prisma.withTenant(auth.tenantId, async (tx) => {
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
       const fields = {
         jobId: dto.jobId,
         componentId: dto.componentId,
@@ -33,7 +33,7 @@ export class JobInstanceService {
       };
       const { hlc } = await this.recorder.recordUpsert(
         tx as unknown as Prisma.TransactionClient,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -41,7 +41,7 @@ export class JobInstanceService {
       return tx.jobInstance.create({
         data: {
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           jobId: dto.jobId,
           componentId: dto.componentId,
@@ -58,9 +58,9 @@ export class JobInstanceService {
 
   async findAll(auth: AuthContext) {
     const vesselId = requireVesselId(auth);
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.jobInstance.findMany({
-        where: { tenantId: auth.tenantId, vesselId, deletedAt: null },
+        where: { tenantId: auth.tenantId!, vesselId, deletedAt: null },
         orderBy: { dueAt: 'asc' },
       }),
     );
@@ -68,9 +68,9 @@ export class JobInstanceService {
 
   async findOne(auth: AuthContext, id: string) {
     const vesselId = requireVesselId(auth);
-    const row = await this.prisma.withTenant(auth.tenantId, (tx) =>
+    const row = await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.jobInstance.findFirst({
-        where: { id, tenantId: auth.tenantId, vesselId, deletedAt: null },
+        where: { id, tenantId: auth.tenantId!, vesselId, deletedAt: null },
       }),
     );
     if (row === null) throw new NotFoundException(`JobInstance ${id} not found`);
@@ -87,10 +87,10 @@ export class JobInstanceService {
     if (dto.dueAtRunningHours !== undefined) fields['dueAtRunningHours'] = dto.dueAtRunningHours;
     if (dto.assignedToUserId !== undefined) fields['assignedToUserId'] = dto.assignedToUserId;
 
-    return this.prisma.withTenant(auth.tenantId, async (tx) => {
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
       const { hlc } = await this.recorder.recordUpsert(
         tx as unknown as Prisma.TransactionClient,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -113,10 +113,10 @@ export class JobInstanceService {
   async softDelete(auth: AuthContext, id: string) {
     const vesselId = requireVesselId(auth);
     await this.findOne(auth, id);
-    return this.prisma.withTenant(auth.tenantId, async (tx) => {
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
       const { hlc } = await this.recorder.recordDelete(
         tx as unknown as Prisma.TransactionClient,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
       );

@@ -5,3 +5,4 @@ export { Modal } from './Modal.js';
 export { Spinner } from './Spinner.js';
 export { Input, TextArea } from './Input.js';
 export { AppShell } from './AppShell.js';
+export type { NavItem } from './AppShell.js';

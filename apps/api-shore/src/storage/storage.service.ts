@@ -29,6 +29,14 @@ export class StorageService {
    * is responsible for collecting all keys and persisting them in the
    * `JobHistory.photos` JSON array.
    */
+  async put(key: string, body: Buffer, contentType: string): Promise<string> {
+    await this.s3.send(
+      new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: body, ContentType: contentType }),
+    );
+    this.log.debug(`uploaded key=${key} size=${body.length}`);
+    return key;
+  }
+
   async putJobHistoryPhoto(
     ctx: { tenantId: string; vesselId: string; jobHistoryId: string },
     idx: number,

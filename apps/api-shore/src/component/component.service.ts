@@ -22,7 +22,7 @@ export class ComponentService {
     const id = newId();
     const runningHours = dto.runningHours ?? '0';
 
-    return this.prisma.withTenant(auth.tenantId, async (tx) => {
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
       const fields = {
         name: dto.name,
         description: dto.description ?? null,
@@ -34,7 +34,7 @@ export class ComponentService {
       };
       const { hlc } = await this.recorder.recordUpsert(
         tx as unknown as Prisma.TransactionClient,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -42,7 +42,7 @@ export class ComponentService {
       return tx.component.create({
         data: {
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           name: dto.name,
           description: dto.description ?? null,
@@ -58,9 +58,9 @@ export class ComponentService {
 
   async findAll(auth: AuthContext) {
     const vesselId = requireVesselId(auth);
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.component.findMany({
-        where: { tenantId: auth.tenantId, vesselId, deletedAt: null },
+        where: { tenantId: auth.tenantId!, vesselId, deletedAt: null },
         orderBy: { name: 'asc' },
       }),
     );
@@ -68,9 +68,9 @@ export class ComponentService {
 
   async findOne(auth: AuthContext, id: string) {
     const vesselId = requireVesselId(auth);
-    const row = await this.prisma.withTenant(auth.tenantId, (tx) =>
+    const row = await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.component.findFirst({
-        where: { id, tenantId: auth.tenantId, vesselId, deletedAt: null },
+        where: { id, tenantId: auth.tenantId!, vesselId, deletedAt: null },
       }),
     );
     if (row === null) throw new NotFoundException(`Component ${id} not found`);
@@ -88,10 +88,10 @@ export class ComponentService {
     if (dto.parentId !== undefined) fields['parentId'] = dto.parentId;
     if (dto.runningHours !== undefined) fields['runningHours'] = dto.runningHours;
 
-    return this.prisma.withTenant(auth.tenantId, async (tx) => {
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
       const { hlc } = await this.recorder.recordUpsert(
         tx as unknown as Prisma.TransactionClient,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -116,10 +116,10 @@ export class ComponentService {
     const vesselId = requireVesselId(auth);
     await this.findOne(auth, id);
 
-    return this.prisma.withTenant(auth.tenantId, async (tx) => {
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
       const { hlc } = await this.recorder.recordDelete(
         tx as unknown as Prisma.TransactionClient,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
       );

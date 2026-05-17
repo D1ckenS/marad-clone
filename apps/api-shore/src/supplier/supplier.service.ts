@@ -10,11 +10,11 @@ export class SupplierService {
   constructor(private readonly prisma: PrismaService) {}
 
   create(auth: AuthContext, dto: CreateSupplierDto) {
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.supplier.create({
         data: {
           id: newId(),
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           name: dto.name,
           contactName: dto.contactName ?? null,
           contactEmail: dto.contactEmail ?? null,
@@ -29,17 +29,17 @@ export class SupplierService {
   }
 
   findAll(auth: AuthContext) {
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.supplier.findMany({
-        where: { tenantId: auth.tenantId, deletedAt: null },
+        where: { tenantId: auth.tenantId!, deletedAt: null },
         orderBy: { name: 'asc' },
       }),
     );
   }
 
   async findOne(auth: AuthContext, id: string) {
-    const row = await this.prisma.withTenant(auth.tenantId, (tx) =>
-      tx.supplier.findFirst({ where: { id, tenantId: auth.tenantId, deletedAt: null } }),
+    const row = await this.prisma.withTenant(auth.tenantId!, (tx) =>
+      tx.supplier.findFirst({ where: { id, tenantId: auth.tenantId!, deletedAt: null } }),
     );
     if (row === null) throw new NotFoundException(`Supplier ${id} not found`);
     return row;
@@ -47,7 +47,7 @@ export class SupplierService {
 
   async update(auth: AuthContext, id: string, dto: UpdateSupplierDto) {
     await this.findOne(auth, id);
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.supplier.update({
         where: { id },
         data: {
@@ -66,7 +66,7 @@ export class SupplierService {
 
   async softDelete(auth: AuthContext, id: string) {
     await this.findOne(auth, id);
-    await this.prisma.withTenant(auth.tenantId, (tx) =>
+    await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.supplier.update({ where: { id }, data: { deletedAt: new Date() } }),
     );
   }

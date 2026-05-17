@@ -10,11 +10,11 @@ export class PartCategoryService {
   constructor(private readonly prisma: PrismaService) {}
 
   create(auth: AuthContext, dto: CreatePartCategoryDto) {
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.partCategory.create({
         data: {
           id: newId(),
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           name: dto.name,
           description: dto.description ?? null,
           parentId: dto.parentId ?? null,
@@ -24,17 +24,17 @@ export class PartCategoryService {
   }
 
   findAll(auth: AuthContext) {
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.partCategory.findMany({
-        where: { tenantId: auth.tenantId, deletedAt: null },
+        where: { tenantId: auth.tenantId!, deletedAt: null },
         orderBy: { name: 'asc' },
       }),
     );
   }
 
   async findOne(auth: AuthContext, id: string) {
-    const row = await this.prisma.withTenant(auth.tenantId, (tx) =>
-      tx.partCategory.findFirst({ where: { id, tenantId: auth.tenantId, deletedAt: null } }),
+    const row = await this.prisma.withTenant(auth.tenantId!, (tx) =>
+      tx.partCategory.findFirst({ where: { id, tenantId: auth.tenantId!, deletedAt: null } }),
     );
     if (row === null) throw new NotFoundException(`PartCategory ${id} not found`);
     return row;
@@ -42,7 +42,7 @@ export class PartCategoryService {
 
   async update(auth: AuthContext, id: string, dto: UpdatePartCategoryDto) {
     await this.findOne(auth, id);
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.partCategory.update({
         where: { id },
         data: {
@@ -56,7 +56,7 @@ export class PartCategoryService {
 
   async softDelete(auth: AuthContext, id: string) {
     await this.findOne(auth, id);
-    await this.prisma.withTenant(auth.tenantId, (tx) =>
+    await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.partCategory.update({ where: { id }, data: { deletedAt: new Date() } }),
     );
   }

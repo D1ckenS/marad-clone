@@ -20,10 +20,10 @@ export class StockLevelService {
   async create(auth: AuthContext, dto: CreateStockLevelDto) {
     const vesselId = requireVesselId(auth);
     const id = newId();
-    return this.prisma.withTenant(auth.tenantId, async (tx) => {
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
       const existing = await tx.stockLevel.findFirst({
         where: {
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           partId: dto.partId,
           locationId: dto.locationId,
@@ -42,7 +42,7 @@ export class StockLevelService {
       };
       const { hlc } = await this.recorder.recordUpsert(
         tx as unknown as Prisma.TransactionClient,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -50,7 +50,7 @@ export class StockLevelService {
       return tx.stockLevel.create({
         data: {
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           partId: dto.partId,
           locationId: dto.locationId,
@@ -65,9 +65,9 @@ export class StockLevelService {
 
   findAll(auth: AuthContext) {
     const vesselId = requireVesselId(auth);
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.stockLevel.findMany({
-        where: { tenantId: auth.tenantId, vesselId, deletedAt: null },
+        where: { tenantId: auth.tenantId!, vesselId, deletedAt: null },
         include: { part: true, location: true },
       }),
     );
@@ -75,9 +75,9 @@ export class StockLevelService {
 
   async findOne(auth: AuthContext, id: string) {
     const vesselId = requireVesselId(auth);
-    const row = await this.prisma.withTenant(auth.tenantId, (tx) =>
+    const row = await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.stockLevel.findFirst({
-        where: { id, tenantId: auth.tenantId, vesselId, deletedAt: null },
+        where: { id, tenantId: auth.tenantId!, vesselId, deletedAt: null },
         include: { part: true, location: true },
       }),
     );
@@ -92,10 +92,10 @@ export class StockLevelService {
     if (dto.minStock !== undefined) fields['minStock'] = dto.minStock;
     if (dto.maxStock !== undefined) fields['maxStock'] = dto.maxStock;
     if (dto.reorderPoint !== undefined) fields['reorderPoint'] = dto.reorderPoint;
-    return this.prisma.withTenant(auth.tenantId, async (tx) => {
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
       const { hlc } = await this.recorder.recordUpsert(
         tx as unknown as Prisma.TransactionClient,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -119,10 +119,10 @@ export class StockLevelService {
   async softDelete(auth: AuthContext, id: string) {
     const vesselId = requireVesselId(auth);
     await this.findOne(auth, id);
-    return this.prisma.withTenant(auth.tenantId, async (tx) => {
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
       const { hlc } = await this.recorder.recordDelete(
         tx as unknown as Prisma.TransactionClient,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
       );

@@ -37,7 +37,7 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     req.authCtx = {
-      tenantId: payload.tenantId,
+      tenantId: payload.tenantId ?? null,
       vesselId: payload.vesselId ?? null,
       userId: payload.sub,
       role: payload.role,

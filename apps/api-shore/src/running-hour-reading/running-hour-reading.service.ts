@@ -32,9 +32,9 @@ export class RunningHourReadingService {
     const id = newId();
     const value = new Prisma.Decimal(dto.value);
 
-    return this.prisma.withTenant(auth.tenantId, async (tx) => {
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
       const component = await tx.component.findFirst({
-        where: { id: dto.componentId, tenantId: auth.tenantId, vesselId, deletedAt: null },
+        where: { id: dto.componentId, tenantId: auth.tenantId!, vesselId, deletedAt: null },
       });
       if (component === null) {
         throw new NotFoundException(`Component ${dto.componentId} not found`);
@@ -55,7 +55,7 @@ export class RunningHourReadingService {
       };
       const { hlc: readingHlc } = await this.recorder.recordUpsert(
         tx as unknown as Prisma.TransactionClient,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         readingFields,
@@ -63,7 +63,7 @@ export class RunningHourReadingService {
       const reading = await tx.runningHourReading.create({
         data: {
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           componentId: dto.componentId,
           value,
@@ -78,7 +78,7 @@ export class RunningHourReadingService {
       // the vessel-side mirror stays consistent with the latest reading.
       const { hlc: compHlc } = await this.recorder.recordUpsert(
         tx as unknown as Prisma.TransactionClient,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         COMPONENT_ENTITY,
         component.id,
         { runningHours: dto.value },
@@ -93,7 +93,7 @@ export class RunningHourReadingService {
       const rhJobs = await tx.job.findMany({
         where: {
           componentId: component.id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           deletedAt: null,
           intervalRunningHours: { not: null },
@@ -117,7 +117,7 @@ export class RunningHourReadingService {
           const existing = await tx.jobInstance.findFirst({
             where: {
               jobId: job.id,
-              tenantId: auth.tenantId,
+              tenantId: auth.tenantId!,
               dueAtRunningHours: thresholdDec,
               deletedAt: null,
             },
@@ -135,7 +135,7 @@ export class RunningHourReadingService {
           };
           const { hlc: ihlc } = await this.recorder.recordUpsert(
             tx as unknown as Prisma.TransactionClient,
-            { tenantId: auth.tenantId, vesselId },
+            { tenantId: auth.tenantId!, vesselId },
             'JobInstance',
             iid,
             instanceFields,
@@ -143,7 +143,7 @@ export class RunningHourReadingService {
           await tx.jobInstance.create({
             data: {
               id: iid,
-              tenantId: auth.tenantId,
+              tenantId: auth.tenantId!,
               vesselId,
               jobId: job.id,
               componentId: component.id,
@@ -161,10 +161,10 @@ export class RunningHourReadingService {
 
   findAll(auth: AuthContext, componentId?: string) {
     const vesselId = requireVesselId(auth);
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.runningHourReading.findMany({
         where: {
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           deletedAt: null,
           ...(componentId !== undefined && { componentId }),

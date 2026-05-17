@@ -21,7 +21,7 @@ export class QuoteService {
   async create(auth: AuthContext, dto: CreateQuoteDto) {
     const vesselId = requireVesselId(auth);
     const id = newId();
-    return this.prisma.withTenant(auth.tenantId, async (tx) => {
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
       const fields = {
         vesselId,
         rfqId: dto.rfqId,
@@ -30,7 +30,7 @@ export class QuoteService {
       };
       const { hlc } = await this.recorder.recordUpsert(
         tx as unknown as Prisma.TransactionClient,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -38,7 +38,7 @@ export class QuoteService {
       return tx.quote.create({
         data: {
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           rfqId: dto.rfqId,
           supplierId: dto.supplierId,
@@ -55,10 +55,10 @@ export class QuoteService {
 
   findAll(auth: AuthContext, rfqId?: string) {
     const vesselId = requireVesselId(auth);
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.quote.findMany({
         where: {
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           deletedAt: null,
           ...(rfqId && { rfqId }),
@@ -71,9 +71,9 @@ export class QuoteService {
 
   async findOne(auth: AuthContext, id: string) {
     const vesselId = requireVesselId(auth);
-    const row = await this.prisma.withTenant(auth.tenantId, (tx) =>
+    const row = await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.quote.findFirst({
-        where: { id, tenantId: auth.tenantId, vesselId, deletedAt: null },
+        where: { id, tenantId: auth.tenantId!, vesselId, deletedAt: null },
         include: { lines: { where: { deletedAt: null } }, supplier: true },
       }),
     );
@@ -87,11 +87,11 @@ export class QuoteService {
       throw new BadRequestException('Lines can only be added to PENDING quotes');
     const vesselId = requireVesselId(auth);
     const id = newId();
-    return this.prisma.withTenant(auth.tenantId, async (tx) => {
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
       const fields = { vesselId, quoteId, description: dto.description, quantity: dto.quantity };
       const { hlc } = await this.recorder.recordUpsert(
         tx as unknown as Prisma.TransactionClient,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         LINE_ENTITY_TYPE,
         id,
         fields,
@@ -99,7 +99,7 @@ export class QuoteService {
       return tx.quoteLine.create({
         data: {
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           quoteId,
           partId: dto.partId ?? null,
@@ -120,7 +120,7 @@ export class QuoteService {
     const quote = await this.findOne(auth, id);
     if (quote.status !== 'PENDING')
       throw new BadRequestException('Only PENDING quotes can be accepted');
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.quote.update({ where: { id }, data: { status: 'ACCEPTED' } }),
     );
   }
@@ -129,14 +129,14 @@ export class QuoteService {
     const quote = await this.findOne(auth, id);
     if (quote.status !== 'PENDING')
       throw new BadRequestException('Only PENDING quotes can be rejected');
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.quote.update({ where: { id }, data: { status: 'REJECTED' } }),
     );
   }
 
   async softDelete(auth: AuthContext, id: string) {
     await this.findOne(auth, id);
-    await this.prisma.withTenant(auth.tenantId, (tx) =>
+    await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.quote.update({ where: { id }, data: { deletedAt: new Date() } }),
     );
   }

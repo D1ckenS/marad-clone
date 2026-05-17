@@ -1458,7 +1458,7 @@ export function CrewingPage() {
           Crewing
         </h1>
         <span className="text-[12px] whitespace-nowrap" style={{ color: 'var(--ink-3)' }}>
-          MV HALCYON{crew.length > 0 ? ` · ${crew.length} on board` : ''} · MLC 2006
+          {crew.length > 0 ? `${crew.length} on board · ` : ''}MLC 2006
         </span>
         <div className="flex-1" />
         <div

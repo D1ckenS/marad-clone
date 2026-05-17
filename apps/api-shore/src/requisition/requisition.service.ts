@@ -28,7 +28,7 @@ export class RequisitionService {
   async create(auth: AuthContext, dto: CreateRequisitionDto) {
     const vesselId = requireVesselId(auth);
     const id = newId();
-    return this.prisma.withTenant(auth.tenantId, async (tx) => {
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
       const fields = {
         vesselId,
         title: dto.title,
@@ -40,7 +40,7 @@ export class RequisitionService {
       };
       const { hlc } = await this.recorder.recordUpsert(
         tx as unknown as Prisma.TransactionClient,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -48,7 +48,7 @@ export class RequisitionService {
       return tx.requisition.create({
         data: {
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           title: dto.title,
           notes: dto.notes ?? null,
@@ -66,10 +66,10 @@ export class RequisitionService {
 
   findAll(auth: AuthContext, status?: string) {
     const vesselId = requireVesselId(auth);
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.requisition.findMany({
         where: {
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           deletedAt: null,
           ...(status && { status: status as never }),
@@ -82,9 +82,9 @@ export class RequisitionService {
 
   async findOne(auth: AuthContext, id: string) {
     const vesselId = requireVesselId(auth);
-    const row = await this.prisma.withTenant(auth.tenantId, (tx) =>
+    const row = await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.requisition.findFirst({
-        where: { id, tenantId: auth.tenantId, vesselId, deletedAt: null },
+        where: { id, tenantId: auth.tenantId!, vesselId, deletedAt: null },
         include: { lines: { where: { deletedAt: null } }, approvalFlow: true },
       }),
     );
@@ -96,7 +96,7 @@ export class RequisitionService {
     const req = await this.findOne(auth, id);
     if (req.status !== 'DRAFT')
       throw new BadRequestException('Only DRAFT requisitions can be updated');
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.requisition.update({
         where: { id },
         data: {
@@ -116,7 +116,7 @@ export class RequisitionService {
     const req = await this.findOne(auth, id);
     if (req.status !== 'DRAFT')
       throw new BadRequestException('Only DRAFT requisitions can be deleted');
-    await this.prisma.withTenant(auth.tenantId, (tx) =>
+    await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.requisition.update({ where: { id }, data: { deletedAt: new Date() } }),
     );
   }
@@ -127,7 +127,7 @@ export class RequisitionService {
       throw new BadRequestException('Lines can only be added to DRAFT requisitions');
     const vesselId = requireVesselId(auth);
     const id = newId();
-    return this.prisma.withTenant(auth.tenantId, async (tx) => {
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
       const fields = {
         vesselId,
         requisitionId,
@@ -136,7 +136,7 @@ export class RequisitionService {
       };
       const { hlc } = await this.recorder.recordUpsert(
         tx as unknown as Prisma.TransactionClient,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         LINE_ENTITY_TYPE,
         id,
         fields,
@@ -144,7 +144,7 @@ export class RequisitionService {
       return tx.requisitionLine.create({
         data: {
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           requisitionId,
           partId: dto.partId ?? null,
@@ -169,9 +169,9 @@ export class RequisitionService {
     const req = await this.findOne(auth, requisitionId);
     if (req.status !== 'DRAFT')
       throw new BadRequestException('Lines can only be removed from DRAFT requisitions');
-    await this.prisma.withTenant(auth.tenantId, (tx) =>
+    await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.requisitionLine.updateMany({
-        where: { id: lineId, requisitionId, tenantId: auth.tenantId },
+        where: { id: lineId, requisitionId, tenantId: auth.tenantId! },
         data: { deletedAt: new Date() },
       }),
     );
@@ -181,7 +181,7 @@ export class RequisitionService {
     const req = await this.findOne(auth, id);
     if (req.status !== 'DRAFT')
       throw new BadRequestException('Only DRAFT requisitions can be submitted');
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.requisition.update({ where: { id }, data: { status: 'SUBMITTED' } }),
     );
   }
@@ -192,9 +192,9 @@ export class RequisitionService {
       throw new BadRequestException('Only SUBMITTED requisitions can be approved');
 
     if (req.approvalFlow) {
-      const steps = await this.prisma.withTenant(auth.tenantId, (tx) =>
+      const steps = await this.prisma.withTenant(auth.tenantId!, (tx) =>
         tx.approvalStep.findMany({
-          where: { flowId: req.approvalFlowId!, tenantId: auth.tenantId, deletedAt: null },
+          where: { flowId: req.approvalFlowId!, tenantId: auth.tenantId!, deletedAt: null },
           orderBy: { stepOrder: 'asc' },
         }),
       );
@@ -208,7 +208,7 @@ export class RequisitionService {
       }
     }
 
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.requisition.update({
         where: { id },
         data: {
@@ -224,7 +224,7 @@ export class RequisitionService {
     const req = await this.findOne(auth, id);
     if (req.status !== 'SUBMITTED')
       throw new BadRequestException('Only SUBMITTED requisitions can be rejected');
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.requisition.update({
         where: { id },
         data: {

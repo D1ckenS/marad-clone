@@ -1,3 +1,4 @@
+/// <reference types="multer" />
 import {
   BadRequestException,
   ConflictException,
@@ -53,10 +54,10 @@ export class JobHistoryService {
 
   findAll(auth: AuthContext, jobInstanceId?: string) {
     const vesselId = requireVesselId(auth);
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.jobHistory.findMany({
         where: {
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           deletedAt: null,
           ...(jobInstanceId !== undefined && { jobInstanceId }),
@@ -68,9 +69,9 @@ export class JobHistoryService {
 
   async findOne(auth: AuthContext, id: string) {
     const vesselId = requireVesselId(auth);
-    const row = await this.prisma.withTenant(auth.tenantId, (tx) =>
+    const row = await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.jobHistory.findFirst({
-        where: { id, tenantId: auth.tenantId, vesselId, deletedAt: null },
+        where: { id, tenantId: auth.tenantId!, vesselId, deletedAt: null },
       }),
     );
     if (row === null) throw new NotFoundException(`JobHistory ${id} not found`);
@@ -98,9 +99,9 @@ export class JobHistoryService {
   ) {
     const vesselId = requireVesselId(auth);
 
-    const instance = await this.prisma.withTenant(auth.tenantId, (tx) =>
+    const instance = await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.jobInstance.findFirst({
-        where: { id: jobInstanceId, tenantId: auth.tenantId, vesselId, deletedAt: null },
+        where: { id: jobInstanceId, tenantId: auth.tenantId!, vesselId, deletedAt: null },
       }),
     );
     if (instance === null) {
@@ -126,7 +127,7 @@ export class JobHistoryService {
     for (let i = 0; i < photos.length; i++) {
       const file = photos[i]!;
       const key = await this.storage.putJobHistoryPhoto(
-        { tenantId: auth.tenantId, vesselId, jobHistoryId: historyId },
+        { tenantId: auth.tenantId!, vesselId, jobHistoryId: historyId },
         i,
         file,
       );
@@ -137,7 +138,7 @@ export class JobHistoryService {
     const hoursWorked = dto.hoursWorked === undefined ? null : new Prisma.Decimal(dto.hoursWorked);
 
     // 3. Atomic DB write.
-    return this.prisma.withTenant(auth.tenantId, async (tx) => {
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
       const historyFields = {
         jobInstanceId,
         jobId: instance.jobId,
@@ -153,7 +154,7 @@ export class JobHistoryService {
       };
       const { hlc: historyHlc } = await this.recorder.recordUpsert(
         tx as unknown as Prisma.TransactionClient,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         HISTORY_ENTITY,
         historyId,
         historyFields,
@@ -161,7 +162,7 @@ export class JobHistoryService {
       const history = await tx.jobHistory.create({
         data: {
           id: historyId,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           jobInstanceId,
           jobId: instance.jobId,
@@ -181,7 +182,7 @@ export class JobHistoryService {
       // Mark the JobInstance done in the same tx.
       const { hlc: instanceHlc } = await this.recorder.recordUpsert(
         tx as unknown as Prisma.TransactionClient,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         INSTANCE_ENTITY,
         jobInstanceId,
         { status: 'DONE' },
@@ -192,7 +193,7 @@ export class JobHistoryService {
       });
 
       this.log.log(
-        `signoff history=${historyId} instance=${jobInstanceId} tenant=${auth.tenantId} vessel=${vesselId} photos=${photoKeys.length}`,
+        `signoff history=${historyId} instance=${jobInstanceId} tenant=${auth.tenantId!} vessel=${vesselId} photos=${photoKeys.length}`,
       );
 
       // P1-10: consume parts → StockMovements → reorder check → draft Requisition
@@ -205,7 +206,7 @@ export class JobHistoryService {
           const negQty = new Prisma.Decimal(item.quantity).times(-1);
           const { hlc: movHlc } = await this.recorder.recordUpsert(
             tx as unknown as Prisma.TransactionClient,
-            { tenantId: auth.tenantId, vesselId },
+            { tenantId: auth.tenantId!, vesselId },
             'StockMovement',
             movId,
             {
@@ -222,7 +223,7 @@ export class JobHistoryService {
           await tx.stockMovement.create({
             data: {
               id: movId,
-              tenantId: auth.tenantId,
+              tenantId: auth.tenantId!,
               vesselId,
               partId: item.partId,
               locationId: item.locationId,
@@ -249,7 +250,7 @@ export class JobHistoryService {
           const [robRow] = await tx.$queryRaw<{ rob: string }[]>`
             SELECT COALESCE(SUM(quantity), 0)::text AS rob
             FROM stock_movements
-            WHERE tenant_id = ${auth.tenantId}
+            WHERE tenant_id = ${auth.tenantId!}
               AND vessel_id = ${vesselId}
               AND part_id = ${item.partId}
               AND location_id = ${item.locationId}
@@ -259,7 +260,7 @@ export class JobHistoryService {
 
           const level = await tx.stockLevel.findFirst({
             where: {
-              tenantId: auth.tenantId,
+              tenantId: auth.tenantId!,
               vesselId,
               partId: item.partId,
               locationId: item.locationId,
@@ -282,7 +283,7 @@ export class JobHistoryService {
           const reqTitle = `Restock — job sign-off ${jobInstanceId}`;
           const { hlc: reqHlc } = await this.recorder.recordUpsert(
             tx as unknown as Prisma.TransactionClient,
-            { tenantId: auth.tenantId, vesselId },
+            { tenantId: auth.tenantId!, vesselId },
             'Requisition',
             reqId,
             { vesselId, title: reqTitle, status: 'DRAFT', requestedAt: nowIso },
@@ -290,7 +291,7 @@ export class JobHistoryService {
           await tx.requisition.create({
             data: {
               id: reqId,
-              tenantId: auth.tenantId,
+              tenantId: auth.tenantId!,
               vesselId,
               title: reqTitle,
               status: 'DRAFT',
@@ -304,13 +305,13 @@ export class JobHistoryService {
 
           for (const trigger of reorderTriggers) {
             const part = await tx.part.findFirst({
-              where: { id: trigger.partId, tenantId: auth.tenantId },
+              where: { id: trigger.partId, tenantId: auth.tenantId! },
             });
             const lineId = newId();
             const description = part?.name ?? trigger.partId;
             const { hlc: lineHlc } = await this.recorder.recordUpsert(
               tx as unknown as Prisma.TransactionClient,
-              { tenantId: auth.tenantId, vesselId },
+              { tenantId: auth.tenantId!, vesselId },
               'RequisitionLine',
               lineId,
               {
@@ -324,7 +325,7 @@ export class JobHistoryService {
             await tx.requisitionLine.create({
               data: {
                 id: lineId,
-                tenantId: auth.tenantId,
+                tenantId: auth.tenantId!,
                 vesselId,
                 requisitionId: reqId,
                 partId: trigger.partId,
@@ -337,7 +338,7 @@ export class JobHistoryService {
           }
 
           this.log.log(
-            `reorder-suggest req=${reqId} triggers=${reorderTriggers.length} instance=${jobInstanceId} tenant=${auth.tenantId}`,
+            `reorder-suggest req=${reqId} triggers=${reorderTriggers.length} instance=${jobInstanceId} tenant=${auth.tenantId!}`,
           );
         }
       }

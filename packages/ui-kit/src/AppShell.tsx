@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 
 export interface NavItem {
@@ -6,13 +7,25 @@ export interface NavItem {
   code: string;
 }
 
+interface VesselOption {
+  id: string;
+  name: string;
+}
+
 interface AppShellProps {
   nav: NavItem[];
   currentPath: string;
   onNavClick: (href: string) => void;
-  userEmail?: string;
-  onLogout?: () => void;
+  userEmail?: string | undefined;
+  userDisplayName?: string | undefined; // shown instead of email prefix; falls back to email
+  onLogout?: () => void | undefined;
   children: ReactNode;
+  // vessel / company context
+  companyName?: string | undefined;
+  vessels?: VesselOption[] | undefined;
+  selectedVesselId?: string | null | undefined;
+  onVesselChange?: ((id: string | null) => void) | undefined;
+  isVesselLocked?: boolean | undefined;
 }
 
 function BearingMark({ size = 20 }: { size?: number }) {
@@ -42,7 +55,6 @@ function ModBadge({
   active: boolean;
   anyActive: boolean;
 }) {
-  // Design spec: active = navy bg + white; inactive-when-any-active = transparent + ink3; idle = surface2 + ink2 + border
   const bg = active ? '#0A1F33' : anyActive ? 'transparent' : '#F4F2EC';
   const color = active ? '#fff' : anyActive ? '#8893A0' : '#41546A';
   const border = active || anyActive ? 'none' : '1px solid #EEEBE2';
@@ -106,17 +118,243 @@ function Initials({ email }: { email: string }) {
   );
 }
 
+function VesselBlock({
+  companyName,
+  vessels,
+  selectedVesselId,
+  onVesselChange,
+  isVesselLocked,
+}: {
+  companyName?: string | undefined;
+  vessels?: VesselOption[] | undefined;
+  selectedVesselId?: string | null | undefined;
+  onVesselChange?: ((id: string | null) => void) | undefined;
+  isVesselLocked?: boolean | undefined;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const selectedVessel = vessels?.find((v) => v.id === selectedVesselId) ?? null;
+  const canSwitch = !isVesselLocked && vessels && vessels.length > 0 && onVesselChange;
+
+  const vesselLabel = selectedVessel?.name ?? (vessels && vessels.length > 0 ? 'All vessels' : '—');
+
+  return (
+    <div
+      style={{
+        padding: '10px 12px 8px',
+        borderBottom: '1px solid #EEEBE2',
+      }}
+    >
+      {companyName && (
+        <div
+          style={{
+            fontSize: 10.5,
+            fontWeight: 600,
+            color: '#8893A0',
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+            marginBottom: 5,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {companyName}
+        </div>
+      )}
+
+      {/* Vessel selector */}
+      {canSwitch ? (
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => setOpen((p) => !p)}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '5px 8px',
+              borderRadius: 6,
+              border: '1px solid #E5E3DA',
+              background: open ? '#F4F2EC' : '#FFFFFF',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              textAlign: 'left',
+            }}
+          >
+            <span
+              style={{
+                flex: 1,
+                fontSize: 12.5,
+                fontWeight: 600,
+                color: '#0A1F33',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {vesselLabel}
+            </span>
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 12 12"
+              style={{
+                flexShrink: 0,
+                color: '#8893A0',
+                transform: open ? 'rotate(180deg)' : 'none',
+                transition: 'transform .15s',
+              }}
+            >
+              <path
+                d="M2 4l4 4 4-4"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+
+          {open && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                left: 0,
+                right: 0,
+                background: '#FFFFFF',
+                border: '1px solid #E5E3DA',
+                borderRadius: 8,
+                boxShadow: '0 4px 16px rgba(10,31,51,.10)',
+                zIndex: 100,
+                overflow: 'hidden',
+              }}
+            >
+              {/* All vessels option */}
+              <button
+                onClick={() => {
+                  onVesselChange(null);
+                  setOpen(false);
+                }}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 10px',
+                  border: 'none',
+                  background: selectedVesselId === null ? '#F4F2EC' : '#FFFFFF',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  textAlign: 'left',
+                  borderBottom: '1px solid #EEEBE2',
+                }}
+              >
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: selectedVesselId === null ? '#0A1F33' : '#EEEBE2',
+                    flexShrink: 0,
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: 12.5,
+                    color: '#0A1F33',
+                    fontWeight: selectedVesselId === null ? 600 : 400,
+                  }}
+                >
+                  All vessels
+                </span>
+              </button>
+              {vessels.map((v) => (
+                <button
+                  key={v.id}
+                  onClick={() => {
+                    onVesselChange(v.id);
+                    setOpen(false);
+                  }}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '8px 10px',
+                    border: 'none',
+                    background: selectedVesselId === v.id ? '#F4F2EC' : '#FFFFFF',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    textAlign: 'left',
+                    borderTop: '1px solid #EEEBE2',
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      background: selectedVesselId === v.id ? '#0A1F33' : '#EEEBE2',
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 12.5,
+                      color: '#0A1F33',
+                      fontWeight: selectedVesselId === v.id ? 600 : 400,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      flex: 1,
+                    }}
+                  >
+                    {v.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Locked or no vessels — just show name, no button */
+        <div
+          style={{
+            padding: '5px 8px',
+            borderRadius: 6,
+            border: '1px solid #EEEBE2',
+            background: '#FAFAF7',
+          }}
+        >
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: '#0A1F33' }}>{vesselLabel}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AppShell({
   nav,
   currentPath,
   onNavClick,
   userEmail,
+  userDisplayName,
   onLogout,
   children,
+  companyName,
+  vessels,
+  selectedVesselId,
+  onVesselChange,
+  isVesselLocked,
 }: AppShellProps) {
   const anyActive = nav.some((item) =>
     item.href === '/' ? currentPath === '/' : currentPath.startsWith(item.href),
   );
+
+  const showVesselBlock = Boolean(companyName || (vessels && vessels.length > 0));
 
   return (
     <div
@@ -162,6 +400,17 @@ export function AppShell({
             FleetOps
           </span>
         </div>
+
+        {/* Company + vessel block */}
+        {showVesselBlock && (
+          <VesselBlock
+            companyName={companyName}
+            vessels={vessels}
+            selectedVesselId={selectedVesselId}
+            onVesselChange={onVesselChange}
+            isVesselLocked={isVesselLocked}
+          />
+        )}
 
         {/* Nav */}
         <nav
@@ -236,7 +485,7 @@ export function AppShell({
                   margin: 0,
                 }}
               >
-                {userEmail.split('@')[0]}
+                {userDisplayName ?? userEmail?.split('@')[0]}
               </p>
               {onLogout && (
                 <button

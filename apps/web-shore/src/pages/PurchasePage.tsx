@@ -1892,9 +1892,6 @@ export function PurchasePage() {
         >
           Purchase
         </h1>
-        <span className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
-          MV HALCYON
-        </span>
         <div className="flex-1" />
         {/* Search */}
         <div

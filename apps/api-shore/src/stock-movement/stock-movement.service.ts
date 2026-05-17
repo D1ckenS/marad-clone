@@ -25,7 +25,7 @@ export class StockMovementService {
   async create(auth: AuthContext, dto: CreateStockMovementDto) {
     const vesselId = requireVesselId(auth);
     const id = newId();
-    return this.prisma.withTenant(auth.tenantId, async (tx) => {
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
       const fields = {
         partId: dto.partId,
         locationId: dto.locationId,
@@ -39,7 +39,7 @@ export class StockMovementService {
       };
       const { hlc } = await this.recorder.recordUpsert(
         tx as unknown as Prisma.TransactionClient,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -47,7 +47,7 @@ export class StockMovementService {
       return tx.stockMovement.create({
         data: {
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           partId: dto.partId,
           locationId: dto.locationId,
@@ -65,10 +65,10 @@ export class StockMovementService {
 
   findAll(auth: AuthContext, partId?: string, locationId?: string) {
     const vesselId = requireVesselId(auth);
-    return this.prisma.withTenant(auth.tenantId, (tx) =>
+    return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.stockMovement.findMany({
         where: {
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           deletedAt: null,
           ...(partId && { partId }),
@@ -81,11 +81,11 @@ export class StockMovementService {
 
   async rob(auth: AuthContext): Promise<RobRow[]> {
     const vesselId = requireVesselId(auth);
-    const rows = await this.prisma.withTenant(auth.tenantId, async (tx) => {
+    const rows = await this.prisma.withTenant(auth.tenantId!, async (tx) => {
       return tx.$queryRaw<{ part_id: string; location_id: string; rob: string }[]>`
         SELECT part_id, location_id, COALESCE(SUM(quantity), 0)::text AS rob
         FROM stock_movements
-        WHERE tenant_id = ${auth.tenantId}
+        WHERE tenant_id = ${auth.tenantId!}
           AND vessel_id = ${vesselId}
           AND deleted_at IS NULL
         GROUP BY part_id, location_id
