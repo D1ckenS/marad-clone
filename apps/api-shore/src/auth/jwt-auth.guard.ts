@@ -36,9 +36,15 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Token is not an access token');
     }
 
+    // Roles that aren't JWT-bound to a vessel (TENANT_ADMIN, PURCHASE_MANAGER) can
+    // supply a vessel selection via X-Vessel-Id. RLS still enforces tenant isolation.
+    const jwtVesselId = payload.vesselId ?? null;
+    const headerVesselId =
+      !jwtVesselId && req.headers['x-vessel-id'] ? (req.headers['x-vessel-id'] as string) : null;
+
     req.authCtx = {
       tenantId: payload.tenantId ?? null,
-      vesselId: payload.vesselId ?? null,
+      vesselId: jwtVesselId ?? headerVesselId,
       userId: payload.sub,
       role: payload.role,
     };

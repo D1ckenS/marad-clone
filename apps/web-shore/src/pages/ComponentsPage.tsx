@@ -12,7 +12,7 @@ import { JobInstancesPage } from './JobInstancesPage.js';
 import { MaintenanceHistoryTab } from './MaintenanceHistoryTab.js';
 import { MaintenanceTemplatesTab } from './MaintenanceTemplatesTab.js';
 import { MaintenanceRunningHoursTab } from './MaintenanceRunningHoursTab.js';
-import { ComingSoonPage } from './ComingSoonPage.js';
+import { MaintenanceProjectsTab } from './MaintenanceProjectsTab.js';
 
 type MaintenanceTab =
   | 'components'
@@ -311,9 +311,7 @@ export function ComponentsPage() {
         />
       )}
       {activeTab === 'running-hours' && <MaintenanceRunningHoursTab />}
-      {activeTab === 'projects' && (
-        <ComingSoonPage module="Projects (Gantt)" phase="Phase 3 (P3-2)" />
-      )}
+      {activeTab === 'projects' && <MaintenanceProjectsTab />}
 
       {/* ── Components tab ───────────────────────────────────────── */}
       {activeTab === 'components' && (

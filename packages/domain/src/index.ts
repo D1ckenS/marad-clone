@@ -3,3 +3,4 @@ export * from './ids.js';
 export * from './clock.js';
 export * from './quantity.js';
 export * from './running-hour-scheduler.js';
+export * from './mlc-rest-hours.js';

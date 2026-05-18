@@ -10,6 +10,7 @@ import { newId } from '@fleetops/domain';
 import { Prisma } from '@prisma/client';
 import type { AuthContext } from '../auth/auth-context';
 import { requireVesselId } from '../auth/vessel-bound';
+import { AuditEventService } from '../audit-event/audit-event.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { OutboxRecorder } from '../sync/outbox-recorder';
@@ -50,6 +51,7 @@ export class JobHistoryService {
     private readonly prisma: PrismaService,
     private readonly recorder: OutboxRecorder,
     private readonly storage: StorageService,
+    private readonly audit: AuditEventService,
   ) {}
 
   findAll(auth: AuthContext, jobInstanceId?: string) {
@@ -138,7 +140,7 @@ export class JobHistoryService {
     const hoursWorked = dto.hoursWorked === undefined ? null : new Prisma.Decimal(dto.hoursWorked);
 
     // 3. Atomic DB write.
-    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
+    const result = await this.prisma.withTenant(auth.tenantId!, async (tx) => {
       const historyFields = {
         jobInstanceId,
         jobId: instance.jobId,
@@ -345,5 +347,18 @@ export class JobHistoryService {
 
       return history;
     });
+
+    // Record audit event outside the Prisma tx — fire-and-forget (non-blocking).
+    void this.audit.record({
+      tenantId: auth.tenantId!,
+      vesselId,
+      actorUserId: auth.userId,
+      action: 'JOB_SIGNED_OFF',
+      entityType: 'JobHistory',
+      entityId: result.id,
+      metadata: { jobInstanceId, jobId: result.jobId, componentId: result.componentId },
+    });
+
+    return result;
   }
 }

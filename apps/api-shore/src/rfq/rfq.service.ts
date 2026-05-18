@@ -105,4 +105,18 @@ export class RfqService {
       tx.rfq.update({ where: { id }, data: { deletedAt: new Date() } }),
     );
   }
+
+  async compare(auth: AuthContext, id: string) {
+    const rfq = await this.findOne(auth, id);
+    const quotes = rfq.quotes.filter((q) => !q.deletedAt);
+    if (quotes.length === 0) return { rfq, quotes: [], lowestQuoteId: null };
+
+    const withAmounts = quotes.map((q) => ({
+      ...q,
+      totalAmountNum: parseFloat(q.totalAmount.toString()),
+    }));
+    const minAmount = Math.min(...withAmounts.map((q) => q.totalAmountNum));
+    const lowestQuoteId = withAmounts.find((q) => q.totalAmountNum === minAmount)?.id ?? null;
+    return { rfq, quotes: withAmounts, lowestQuoteId };
+  }
 }

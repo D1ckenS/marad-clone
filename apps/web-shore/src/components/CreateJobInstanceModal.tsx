@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Input, Modal, Spinner } from '@fleetops/ui-kit';
+import { Button, Input, Modal, Select, Spinner } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
 interface Job {
@@ -117,19 +117,12 @@ export function CreateJobInstanceModal({ open, jobId, componentId, onClose, onCr
                 <Spinner />
               </div>
             ) : (
-              <select
-                id="ji-job"
+              <Select
                 value={selectedJobId}
-                onChange={(e) => setSelectedJobId(e.target.value)}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">— Select a job —</option>
-                {jobs.map((j) => (
-                  <option key={j.id} value={j.id}>
-                    {j.title}
-                  </option>
-                ))}
-              </select>
+                onChange={setSelectedJobId}
+                options={jobs.map((j) => ({ value: j.id, label: j.title }))}
+                placeholder="— Select a job —"
+              />
             )}
             {intervalLabel && <p className="mt-1 text-xs text-slate-500">{intervalLabel}</p>}
           </div>

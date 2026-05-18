@@ -4,7 +4,7 @@
  * with add/remove controls and a part picker.
  */
 import { useEffect, useState } from 'react';
-import { Button, Input } from '@fleetops/ui-kit';
+import { Button, Input, Select } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
 export interface TypicalPart {
@@ -98,18 +98,12 @@ export function TypicalPartsList({ value, onChange }: Props) {
         <div className="mt-2 flex items-end gap-2 bg-slate-50 p-2 rounded-md">
           <div className="flex-1">
             <label className="block text-xs text-slate-500 mb-1">Part</label>
-            <select
+            <Select
               value={addingPartId}
-              onChange={(e) => setAddingPartId(e.target.value)}
-              className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="">— Select —</option>
-              {parts.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              onChange={setAddingPartId}
+              options={parts.map((p) => ({ value: p.id, label: p.name }))}
+              placeholder="— Select —"
+            />
           </div>
           <div className="w-24">
             <label className="block text-xs text-slate-500 mb-1">

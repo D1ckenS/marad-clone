@@ -46,7 +46,11 @@ describe('P0-7 + P1-2b e2e — bootstrap → JWT → CRUD', () => {
       .post('/api/v1/tenants')
       .send({
         name: 'Acme Shipping',
-        admin: { email: 'admin@acme-shipping.test', password: 'AdminP@ss1' },
+        admin: {
+          email: 'admin@acme-shipping.test',
+          username: 'admin-acme',
+          password: 'AdminP@ss1',
+        },
       })
       .expect(201);
 
@@ -64,7 +68,7 @@ describe('P0-7 + P1-2b e2e — bootstrap → JWT → CRUD', () => {
       .post('/api/v1/auth/login')
       .send({
         tenantId: created.tenantId,
-        email: 'admin@acme-shipping.test',
+        identifier: 'admin@acme-shipping.test',
         password: 'AdminP@ss1',
       })
       .expect(200);
@@ -98,6 +102,7 @@ describe('P0-7 + P1-2b e2e — bootstrap → JWT → CRUD', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({
         email: 'chief@acme-shipping.test',
+        username: 'chief-acme',
         password: 'S3cur3P@ss!',
         role: 'CHIEF_ENGINEER',
         vesselId: created.vesselId,
@@ -122,7 +127,7 @@ describe('P0-7 + P1-2b e2e — bootstrap → JWT → CRUD', () => {
       .post('/api/v1/auth/login')
       .send({
         tenantId: created.tenantId,
-        email: 'chief@acme-shipping.test',
+        identifier: 'chief@acme-shipping.test',
         password: 'S3cur3P@ss!',
       })
       .expect(200);
@@ -141,7 +146,7 @@ describe('P0-7 + P1-2b e2e — bootstrap → JWT → CRUD', () => {
       .post('/api/v1/auth/login')
       .send({
         tenantId: created.tenantId,
-        email: 'chief@acme-shipping.test',
+        identifier: 'chief@acme-shipping.test',
         password: 'wrong-password',
       })
       .expect(401);
@@ -152,7 +157,7 @@ describe('P0-7 + P1-2b e2e — bootstrap → JWT → CRUD', () => {
       .post('/api/v1/auth/login')
       .send({
         tenantId: created.tenantId,
-        email: 'nobody@acme-shipping.test',
+        identifier: 'nobody@acme-shipping.test',
         password: 'S3cur3P@ss!',
       })
       .expect(401);
@@ -174,7 +179,7 @@ describe('P0-7 + P1-2b e2e — bootstrap → JWT → CRUD', () => {
       .post('/api/v1/auth/login')
       .send({
         tenantId: created.tenantId,
-        email: 'admin@acme-shipping.test',
+        identifier: 'admin@acme-shipping.test',
         password: 'AdminP@ss1',
       })
       .expect(200);

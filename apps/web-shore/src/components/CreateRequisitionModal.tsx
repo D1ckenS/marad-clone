@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Input, Modal, TextArea } from '@fleetops/ui-kit';
+import { Button, Input, Modal, Select, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
 interface Props {
@@ -228,26 +228,20 @@ export function CreateRequisitionModal({ open, onClose, onCreated }: Props) {
               <div className="flex gap-2">
                 <div className="flex-1">
                   <label className="block text-xs text-slate-500 mb-1">Part (optional)</label>
-                  <select
-                    value={newLine.partId}
-                    onChange={(e) => {
-                      const p = parts.find((pt) => pt.id === e.target.value);
+                  <Select
+                    value={newLine.partId ?? ''}
+                    onChange={(v) => {
+                      const p = parts.find((pt) => pt.id === v);
                       setNewLine((l) => ({
                         ...l,
-                        partId: e.target.value,
+                        partId: v,
                         description: p?.name ?? l.description,
                         unit: p?.unit ?? l.unit,
                       }));
                     }}
-                    className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  >
-                    <option value="">— Select or type free text —</option>
-                    {parts.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
+                    options={parts.map((p) => ({ value: p.id, label: p.name }))}
+                    placeholder="— Select or type free text —"
+                  />
                 </div>
               </div>
               <div className="flex gap-2">

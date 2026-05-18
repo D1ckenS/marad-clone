@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Badge, Button, Input, Modal, Spinner } from '@fleetops/ui-kit';
+import { Badge, Button, Input, Modal, Select, Spinner } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 import { useVessel } from '../context/VesselContext.js';
 
@@ -211,18 +211,6 @@ function AddUserModal({
     }
   };
 
-  const selectStyle: React.CSSProperties = {
-    width: '100%',
-    height: 36,
-    padding: '0 10px',
-    borderRadius: 6,
-    border: '1px solid var(--border)',
-    background: 'var(--surface)',
-    fontSize: 13,
-    color: 'var(--ink)',
-    fontFamily: 'inherit',
-  };
-
   return (
     <Modal open title="Add user" onClose={onClose} size="sm">
       <div className="flex flex-col gap-3 p-4">
@@ -263,17 +251,11 @@ function AddUserModal({
           <label className="text-[11.5px] font-medium mb-1 block" style={{ color: 'var(--ink-2)' }}>
             Role
           </label>
-          <select
+          <Select
             value={role}
-            onChange={(e) => setRole(e.target.value as Role)}
-            style={selectStyle}
-          >
-            {ROLES.map((r) => (
-              <option key={r} value={r}>
-                {r.replace(/_/g, ' ')}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setRole(v as Role)}
+            options={ROLES.map((r) => ({ value: r, label: r.replace(/_/g, ' ') }))}
+          />
         </div>
         <div>
           <label className="text-[11.5px] font-medium mb-1 block" style={{ color: 'var(--ink-2)' }}>
@@ -282,18 +264,14 @@ function AddUserModal({
               (optional — leave blank for fleet-wide access)
             </span>
           </label>
-          <select
+          <Select
             value={vesselId}
-            onChange={(e) => setVesselId(e.target.value)}
-            style={selectStyle}
-          >
-            <option value="">No vessel (fleet-wide)</option>
-            {vessels.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.name}
-              </option>
-            ))}
-          </select>
+            onChange={setVesselId}
+            options={[
+              { value: '', label: 'No vessel (fleet-wide)' },
+              ...vessels.map((v) => ({ value: v.id, label: v.name })),
+            ]}
+          />
         </div>
         {err && (
           <p className="text-[11.5px]" style={{ color: 'var(--sig-red)' }}>
@@ -342,18 +320,6 @@ function EditUserModal({
     }
   };
 
-  const selectStyle: React.CSSProperties = {
-    width: '100%',
-    height: 36,
-    padding: '0 10px',
-    borderRadius: 6,
-    border: '1px solid var(--border)',
-    background: 'var(--surface)',
-    fontSize: 13,
-    color: 'var(--ink)',
-    fontFamily: 'inherit',
-  };
-
   return (
     <Modal open title="Edit user" onClose={onClose} size="sm">
       <div className="flex flex-col gap-3 p-4">
@@ -364,34 +330,24 @@ function EditUserModal({
           <label className="text-[11.5px] font-medium mb-1 block" style={{ color: 'var(--ink-2)' }}>
             Role
           </label>
-          <select
+          <Select
             value={role}
-            onChange={(e) => setRole(e.target.value as Role)}
-            style={selectStyle}
-          >
-            {ROLES.map((r) => (
-              <option key={r} value={r}>
-                {r.replace(/_/g, ' ')}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setRole(v as Role)}
+            options={ROLES.map((r) => ({ value: r, label: r.replace(/_/g, ' ') }))}
+          />
         </div>
         <div>
           <label className="text-[11.5px] font-medium mb-1 block" style={{ color: 'var(--ink-2)' }}>
             Vessel assignment
           </label>
-          <select
+          <Select
             value={vesselId}
-            onChange={(e) => setVesselId(e.target.value)}
-            style={selectStyle}
-          >
-            <option value="">No vessel (fleet-wide)</option>
-            {vessels.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.name}
-              </option>
-            ))}
-          </select>
+            onChange={setVesselId}
+            options={[
+              { value: '', label: 'No vessel (fleet-wide)' },
+              ...vessels.map((v) => ({ value: v.id, label: v.name })),
+            ]}
+          />
         </div>
         {err && (
           <p className="text-[11.5px]" style={{ color: 'var(--sig-red)' }}>

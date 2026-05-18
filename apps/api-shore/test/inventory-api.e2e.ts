@@ -43,7 +43,7 @@ beforeAll(async () => {
 
   const loginRes = await request(app.getHttpServer())
     .post('/api/v1/auth/login')
-    .send({ tenantId, email: 'inv@shore.test', password: 'TestP@ss!1' });
+    .send({ tenantId, identifier: 'inv@shore.test', password: 'TestP@ss!1' });
   token = (loginRes.body as { access_token: string }).access_token;
 });
 

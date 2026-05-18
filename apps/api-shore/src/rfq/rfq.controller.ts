@@ -48,6 +48,11 @@ export class RfqController {
     return this.svc.send(auth, id);
   }
 
+  @Get(':id/compare')
+  compare(@AuthCtx() auth: AuthContext, @Param('id') id: string) {
+    return this.svc.compare(auth, id);
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@AuthCtx() auth: AuthContext, @Param('id') id: string) {

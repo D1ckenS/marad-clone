@@ -46,7 +46,7 @@ beforeAll(async () => {
 
   const pmRes = await request(app.getHttpServer())
     .post('/api/v1/auth/login')
-    .send({ tenantId, email: 'pm@purchase-api-test.com', password: 'TestP@ss!1' });
+    .send({ tenantId, identifier: 'pm@purchase-api-test.com', password: 'TestP@ss!1' });
   pmToken = pmRes.body.access_token as string;
 });
 

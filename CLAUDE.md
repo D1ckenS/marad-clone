@@ -153,6 +153,86 @@ mkdir -p bearing-extract && tar -xf bearing.tar.gz -C bearing-extract
 
 ---
 
+## 22. Session Pre-Flight Protocol
+
+Run these **before writing any code** at the start of a task session. Failures here are pre-existing regressions — fix or document them before starting new work, so they don't get mixed up with your own changes.
+
+```powershell
+# 1. Full CI (lint + typecheck + unit tests + format)
+pnpm -w run ci:full
+
+# 2. Shore e2e
+pnpm --filter api-shore run test:e2e
+
+# 3. Vessel e2e
+pnpm --filter api-vessel run test:e2e
+```
+
+**Why:** In Phase 2, the P2-2 merge changed `POST /auth/login` to require `identifier:` and added `username` as a required field, but 8 shore e2e test files were never updated. This was only caught after implementing P2-3 and running the suite — causing a 20-minute detour to diagnose, revert a failed regex fix, and apply targeted edits. A pre-flight run at session start surfaces this in 30 seconds.
+
+---
+
+## 23. Prisma Migration — RLS / Extra SQL Pattern
+
+**Problem:** After `prisma migrate dev` applies a migration, the file in `prisma/migrations/` has a known checksum stored in `_prisma_migrations`. If you then append RLS policies or other SQL to that file, the next `prisma migrate dev` detects a checksum mismatch and aborts.
+
+**Fix pattern (use every time):**
+
+```powershell
+# Step 1 — generate the migration SQL without applying it
+pnpm --filter api-shore prisma migrate dev --name <name> --create-only
+
+# Step 2 — append RLS + any extra SQL to the generated file BEFORE applying
+# (edit the migration.sql now)
+
+# Step 3 — apply
+pnpm --filter api-shore prisma migrate dev --name <name>
+# Prisma will detect the existing file and apply it without re-generating.
+```
+
+> **If you already applied and then edited the file**, compute the correct checksum and update `_prisma_migrations`:
+> ```powershell
+> # Compute new checksum
+> node -e "const c=require('crypto'),fs=require('fs'); console.log(c.createHash('sha256').update(fs.readFileSync('prisma/migrations/<name>/migration.sql')).digest('hex'))"
+>
+> # Patch the DB row
+> docker exec infra-postgres-1 psql -U fleetops -d fleetops_shore -c "UPDATE _prisma_migrations SET checksum = '<hash>' WHERE migration_name = '<name>';"
+> ```
+> This happened 3 times in Phase 2 (QHSE, Crewing, Audit migrations). Use `--create-only` to avoid it entirely.
+
+---
+
+## 24. Auth API — Current Format (post P2-2)
+
+These changed in the P2-2 merge and are easy to get wrong in tests.
+
+| Endpoint | Required fields | Notes |
+|---|---|---|
+| `POST /auth/login` | `identifier` (not `email`), `password`, optionally `tenantId` | `identifier` accepts email or username |
+| `POST /tenants` admin | `email`, `username`, `password` | `username` is now required |
+| `POST /users` | `email`, `username`, `password`, `role` | `username` is now required |
+
+**In e2e tests on shore** — always use `identifier:` in login sends:
+```ts
+.send({ tenantId, identifier: 'user@example.com', password: 'Pass1234!' })
+```
+
+**In e2e tests on vessel** — the vessel auth still accepts `email:` in the body (vessel uses a different DTO). Do not change vessel tests to use `identifier`.
+
+---
+
+## 25. Domain Package — Rebuild After Adding Exports
+
+`packages/domain` is compiled to `dist/` before consumers (api-shore, api-vessel) can import it. After adding a new export to `packages/domain/src/index.ts`, run:
+
+```powershell
+pnpm --filter @fleetops/domain run build
+```
+
+Otherwise TypeScript will report `Module '"@fleetops/domain"' has no exported member 'X'`. This happened when adding `checkMlcRestHours` in P2-4.
+
+---
+
 ## 21. Standing Rules — Do Not Change
 
 These settings exist for reasons. Do not alter them without explicit instruction from Ziad.

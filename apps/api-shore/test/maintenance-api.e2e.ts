@@ -88,12 +88,12 @@ beforeAll(async () => {
   // Login chief (vessel-bound) and tenant-wide admin (no vesselId) to get JWTs.
   const chiefRes = await request(app.getHttpServer())
     .post('/api/v1/auth/login')
-    .send({ tenantId, email: 'chief@crud.test', password: 'TestP@ss!1' });
+    .send({ tenantId, identifier: 'chief@crud.test', password: 'TestP@ss!1' });
   chiefToken = chiefRes.body.access_token as string;
 
   const pmRes = await request(app.getHttpServer())
     .post('/api/v1/auth/login')
-    .send({ tenantId, email: 'pm@crud.test', password: 'TestP@ss!1' });
+    .send({ tenantId, identifier: 'pm@crud.test', password: 'TestP@ss!1' });
   tenantWideToken = pmRes.body.access_token as string;
 });
 

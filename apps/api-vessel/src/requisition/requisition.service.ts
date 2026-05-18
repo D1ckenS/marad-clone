@@ -205,9 +205,25 @@ export class RequisitionService {
     const req = this.findOne(auth, id);
     if (req.status !== 'DRAFT')
       throw new BadRequestException('Only DRAFT requisitions can be submitted');
+
+    let firstStepOrder = 0;
+    if (req.approvalFlowId) {
+      const steps = this.drizzle.db
+        .select()
+        .from(approvalSteps)
+        .where(and(eq(approvalSteps.flowId, req.approvalFlowId), isNull(approvalSteps.deletedAt)))
+        .orderBy(approvalSteps.stepOrder)
+        .all();
+      if (steps.length > 0) firstStepOrder = steps[0]!.stepOrder;
+    }
+
     const [row] = this.drizzle.db
       .update(requisitions)
-      .set({ status: 'SUBMITTED', updatedAt: new Date().toISOString() })
+      .set({
+        status: 'SUBMITTED',
+        currentStepOrder: firstStepOrder,
+        updatedAt: new Date().toISOString(),
+      })
       .where(eq(requisitions.id, id))
       .returning()
       .all();
@@ -226,16 +242,31 @@ export class RequisitionService {
         .where(and(eq(approvalSteps.flowId, req.approvalFlowId), isNull(approvalSteps.deletedAt)))
         .orderBy(approvalSteps.stepOrder)
         .all();
-      const step = steps.find((s) => s.approverRole === auth.role);
-      if (!step)
-        throw new ForbiddenException('Your role is not in the approval flow for this requisition');
+      const currentStep = steps.find((s) => s.stepOrder === req.currentStepOrder);
+      if (!currentStep)
+        throw new ForbiddenException('No active approval step found for this requisition');
+      if (currentStep.approverRole !== auth.role)
+        throw new ForbiddenException(
+          `This step requires role ${currentStep.approverRole}, you have ${auth.role}`,
+        );
       if (
-        step.limitAmount !== null &&
-        parseFloat(req.totalAmount ?? '0') > parseFloat(step.limitAmount)
+        currentStep.limitAmount !== null &&
+        parseFloat(req.totalAmount ?? '0') > parseFloat(currentStep.limitAmount)
       ) {
         throw new ForbiddenException(
-          `Requisition amount ${req.totalAmount} exceeds your approval limit of ${step.limitAmount} ${step.limitCurrency}`,
+          `Requisition amount ${req.totalAmount} exceeds your approval limit of ${currentStep.limitAmount} ${currentStep.limitCurrency}`,
         );
+      }
+
+      const nextStep = steps.find((s) => s.stepOrder > req.currentStepOrder);
+      if (nextStep) {
+        const [row] = this.drizzle.db
+          .update(requisitions)
+          .set({ currentStepOrder: nextStep.stepOrder, updatedAt: new Date().toISOString() })
+          .where(eq(requisitions.id, id))
+          .returning()
+          .all();
+        return row;
       }
     }
 

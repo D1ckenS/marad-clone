@@ -159,6 +159,24 @@ model Tenant {
   permitTemplates      PermitTemplate[]
   workPermits          WorkPermit[]
   permitApprovals      PermitApproval[]
+  qhseDocuments        QhseDocument[]
+  documentRevisions    DocumentRevision[]
+  checklistTemplates   ChecklistTemplate[]
+  checklistInstances   ChecklistInstance[]
+  findings             Finding[]
+  capas                Capa[]
+  crewMembers          CrewMember[]
+  rotations            Rotation[]
+  restHourEntries      RestHourEntry[]
+  crewCertificates     CrewCertificate[]
+  auditEvents          AuditEvent[]
+  fuelProducts         FuelProduct[]
+  tanks                Tank[]
+  tankReadings         TankReading[]
+  bunkerDeliveryNotes  BunkerDeliveryNote[]
+  consumptionLogs      ConsumptionLog[]
+  projects             Project[]
+  projectTasks         ProjectTask[]
 
   @@map("tenants")
 }
@@ -201,6 +219,19 @@ model Vessel {
   drillRecords         DrillRecord[]
   workPermits          WorkPermit[]
   permitApprovals      PermitApproval[]
+  checklistInstances   ChecklistInstance[]
+  findings             Finding[]
+  capas                Capa[]
+  crewMembers          CrewMember[]
+  rotations            Rotation[]
+  restHourEntries      RestHourEntry[]
+  crewCertificates     CrewCertificate[]
+  tanks                Tank[]
+  tankReadings         TankReading[]
+  bunkerDeliveryNotes  BunkerDeliveryNote[]
+  consumptionLogs      ConsumptionLog[]
+  projects             Project[]
+  projectTasks         ProjectTask[]
 
   @@map("vessels")
 }
@@ -651,6 +682,7 @@ model Requisition {
   requestedByUserId String?          @map("requested_by_user_id")
   requestedAt      DateTime          @map("requested_at")
   approvalFlowId   String?           @map("approval_flow_id")
+  currentStepOrder Int               @default(0) @map("current_step_order")
   approvedByUserId String?           @map("approved_by_user_id")
   approvedAt       DateTime?         @map("approved_at")
   rejectedByUserId String?           @map("rejected_by_user_id")
@@ -1152,6 +1184,542 @@ model PermitApproval {
 
   @@index([tenantId, vesselId, permitId])
   @@map("permit_approvals")
+}
+
+// ── QHSE (P2-3) ──────────────────────────────────────────────────────────────
+// QhseDocument + DocumentRevision: tenant-scoped document control. Replacing a
+//   controlled document adds a new DocumentRevision row; old revisions stay.
+// ChecklistTemplate: tenant-scoped reusable checklist definition.
+// ChecklistInstance: vessel-scoped, sync-aware. responsesJson stores per-item
+//   signature: [{itemId, text, checked, signatureKey?, signedByUserId?, signedAt?}]
+// Finding: vessel-scoped, sync-aware (NEAR_MISS / NC / OBSERVATION / HAZARD).
+// Capa: vessel-scoped, sync-aware, with ownerUserId + dueDate.
+
+enum FindingKind {
+  NEAR_MISS
+  NON_CONFORMANCE
+  OBSERVATION
+  HAZARD
+}
+
+enum FindingStatus {
+  OPEN
+  UNDER_REVIEW
+  CLOSED
+}
+
+enum CapaStatus {
+  OPEN
+  IN_PROGRESS
+  VERIFIED
+  CLOSED
+}
+
+enum ChecklistInstanceStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+model QhseDocument {
+  id                String    @id
+  tenantId          String    @map("tenant_id")
+  title             String
+  category          String?
+  description       String?
+  isControlled      Boolean   @default(false) @map("is_controlled")
+  currentRevisionId String?   @map("current_revision_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  hlc               String?
+  deletedAt         DateTime? @map("deleted_at")
+
+  tenant    Tenant             @relation(fields: [tenantId], references: [id])
+  revisions DocumentRevision[]
+
+  @@index([tenantId])
+  @@map("qhse_documents")
+}
+
+model DocumentRevision {
+  id               String    @id
+  tenantId         String    @map("tenant_id")
+  documentId       String    @map("document_id")
+  revisionNumber   Int       @map("revision_number")
+  summary          String?
+  s3Key            String    @map("s3_key")
+  authoredByUserId String?   @map("authored_by_user_id")
+  approvedByUserId String?   @map("approved_by_user_id")
+  approvedAt       DateTime? @map("approved_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  hlc              String?
+  deletedAt        DateTime? @map("deleted_at")
+
+  tenant   Tenant       @relation(fields: [tenantId], references: [id])
+  document QhseDocument @relation(fields: [documentId], references: [id])
+
+  @@unique([documentId, revisionNumber])
+  @@index([tenantId, documentId])
+  @@map("document_revisions")
+}
+
+model ChecklistTemplate {
+  id          String    @id
+  tenantId    String    @map("tenant_id")
+  title       String
+  description String?
+  /// JSON: [{id, text, required}]
+  itemsJson   String    @map("items_json")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  hlc         String?
+  deletedAt   DateTime? @map("deleted_at")
+
+  tenant    Tenant              @relation(fields: [tenantId], references: [id])
+  instances ChecklistInstance[]
+
+  @@index([tenantId])
+  @@map("checklist_templates")
+}
+
+model ChecklistInstance {
+  id            String                  @id
+  tenantId      String                  @map("tenant_id")
+  vesselId      String                  @map("vessel_id")
+  templateId    String?                 @map("template_id")
+  title         String
+  status        ChecklistInstanceStatus @default(IN_PROGRESS)
+  /// JSON: [{itemId, text, checked, signatureKey?, signedByUserId?, signedAt?}]
+  responsesJson String                  @map("responses_json")
+  completedAt   DateTime?               @map("completed_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  hlc           String?
+  deletedAt     DateTime? @map("deleted_at")
+
+  tenant   Tenant             @relation(fields: [tenantId], references: [id])
+  vessel   Vessel             @relation(fields: [vesselId], references: [id])
+  template ChecklistTemplate? @relation(fields: [templateId], references: [id])
+
+  @@index([tenantId, vesselId, status])
+  @@map("checklist_instances")
+}
+
+model Finding {
+  id             String        @id
+  tenantId       String        @map("tenant_id")
+  vesselId       String        @map("vessel_id")
+  kind           FindingKind
+  status         FindingStatus @default(OPEN)
+  title          String
+  description    String?
+  raisedByUserId String?       @map("raised_by_user_id")
+  raisedAt       DateTime      @map("raised_at")
+  closedAt       DateTime?     @map("closed_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  hlc            String?
+  deletedAt      DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  vessel Vessel @relation(fields: [vesselId], references: [id])
+  capas  Capa[]
+
+  @@index([tenantId, vesselId, status])
+  @@index([tenantId, vesselId, kind])
+  @@map("findings")
+}
+
+model Capa {
+  id          String     @id
+  tenantId    String     @map("tenant_id")
+  vesselId    String     @map("vessel_id")
+  findingId   String?    @map("finding_id")
+  type        String
+  description String
+  ownerUserId String?    @map("owner_user_id")
+  dueDate     DateTime?  @map("due_date")
+  status      CapaStatus @default(OPEN)
+  verifiedAt  DateTime?  @map("verified_at")
+  closedAt    DateTime?  @map("closed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  hlc         String?
+  deletedAt   DateTime? @map("deleted_at")
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  vessel  Vessel   @relation(fields: [vesselId], references: [id])
+  finding Finding? @relation(fields: [findingId], references: [id])
+
+  @@index([tenantId, vesselId, status])
+  @@index([tenantId, vesselId, findingId])
+  @@map("capas")
+}
+
+// ── FLGO (P3-1) ───────────────────────────────────────────────────────────────
+// FuelProduct: tenant-scoped catalog (HFO, MGO, LSMGO, LNG, etc.).
+// Tank: vessel-scoped configuration (capacity, product, frame/position).
+// TankReading: daily sounding — ROB in metric tons and volume.
+//   Drives IMO DCS / EU MRV reporting. All vessel-scoped + sync-aware.
+// BunkerDeliveryNote: fuel receipt record per BDN document.
+//   Stores quantity, density, sulphur content, grade.
+// ConsumptionLog: daily consumption per consumer (main engine, aux, boiler).
+
+enum TankType {
+  HFO     // Heavy Fuel Oil
+  LSFO    // Low-Sulphur Fuel Oil
+  MDO     // Marine Diesel Oil
+  MGO     // Marine Gas Oil
+  LSMGO   // Low-Sulphur MGO
+  LNG     // Liquefied Natural Gas
+  ULSFO   // Ultra-Low-Sulphur Fuel Oil
+  FRESH_WATER
+  BALLAST
+  OTHER
+}
+
+enum ConsumerType {
+  MAIN_ENGINE
+  AUX_ENGINE
+  BOILER
+  OTHER
+}
+
+model FuelProduct {
+  id           String    @id
+  tenantId     String    @map("tenant_id")
+  name         String
+  tankType     TankType  @map("tank_type")
+  sulphurPct   Decimal?  @map("sulphur_pct") @db.Decimal(5, 4)
+  densityKgM3  Decimal?  @map("density_kg_m3") @db.Decimal(8, 3)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  hlc          String?
+  deletedAt    DateTime? @map("deleted_at")
+
+  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  tanks               Tank[]
+  bunkerDeliveryNotes BunkerDeliveryNote[]
+  consumptionLogs     ConsumptionLog[]
+
+  @@index([tenantId])
+  @@map("fuel_products")
+}
+
+model Tank {
+  id            String    @id
+  tenantId      String    @map("tenant_id")
+  vesselId      String    @map("vessel_id")
+  name          String
+  tankType      TankType  @map("tank_type")
+  fuelProductId String?   @map("fuel_product_id")
+  capacityM3    Decimal?  @map("capacity_m3") @db.Decimal(10, 3)
+  framePosition String?   @map("frame_position")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  hlc           String?
+  deletedAt     DateTime? @map("deleted_at")
+
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+  vessel         Vessel        @relation(fields: [vesselId], references: [id])
+  fuelProduct    FuelProduct?  @relation(fields: [fuelProductId], references: [id])
+  readings       TankReading[]
+
+  @@index([tenantId, vesselId])
+  @@map("tanks")
+}
+
+model TankReading {
+  id            String    @id
+  tenantId      String    @map("tenant_id")
+  vesselId      String    @map("vessel_id")
+  tankId        String    @map("tank_id")
+  readingDate   String    @map("reading_date")   // YYYY-MM-DD
+  robMt         Decimal   @map("rob_mt") @db.Decimal(10, 3)   // Remaining On Board in metric tons
+  robM3         Decimal?  @map("rob_m3") @db.Decimal(10, 3)   // Volume in cubic metres
+  trim          Decimal?  @db.Decimal(5, 2)
+  notes         String?
+  recordedByUserId String? @map("recorded_by_user_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  hlc           String?
+  deletedAt     DateTime? @map("deleted_at")
+
+  tenant  Tenant @relation(fields: [tenantId], references: [id])
+  vessel  Vessel @relation(fields: [vesselId], references: [id])
+  tank    Tank   @relation(fields: [tankId], references: [id])
+
+  @@unique([tenantId, vesselId, tankId, readingDate])
+  @@index([tenantId, vesselId, readingDate])
+  @@map("tank_readings")
+}
+
+model BunkerDeliveryNote {
+  id               String      @id
+  tenantId         String      @map("tenant_id")
+  vesselId         String      @map("vessel_id")
+  fuelProductId    String?     @map("fuel_product_id")
+  bdnNumber        String?     @map("bdn_number")
+  deliveryDate     String      @map("delivery_date")   // YYYY-MM-DD
+  port             String?
+  supplierName     String?     @map("supplier_name")
+  quantityMt       Decimal     @map("quantity_mt") @db.Decimal(10, 3)
+  densityKgM3      Decimal?    @map("density_kg_m3") @db.Decimal(8, 3)
+  sulphurPct       Decimal?    @map("sulphur_pct") @db.Decimal(5, 4)
+  grade            String?
+  viscosity        Decimal?    @db.Decimal(8, 3)
+  notes            String?
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+  hlc              String?
+  deletedAt        DateTime?   @map("deleted_at")
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  vessel      Vessel       @relation(fields: [vesselId], references: [id])
+  fuelProduct FuelProduct? @relation(fields: [fuelProductId], references: [id])
+
+  @@index([tenantId, vesselId, deliveryDate])
+  @@map("bunker_delivery_notes")
+}
+
+model ConsumptionLog {
+  id               String       @id
+  tenantId         String       @map("tenant_id")
+  vesselId         String       @map("vessel_id")
+  fuelProductId    String?      @map("fuel_product_id")
+  logDate          String       @map("log_date")    // YYYY-MM-DD
+  consumerType     ConsumerType @map("consumer_type")
+  consumerName     String?      @map("consumer_name")
+  consumptionMt    Decimal      @map("consumption_mt") @db.Decimal(10, 3)
+  voyageLeg        String?      @map("voyage_leg")
+  notes            String?
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+  hlc              String?
+  deletedAt        DateTime?    @map("deleted_at")
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  vessel      Vessel       @relation(fields: [vesselId], references: [id])
+  fuelProduct FuelProduct? @relation(fields: [fuelProductId], references: [id])
+
+  @@index([tenantId, vesselId, logDate])
+  @@index([tenantId, vesselId, consumerType])
+  @@map("consumption_logs")
+}
+
+// ── Audit (P2-5) ──────────────────────────────────────────────────────────────
+// Shore-only. Not sync-aware — the shore is the system of record for the DNV
+// CG-0339 evidence pack. Events are recorded when key operations succeed.
+// JobHistory immutability is enforced by the job_histories_immutable DB trigger
+// (created in the P1-1 migration); the evidence pack endpoint verifies it is
+// present via pg_trigger at report generation time.
+
+model AuditEvent {
+  id           String   @id
+  tenantId     String   @map("tenant_id")
+  vesselId     String?  @map("vessel_id")
+  actorUserId  String?  @map("actor_user_id")
+  action       String
+  entityType   String   @map("entity_type")
+  entityId     String   @map("entity_id")
+  metadata     Json?
+  recordedAt   DateTime @default(now()) @map("recorded_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, vesselId, recordedAt])
+  @@index([tenantId, entityType, entityId])
+  @@map("audit_events")
+}
+
+// ── Crewing (P2-4) ────────────────────────────────────────────────────────────
+// All four entities are vessel-scoped and sync-aware.
+// RestHourEntry.mlcValid reflects MLC 2006 Regulation VIII/1 validation run at
+// save time — daily ≥10h rest AND weekly ≥77h rest. A save that would violate
+// MLC is rejected with 400 + violation details (enforced at application layer).
+
+enum CrewMemberStatus {
+  ACTIVE
+  ON_LEAVE
+  SIGNED_OFF
+}
+
+enum RotationStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model CrewMember {
+  id          String           @id
+  tenantId    String           @map("tenant_id")
+  vesselId    String           @map("vessel_id")
+  firstName   String           @map("first_name")
+  lastName    String           @map("last_name")
+  rank        String
+  nationality String?
+  dateOfBirth DateTime?        @map("date_of_birth")
+  email       String?
+  phone       String?
+  status      CrewMemberStatus @default(ACTIVE)
+  signOnDate  DateTime?        @map("sign_on_date")
+  signOffDate DateTime?        @map("sign_off_date")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  hlc         String?
+  deletedAt   DateTime? @map("deleted_at")
+
+  tenant          Tenant          @relation(fields: [tenantId], references: [id])
+  vessel          Vessel          @relation(fields: [vesselId], references: [id])
+  rotations       Rotation[]
+  restHourEntries RestHourEntry[]
+  crewCertificates CrewCertificate[]
+
+  @@index([tenantId, vesselId])
+  @@index([tenantId, vesselId, status])
+  @@map("crew_members")
+}
+
+model Rotation {
+  id             String         @id
+  tenantId       String         @map("tenant_id")
+  vesselId       String         @map("vessel_id")
+  crewMemberId   String         @map("crew_member_id")
+  plannedSignOn  DateTime       @map("planned_sign_on")
+  plannedSignOff DateTime       @map("planned_sign_off")
+  actualSignOn   DateTime?      @map("actual_sign_on")
+  actualSignOff  DateTime?      @map("actual_sign_off")
+  status         RotationStatus @default(PLANNED)
+  notes          String?
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  hlc            String?
+  deletedAt      DateTime? @map("deleted_at")
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  vessel     Vessel     @relation(fields: [vesselId], references: [id])
+  crewMember CrewMember @relation(fields: [crewMemberId], references: [id])
+
+  @@index([tenantId, vesselId, crewMemberId])
+  @@index([tenantId, vesselId, status])
+  @@map("rotations")
+}
+
+model RestHourEntry {
+  id              String    @id
+  tenantId        String    @map("tenant_id")
+  vesselId        String    @map("vessel_id")
+  crewMemberId    String    @map("crew_member_id")
+  date            String    @map("date")
+  /// JSON: 24 booleans; index = hour of day (0=00:00, 23=23:00); true = worked
+  hoursWorkedJson String    @map("hours_worked_json")
+  mlcValid        Boolean   @default(true) @map("mlc_valid")
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  hlc             String?
+  deletedAt       DateTime? @map("deleted_at")
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  vessel     Vessel     @relation(fields: [vesselId], references: [id])
+  crewMember CrewMember @relation(fields: [crewMemberId], references: [id])
+
+  @@unique([tenantId, vesselId, crewMemberId, date])
+  @@index([tenantId, vesselId, crewMemberId])
+  @@map("rest_hour_entries")
+}
+
+model CrewCertificate {
+  id              String    @id
+  tenantId        String    @map("tenant_id")
+  vesselId        String    @map("vessel_id")
+  crewMemberId    String    @map("crew_member_id")
+  certificateType String    @map("certificate_type")
+  number          String?
+  issuedAt        DateTime? @map("issued_at")
+  expiresAt       DateTime? @map("expires_at")
+  issuedBy        String?   @map("issued_by")
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  hlc             String?
+  deletedAt       DateTime? @map("deleted_at")
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  vessel     Vessel     @relation(fields: [vesselId], references: [id])
+  crewMember CrewMember @relation(fields: [crewMemberId], references: [id])
+
+  @@index([tenantId, vesselId, crewMemberId])
+  @@index([tenantId, expiresAt])
+  @@map("crew_certificates")
+}
+
+// ── Project planning (P3-2) ──────────────────────────────────────────────────
+// Project: vessel-scoped, sync-aware. Dry-dock, refit, or any planned project.
+// ProjectTask: vessel-scoped, sync-aware. Gantt-bar task within a Project.
+//   predecessorId is a soft FK (SQLite safe); task can have at most one predecessor.
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum ProjectTaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  BLOCKED
+}
+
+model Project {
+  id          String        @id
+  tenantId    String        @map("tenant_id")
+  vesselId    String        @map("vessel_id")
+  title       String
+  description String?
+  status      ProjectStatus @default(PLANNING)
+  startDate   String?       @map("start_date")   // YYYY-MM-DD
+  endDate     String?       @map("end_date")     // YYYY-MM-DD
+  hlc         String?
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  deletedAt   DateTime?     @map("deleted_at")
+
+  tenant Tenant        @relation(fields: [tenantId], references: [id])
+  vessel Vessel        @relation(fields: [vesselId], references: [id])
+  tasks  ProjectTask[]
+
+  @@index([tenantId, vesselId, status])
+  @@map("projects")
+}
+
+model ProjectTask {
+  id             String            @id
+  tenantId       String            @map("tenant_id")
+  vesselId       String            @map("vessel_id")
+  projectId      String            @map("project_id")
+  title          String
+  description    String?
+  status         ProjectTaskStatus @default(TODO)
+  startDate      String?           @map("start_date")  // YYYY-MM-DD
+  endDate        String?           @map("end_date")    // YYYY-MM-DD
+  plannedDays    Int?              @map("planned_days")
+  predecessorId  String?           @map("predecessor_id") // soft FK to project_tasks.id
+  assignedToRole String?           @map("assigned_to_role")
+  hlc            String?
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+  deletedAt      DateTime?         @map("deleted_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  vessel  Vessel  @relation(fields: [vesselId], references: [id])
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@index([tenantId, vesselId, projectId])
+  @@map("project_tasks")
 }
 
 // ── Sync engine tables ───────────────────────────────────────────────────────

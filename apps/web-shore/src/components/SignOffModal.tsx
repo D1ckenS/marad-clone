@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, Input, Modal, TextArea } from '@fleetops/ui-kit';
+import { Button, Input, Modal, Select, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 import { partsFromJson, type TypicalPart } from './TypicalPartsList.js';
 
@@ -224,17 +224,14 @@ export function SignOffModal({
             >
               <span className="flex-1 text-sm text-slate-700">{line.partName}</span>
               {/* Location selector */}
-              <select
-                value={line.locationId}
-                onChange={(e) => updateLocation(idx, e.target.value)}
-                className="text-xs border border-slate-200 rounded px-1.5 py-1 text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-400 max-w-[120px]"
-              >
-                {locations.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name}
-                  </option>
-                ))}
-              </select>
+              <div style={{ width: 120 }}>
+                <Select
+                  value={line.locationId}
+                  onChange={(v) => updateLocation(idx, v)}
+                  options={locations.map((l) => ({ value: l.id, label: l.name }))}
+                  size="sm"
+                />
+              </div>
               {/* Quantity */}
               <input
                 type="number"
@@ -259,33 +256,23 @@ export function SignOffModal({
             <div className="mt-2 flex items-end gap-2 bg-slate-50 p-2 rounded-md">
               <div className="flex-1">
                 <label className="block text-xs text-slate-500 mb-1">Part</label>
-                <select
+                <Select
                   value={addPartId}
-                  onChange={(e) => setAddPartId(e.target.value)}
-                  className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value="">— Select —</option>
-                  {parts.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setAddPartId}
+                  options={parts.map((p) => ({ value: p.id, label: p.name }))}
+                  placeholder="— Select —"
+                  size="sm"
+                />
               </div>
               <div className="w-32">
                 <label className="block text-xs text-slate-500 mb-1">Location</label>
-                <select
+                <Select
                   value={addLocationId}
-                  onChange={(e) => setAddLocationId(e.target.value)}
-                  className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value="">— Select —</option>
-                  {locations.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setAddLocationId}
+                  options={locations.map((l) => ({ value: l.id, label: l.name }))}
+                  placeholder="— Select —"
+                  size="sm"
+                />
               </div>
               <div className="w-20">
                 <label className="block text-xs text-slate-500 mb-1">Qty</label>

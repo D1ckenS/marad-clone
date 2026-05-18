@@ -387,10 +387,10 @@ export function CompaniesPage() {
           >
             <span>Company</span>
             <span>Short name</span>
-            <span style={{ textAlign: 'right' }}>Vessels</span>
-            <span style={{ textAlign: 'right' }}>Users</span>
+            <span style={{ textAlign: 'left' }}>Vessels</span>
+            <span style={{ textAlign: 'left' }}>Users</span>
             <span>Created</span>
-            <span>Action</span>
+            <span style={{ textAlign: 'center' }}>Action</span>
           </div>
 
           {companies.length === 0 && (
@@ -433,16 +433,16 @@ export function CompaniesPage() {
                   </span>
                 )}
               </div>
-              <div style={{ textAlign: 'right' }}>
+              <div style={{ textAlign: 'left' }}>
                 <Badge color="blue">{c.vesselCount}</Badge>
               </div>
-              <div style={{ textAlign: 'right' }}>
+              <div style={{ textAlign: 'left' }}>
                 <Badge color="slate">{c.userCount}</Badge>
               </div>
               <span className="font-mono text-[11px]" style={{ color: 'var(--ink-3)' }}>
                 {new Date(c.createdAt).toLocaleDateString('en-GB')}
               </span>
-              <div className="flex gap-1.5 justify-start">
+              <div className="flex gap-1.5 justify-end">
                 <button
                   onClick={() => setCreateAdmin(c)}
                   className="text-[11px] px-2 py-1 rounded-1 font-medium"

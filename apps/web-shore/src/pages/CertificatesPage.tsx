@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Badge, type BadgeColor, Spinner } from '@fleetops/ui-kit';
+import { Badge, type BadgeColor, Select, Spinner } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -181,27 +181,17 @@ function RegisterTab({ certs, loading }: { certs: Certificate[]; loading: boolea
           >
             Category
           </span>
-          <select
-            value={catFilter}
-            onChange={(e) => setCatFilter(e.target.value)}
-            style={{
-              height: 24,
-              padding: '0 8px',
-              borderRadius: 5,
-              border: '1px solid var(--border)',
-              background: 'var(--surface)',
-              fontSize: 11.5,
-              color: 'var(--ink)',
-              cursor: 'pointer',
-            }}
-          >
-            <option value="all">All categories</option>
-            {Object.entries(CAT_META).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v.label}
-              </option>
-            ))}
-          </select>
+          <div style={{ width: 160 }}>
+            <Select
+              value={catFilter}
+              onChange={setCatFilter}
+              options={[
+                { value: 'all', label: 'All categories' },
+                ...Object.entries(CAT_META).map(([k, v]) => ({ value: k, label: v.label })),
+              ]}
+              size="sm"
+            />
+          </div>
           <div className="flex-1" />
           <span className="text-[11.5px]" style={{ color: 'var(--ink-3)' }}>
             {visible.length} of {certs.length}

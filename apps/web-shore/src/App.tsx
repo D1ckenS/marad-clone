@@ -25,7 +25,7 @@ function isRole(role: string | undefined, allowed: string[]) {
   return Boolean(role && allowed.includes(role));
 }
 
-// ─── Route guard ─────────────────────────────────────────────────────────────
+// ─── Route guards ────────────────────────────────────────────────────────────
 
 function RequireRole({ roles, children }: { roles: string[]; children: React.ReactNode }) {
   const { user } = useAuth();
@@ -33,6 +33,65 @@ function RequireRole({ roles, children }: { roles: string[]; children: React.Rea
     return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;
+}
+
+// Vessel-scoped modules need a vessel selected. Tenant admins must pick one from
+// the vessel picker in the sidebar before these modules will work.
+function RequireVessel({ children }: { children: React.ReactNode }) {
+  const { selectedVesselId, vessels, isVesselLocked, setSelectedVesselId } = useVessel();
+  if (selectedVesselId) return <>{children}</>;
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '60vh',
+        gap: 16,
+        color: '#0A1F33',
+      }}
+    >
+      <svg
+        width="40"
+        height="40"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#8893A0"
+        strokeWidth="1.5"
+      >
+        <path d="M3 17l2-8h14l2 8H3z" />
+        <path d="M7 9V6a5 5 0 0 1 10 0v3" />
+        <line x1="12" y1="12" x2="12" y2="15" />
+      </svg>
+      <p style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>No vessel selected</p>
+      <p style={{ fontSize: 13, color: '#8893A0', margin: 0 }}>
+        Choose a vessel from the sidebar to view this module.
+      </p>
+      {!isVesselLocked && vessels.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+          {vessels.map((v) => (
+            <button
+              key={v.id}
+              onClick={() => setSelectedVesselId(v.id)}
+              style={{
+                padding: '8px 20px',
+                border: '1px solid #E5E3DA',
+                borderRadius: 8,
+                background: '#fff',
+                cursor: 'pointer',
+                fontSize: 13,
+                fontWeight: 500,
+                color: '#0A1F33',
+              }}
+            >
+              {v.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── Protected layout (needs VesselContext inside) ────────────────────────────
@@ -91,15 +150,71 @@ function ProtectedContent() {
     >
       <Routes>
         <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="components" element={<ComponentsPage />} />
+        <Route
+          path="components"
+          element={
+            <RequireVessel>
+              <ComponentsPage />
+            </RequireVessel>
+          }
+        />
         <Route path="jobs" element={<Navigate to="/components?tab=jobs" replace />} />
-        <Route path="inventory" element={<InventoryPage />} />
-        <Route path="purchase" element={<PurchasePage />} />
-        <Route path="certificates" element={<CertificatesPage />} />
-        <Route path="safety" element={<SafetyPage />} />
-        <Route path="qhse" element={<QHSEPage />} />
-        <Route path="crewing" element={<CrewingPage />} />
-        <Route path="flgo" element={<ComingSoonPage module="FLGO" phase="Phase 3 (P3-1)" />} />
+        <Route
+          path="inventory"
+          element={
+            <RequireVessel>
+              <InventoryPage />
+            </RequireVessel>
+          }
+        />
+        <Route
+          path="purchase"
+          element={
+            <RequireVessel>
+              <PurchasePage />
+            </RequireVessel>
+          }
+        />
+        <Route
+          path="certificates"
+          element={
+            <RequireVessel>
+              <CertificatesPage />
+            </RequireVessel>
+          }
+        />
+        <Route
+          path="safety"
+          element={
+            <RequireVessel>
+              <SafetyPage />
+            </RequireVessel>
+          }
+        />
+        <Route
+          path="qhse"
+          element={
+            <RequireVessel>
+              <QHSEPage />
+            </RequireVessel>
+          }
+        />
+        <Route
+          path="crewing"
+          element={
+            <RequireVessel>
+              <CrewingPage />
+            </RequireVessel>
+          }
+        />
+        <Route
+          path="flgo"
+          element={
+            <RequireVessel>
+              <ComingSoonPage module="FLGO" phase="Phase 3 (P3-1)" />
+            </RequireVessel>
+          }
+        />
         <Route
           path="vessels"
           element={

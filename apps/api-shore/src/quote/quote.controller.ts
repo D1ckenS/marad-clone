@@ -54,6 +54,12 @@ export class QuoteController {
     return this.svc.reject(auth, id);
   }
 
+  @Post(':id/convert-to-po')
+  @HttpCode(HttpStatus.CREATED)
+  convertToPo(@AuthCtx() auth: AuthContext, @Param('id') id: string) {
+    return this.svc.convertToPo(auth, id);
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@AuthCtx() auth: AuthContext, @Param('id') id: string) {

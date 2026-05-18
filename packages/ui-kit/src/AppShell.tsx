@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import type { ReactNode } from 'react';
+import { Select } from './Select.js';
 
 export interface NavItem {
   label: string;
@@ -131,20 +131,16 @@ function VesselBlock({
   onVesselChange?: ((id: string | null) => void) | undefined;
   isVesselLocked?: boolean | undefined;
 }) {
-  const [open, setOpen] = useState(false);
-
-  const selectedVessel = vessels?.find((v) => v.id === selectedVesselId) ?? null;
   const canSwitch = !isVesselLocked && vessels && vessels.length > 0 && onVesselChange;
-
+  const selectedVessel = vessels?.find((v) => v.id === selectedVesselId) ?? null;
   const vesselLabel = selectedVessel?.name ?? (vessels && vessels.length > 0 ? 'All vessels' : '—');
 
+  const options = canSwitch
+    ? [{ value: '', label: 'All vessels' }, ...vessels.map((v) => ({ value: v.id, label: v.name }))]
+    : [];
+
   return (
-    <div
-      style={{
-        padding: '10px 12px 8px',
-        borderBottom: '1px solid #EEEBE2',
-      }}
-    >
+    <div style={{ padding: '10px 12px 8px', borderBottom: '1px solid #EEEBE2' }}>
       {companyName && (
         <div
           style={{
@@ -163,164 +159,15 @@ function VesselBlock({
         </div>
       )}
 
-      {/* Vessel selector */}
       {canSwitch ? (
-        <div style={{ position: 'relative' }}>
-          <button
-            onClick={() => setOpen((p) => !p)}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '5px 8px',
-              borderRadius: 6,
-              border: '1px solid #E5E3DA',
-              background: open ? '#F4F2EC' : '#FFFFFF',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              textAlign: 'left',
-            }}
-          >
-            <span
-              style={{
-                flex: 1,
-                fontSize: 12.5,
-                fontWeight: 600,
-                color: '#0A1F33',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {vesselLabel}
-            </span>
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 12 12"
-              style={{
-                flexShrink: 0,
-                color: '#8893A0',
-                transform: open ? 'rotate(180deg)' : 'none',
-                transition: 'transform .15s',
-              }}
-            >
-              <path
-                d="M2 4l4 4 4-4"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-
-          {open && (
-            <div
-              style={{
-                position: 'absolute',
-                top: 'calc(100% + 4px)',
-                left: 0,
-                right: 0,
-                background: '#FFFFFF',
-                border: '1px solid #E5E3DA',
-                borderRadius: 8,
-                boxShadow: '0 4px 16px rgba(10,31,51,.10)',
-                zIndex: 100,
-                overflow: 'hidden',
-              }}
-            >
-              {/* All vessels option */}
-              <button
-                onClick={() => {
-                  onVesselChange(null);
-                  setOpen(false);
-                }}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '8px 10px',
-                  border: 'none',
-                  background: selectedVesselId === null ? '#F4F2EC' : '#FFFFFF',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  textAlign: 'left',
-                  borderBottom: '1px solid #EEEBE2',
-                }}
-              >
-                <span
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
-                    background: selectedVesselId === null ? '#0A1F33' : '#EEEBE2',
-                    flexShrink: 0,
-                  }}
-                />
-                <span
-                  style={{
-                    fontSize: 12.5,
-                    color: '#0A1F33',
-                    fontWeight: selectedVesselId === null ? 600 : 400,
-                  }}
-                >
-                  All vessels
-                </span>
-              </button>
-              {vessels.map((v) => (
-                <button
-                  key={v.id}
-                  onClick={() => {
-                    onVesselChange(v.id);
-                    setOpen(false);
-                  }}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '8px 10px',
-                    border: 'none',
-                    background: selectedVesselId === v.id ? '#F4F2EC' : '#FFFFFF',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    textAlign: 'left',
-                    borderTop: '1px solid #EEEBE2',
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: '50%',
-                      background: selectedVesselId === v.id ? '#0A1F33' : '#EEEBE2',
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontSize: 12.5,
-                      color: '#0A1F33',
-                      fontWeight: selectedVesselId === v.id ? 600 : 400,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      flex: 1,
-                    }}
-                  >
-                    {v.name}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <Select
+          options={options}
+          value={selectedVesselId ?? ''}
+          onChange={(v) => onVesselChange(v || null)}
+          placeholder="All vessels"
+          size="sm"
+        />
       ) : (
-        /* Locked or no vessels — just show name, no button */
         <div
           style={{
             padding: '5px 8px',

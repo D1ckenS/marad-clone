@@ -22,6 +22,7 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated => _token != null;
   String? get token => _token;
   String? get tenantId => _tenantId;
+  ApiClient get client => _client;
   String? get vesselId => _vesselId;
   String? get email => _email;
   String? get role => _role;

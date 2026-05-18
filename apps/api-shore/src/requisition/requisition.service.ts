@@ -181,8 +181,23 @@ export class RequisitionService {
     const req = await this.findOne(auth, id);
     if (req.status !== 'DRAFT')
       throw new BadRequestException('Only DRAFT requisitions can be submitted');
+
+    let firstStepOrder = 0;
+    if (req.approvalFlowId) {
+      const steps = await this.prisma.withTenant(auth.tenantId!, (tx) =>
+        tx.approvalStep.findMany({
+          where: { flowId: req.approvalFlowId!, tenantId: auth.tenantId!, deletedAt: null },
+          orderBy: { stepOrder: 'asc' },
+        }),
+      );
+      if (steps.length > 0) firstStepOrder = steps[0]!.stepOrder;
+    }
+
     return this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.requisition.update({ where: { id }, data: { status: 'SUBMITTED' } }),
+      tx.requisition.update({
+        where: { id },
+        data: { status: 'SUBMITTED', currentStepOrder: firstStepOrder },
+      }),
     );
   }
 
@@ -198,16 +213,36 @@ export class RequisitionService {
           orderBy: { stepOrder: 'asc' },
         }),
       );
-      const step = steps.find((s) => s.approverRole === auth.role);
-      if (!step)
-        throw new ForbiddenException('Your role is not in the approval flow for this requisition');
-      if (step.limitAmount !== null && req.totalAmount.greaterThan(step.limitAmount)) {
+      const currentStep = steps.find((s) => s.stepOrder === req.currentStepOrder);
+      if (!currentStep)
+        throw new ForbiddenException('No active approval step found for this requisition');
+      if (currentStep.approverRole !== auth.role)
         throw new ForbiddenException(
-          `Requisition amount ${req.totalAmount} exceeds your approval limit of ${step.limitAmount} ${step.limitCurrency}`,
+          `This step requires role ${currentStep.approverRole}, you have ${auth.role}`,
+        );
+      if (
+        currentStep.limitAmount !== null &&
+        req.totalAmount.greaterThan(currentStep.limitAmount)
+      ) {
+        throw new ForbiddenException(
+          `Requisition amount ${req.totalAmount} exceeds your approval limit of ${currentStep.limitAmount} ${currentStep.limitCurrency}`,
+        );
+      }
+
+      // Check if there are more steps after this one
+      const nextStep = steps.find((s) => s.stepOrder > req.currentStepOrder);
+      if (nextStep) {
+        // Advance to next step — remain SUBMITTED
+        return this.prisma.withTenant(auth.tenantId!, (tx) =>
+          tx.requisition.update({
+            where: { id },
+            data: { currentStepOrder: nextStep.stepOrder },
+          }),
         );
       }
     }
 
+    // No more steps (or no flow) — fully approved
     return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.requisition.update({
         where: { id },

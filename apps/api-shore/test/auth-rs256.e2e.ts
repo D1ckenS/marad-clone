@@ -60,7 +60,7 @@ describe('Shore RS256 JWT — issuance, claims, refresh', () => {
   it('POST /auth/login — returns RS256 access + refresh tokens', async () => {
     const res = await api()
       .post('/api/v1/auth/login')
-      .send({ tenantId, email, password: 'S3cur3P@ss!' })
+      .send({ tenantId, identifier: email, password: 'S3cur3P@ss!' })
       .expect(200);
 
     expect(typeof res.body.access_token).toBe('string');

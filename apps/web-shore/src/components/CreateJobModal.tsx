@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Input, Modal, TextArea } from '@fleetops/ui-kit';
+import { Button, Input, Modal, Select, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 import { TypicalPartsList, partsToJson, type TypicalPart } from './TypicalPartsList.js';
 
@@ -163,18 +163,11 @@ export function CreateJobModal({ open, componentId, componentName, onClose, onCr
             <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="job-priority">
               Priority
             </label>
-            <select
-              id="job-priority"
+            <Select
               value={form.priority}
-              onChange={set('priority')}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {PRIORITIES.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setForm((f) => ({ ...f, priority: v }))}
+              options={PRIORITIES.map((p) => ({ value: p, label: p }))}
+            />
           </div>
           <div className="w-40">
             <Input

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Input, Modal, Spinner, TextArea } from '@fleetops/ui-kit';
+import { Button, Input, Modal, Select, Spinner, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
 interface Supplier {
@@ -114,19 +114,12 @@ export function CreatePurchaseOrderModal({
           {loadingSuppliers ? (
             <Spinner />
           ) : (
-            <select
-              id="po-supplier"
+            <Select
               value={supplierId}
-              onChange={(e) => setSupplierId(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">— Assign later —</option>
-              {suppliers.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+              onChange={setSupplierId}
+              options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
+              placeholder="— Assign later —"
+            />
           )}
           {suppliers.length === 0 && !loadingSuppliers && (
             <p className="mt-1 text-xs text-amber-600">

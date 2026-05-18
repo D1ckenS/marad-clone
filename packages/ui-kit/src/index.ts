@@ -6,3 +6,5 @@ export { Spinner } from './Spinner.js';
 export { Input, TextArea } from './Input.js';
 export { AppShell } from './AppShell.js';
 export type { NavItem } from './AppShell.js';
+export { Select } from './Select.js';
+export type { SelectOption } from './Select.js';

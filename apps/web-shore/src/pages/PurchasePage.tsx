@@ -978,7 +978,8 @@ function RFQsTab() {
     setActionLoading(quoteId);
     try {
       await api.post(`/quotes/${quoteId}/accept`, {});
-      alert('Quote accepted — PO has been created.');
+      await api.post(`/quotes/${quoteId}/convert-to-po`, {});
+      setQuotes((prev) => prev.map((q) => (q.id === quoteId ? { ...q, status: 'ACCEPTED' } : q)));
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Award failed');
     } finally {

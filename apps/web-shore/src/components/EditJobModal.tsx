@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Input, Modal, TextArea } from '@fleetops/ui-kit';
+import { Button, Input, Modal, Select, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 import {
   TypicalPartsList,
@@ -176,18 +176,11 @@ export function EditJobModal({ open, job, componentName, onClose, onSaved }: Pro
             <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="ej-priority">
               Priority
             </label>
-            <select
-              id="ej-priority"
+            <Select
               value={priority}
-              onChange={(e) => setPriority(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {PRIORITIES.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
+              onChange={setPriority}
+              options={PRIORITIES.map((p) => ({ value: p, label: p }))}
+            />
           </div>
           <div className="w-40">
             <Input

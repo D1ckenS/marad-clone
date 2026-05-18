@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Input, Modal, Spinner } from '@fleetops/ui-kit';
+import { Button, Input, Modal, Select, Spinner } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
 interface Location {
@@ -131,19 +131,12 @@ export function PostStockMovementModal({ open, partId, partName, onClose, onPost
           {loadingLocs ? (
             <Spinner />
           ) : (
-            <select
-              id="sm-loc"
+            <Select
               value={locationId}
-              onChange={(e) => setLocationId(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">— Select location —</option>
-              {locations.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </select>
+              onChange={setLocationId}
+              options={locations.map((l) => ({ value: l.id, label: l.name }))}
+              placeholder="— Select location —"
+            />
           )}
         </div>
 

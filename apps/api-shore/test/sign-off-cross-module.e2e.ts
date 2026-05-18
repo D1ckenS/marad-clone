@@ -75,7 +75,7 @@ beforeAll(async () => {
 
   const loginRes = await request(app.getHttpServer())
     .post('/api/v1/auth/login')
-    .send({ tenantId, email: 'chief@xmod.test', password: 'TestP@ss1' });
+    .send({ tenantId, identifier: 'chief@xmod.test', password: 'TestP@ss1' });
   token = (loginRes.body as { access_token: string }).access_token;
 
   // Component + Job

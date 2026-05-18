@@ -140,4 +140,44 @@ export class QuoteService {
       tx.quote.update({ where: { id }, data: { deletedAt: new Date() } }),
     );
   }
+
+  async convertToPo(auth: AuthContext, id: string) {
+    const quote = await this.findOne(auth, id);
+    if (quote.status !== 'ACCEPTED')
+      throw new BadRequestException('Only ACCEPTED quotes can be converted to a PO');
+    const vesselId = quote.vesselId;
+    const poId = newId();
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      const po = await tx.purchaseOrder.create({
+        data: {
+          id: poId,
+          tenantId: auth.tenantId!,
+          vesselId,
+          rfqId: quote.rfqId,
+          supplierId: quote.supplierId,
+          title: `PO from Quote ${id.slice(-8)}`,
+          totalAmount: quote.totalAmount,
+          currency: quote.currency,
+          status: 'DRAFT',
+          hlc: id,
+        },
+      });
+      const lineValues = quote.lines.map((l) => ({
+        id: newId(),
+        tenantId: auth.tenantId!,
+        vesselId,
+        poId,
+        description: l.description,
+        quantity: l.quantity,
+        unit: l.unit,
+        unitPrice: l.unitPrice,
+        totalPrice: l.totalPrice,
+        currency: l.currency,
+        quoteLineId: l.id,
+        hlc: id,
+      }));
+      if (lineValues.length > 0) await tx.pOLine.createMany({ data: lineValues });
+      return po;
+    });
+  }
 }
