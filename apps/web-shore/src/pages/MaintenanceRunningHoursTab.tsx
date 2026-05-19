@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Spinner } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 import { LogRunningHoursModal } from '../components/LogRunningHoursModal.js';
@@ -53,6 +54,7 @@ function ProgressBar({ pct, overdue }: { pct: number; overdue: boolean }) {
 }
 
 export function MaintenanceRunningHoursTab() {
+  const { t } = useTranslation();
   const [rows, setRows] = useState<CompRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -150,7 +152,13 @@ export function MaintenanceRunningHoursTab() {
             alignItems: 'center',
           }}
         >
-          {['Equipment', 'Hours', 'Last reading', 'Next interval', ''].map((h, i) => (
+          {[
+            t('maintenance.tab_components'),
+            t('maintenance.hours_abbr'),
+            t('maintenance.last_done'),
+            t('maintenance.next_due'),
+            '',
+          ].map((h, i) => (
             <span
               key={i}
               style={{
@@ -171,7 +179,7 @@ export function MaintenanceRunningHoursTab() {
           <div
             style={{ padding: '32px 16px', textAlign: 'center', color: '#8893A0', fontSize: 12 }}
           >
-            No components yet. Add them in the Components tab.
+            {t('maintenance.no_components')}
           </div>
         )}
 
@@ -243,7 +251,9 @@ export function MaintenanceRunningHoursTab() {
                       alignItems: 'center',
                     }}
                   >
-                    <span style={{ fontSize: 11, color: '#8893A0' }}>every {r.nextInterval} h</span>
+                    <span style={{ fontSize: 11, color: '#8893A0' }}>
+                      {t('maintenance.every')} {r.nextInterval} {t('maintenance.hours_abbr')}
+                    </span>
                     {r.overdue ? (
                       <span
                         style={{
@@ -255,7 +265,7 @@ export function MaintenanceRunningHoursTab() {
                           borderRadius: 4,
                         }}
                       >
-                        OVERDUE
+                        {t('maintenance.overdue').toUpperCase()}
                       </span>
                     ) : (
                       <span
@@ -272,7 +282,9 @@ export function MaintenanceRunningHoursTab() {
                   <ProgressBar pct={r.pct} overdue={r.overdue} />
                 </>
               ) : (
-                <span style={{ fontSize: 11.5, color: '#B6BDC6' }}>No RH interval jobs</span>
+                <span style={{ fontSize: 11.5, color: '#B6BDC6' }}>
+                  {t('maintenance.no_rh_interval_jobs')}
+                </span>
               )}
             </div>
 
@@ -301,7 +313,7 @@ export function MaintenanceRunningHoursTab() {
                   whiteSpace: 'nowrap',
                 }}
               >
-                Log reading
+                {t('maintenance.log_reading')}
               </button>
             </div>
           </div>

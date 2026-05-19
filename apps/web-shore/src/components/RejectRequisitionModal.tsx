@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Modal, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function RejectRequisitionModal({ requisitionId, onClose, onRejected }: Props) {
+  const { t } = useTranslation();
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,10 +47,10 @@ export function RejectRequisitionModal({ requisitionId, onClose, onRejected }: P
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button variant="danger" loading={saving} onClick={handleReject}>
-            Reject
+            {t('common.reject')}
           </Button>
         </>
       }

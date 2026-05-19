@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Spinner } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -34,6 +35,7 @@ const ROW: React.CSSProperties = {
 };
 
 export function MaintenanceHistoryTab() {
+  const { t } = useTranslation();
   const [histories, setHistories] = useState<JobHistory[]>([]);
   const [jobsById, setJobsById] = useState<Map<string, string>>(new Map());
   const [compsById, setCompsById] = useState<Map<string, string>>(new Map());
@@ -84,7 +86,7 @@ export function MaintenanceHistoryTab() {
             color: '#8893A0',
           }}
         >
-          Date
+          {t('common.date')}
         </span>
         <span
           style={{
@@ -95,7 +97,7 @@ export function MaintenanceHistoryTab() {
             color: '#8893A0',
           }}
         >
-          Job / Component
+          {t('maintenance.job')} / {t('maintenance.tab_components')}
         </span>
         <span
           style={{
@@ -106,7 +108,7 @@ export function MaintenanceHistoryTab() {
             color: '#8893A0',
           }}
         >
-          Signed by
+          {t('maintenance.sign_off')}
         </span>
         <span
           style={{
@@ -148,7 +150,7 @@ export function MaintenanceHistoryTab() {
 
       {histories.length === 0 && (
         <div style={{ padding: '32px 16px', textAlign: 'center', color: '#8893A0', fontSize: 12 }}>
-          No sign-off records yet.
+          {t('maintenance.no_history')}
         </div>
       )}
 
@@ -275,10 +277,7 @@ export function MaintenanceHistoryTab() {
           }}
         >
           <span>🔒</span>
-          <span>
-            All records are immutable — updates and deletions are rejected at the database level
-            (DNV CG-0339).
-          </span>
+          <span>{t('maintenance.immutable_records')}</span>
         </div>
       )}
     </div>

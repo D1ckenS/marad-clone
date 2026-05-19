@@ -10,6 +10,8 @@ export type JwtPayload = {
   vesselId?: string;
   email: string;
   username?: string; // display name; falls back to email in the UI
+  firstName?: string;
+  lastName?: string;
   role: string;
   type: 'access' | 'refresh';
 };
@@ -78,12 +80,14 @@ export class AuthService {
     return this.issueTokens(user);
   }
 
-  private issueTokens(user: {
+  issueTokens(user: {
     id: string;
     tenantId: string | null;
     vesselId?: string | null;
     email: string;
     username?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
     role: string;
   }): LoginResult {
     const base = {
@@ -92,6 +96,8 @@ export class AuthService {
       ...(user.vesselId ? { vesselId: user.vesselId } : {}),
       email: user.email,
       ...(user.username ? { username: user.username } : {}),
+      ...(user.firstName ? { firstName: user.firstName } : {}),
+      ...(user.lastName ? { lastName: user.lastName } : {}),
       role: user.role,
     };
 

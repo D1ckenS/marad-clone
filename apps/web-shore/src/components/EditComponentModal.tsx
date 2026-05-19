@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export function EditComponentModal({ open, component, onClose, onSaved }: Props) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [sfi, setSfi] = useState('');
@@ -63,15 +65,15 @@ export function EditComponentModal({ open, component, onClose, onSaved }: Props)
   return (
     <Modal
       open={open}
-      title="Edit Component"
+      title={t('common.edit')}
       onClose={handleClose}
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Save
+            {t('common.save')}
           </Button>
         </>
       }
@@ -82,21 +84,21 @@ export function EditComponentModal({ open, component, onClose, onSaved }: Props)
         )}
         <Input
           id="ec-name"
-          label="Name *"
+          label={`${t('common.name')} *`}
           value={name}
           onChange={(e) => setName(e.target.value)}
           autoFocus
         />
         <TextArea
           id="ec-desc"
-          label="Description"
+          label={t('common.description')}
           rows={2}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
         <Input
           id="ec-sfi"
-          label="SFI Code"
+          label={t('maintenance.sfi_code')}
           value={sfi}
           onChange={(e) => setSfi(e.target.value)}
           placeholder="230.01"

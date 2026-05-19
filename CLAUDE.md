@@ -43,7 +43,7 @@ Decisions only Ziad can make. Ask before acting.
 - [ ] **Class society for initial type-approval.** DNV (most common for Marad), or another?
 - [ ] **Hosting target for shore.** AWS / Azure / on-prem / customer-private-cloud?
 - [ ] **Accounting integration target.** SAP / Exact / Twinfield / NetSuite / other?
-- [ ] **Initial languages besides English.** Likely Dutch; confirm.
+- [x] **Initial languages besides English.** Dutch confirmed; Arabic (AR) also added to P5-2 localization list.
 - [ ] **2BA / Nareto licensing.** Direct license, or skip until a customer asks?
 
 ---

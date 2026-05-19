@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { Badge, Button, Spinner } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
@@ -22,13 +23,13 @@ type MaintenanceTab =
   | 'running-hours'
   | 'projects';
 
-const TABS: { id: MaintenanceTab; label: string }[] = [
-  { id: 'components', label: 'Components' },
-  { id: 'jobs', label: 'Jobs' },
-  { id: 'history', label: 'History' },
-  { id: 'templates', label: 'Templates' },
-  { id: 'running-hours', label: 'Running Hours' },
-  { id: 'projects', label: 'Projects' },
+const TAB_IDS: MaintenanceTab[] = [
+  'components',
+  'jobs',
+  'history',
+  'templates',
+  'running-hours',
+  'projects',
 ];
 
 type Component = ComponentItem;
@@ -65,9 +66,10 @@ interface NodeActions {
 }
 
 function JobRow({ job, actions }: { job: Job; actions: NodeActions }) {
+  const { t } = useTranslation();
   const intervalLabel = job.intervalDays
-    ? `Every ${job.intervalDays} days`
-    : `Every ${job.intervalRunningHours} h`;
+    ? `${t('maintenance.every')} ${job.intervalDays} ${t('maintenance.days')}`
+    : `${t('maintenance.every')} ${job.intervalRunningHours} ${t('maintenance.hours_abbr')}`;
   return (
     <div className="flex items-center gap-2 py-1.5 px-3 group text-xs hover:bg-slate-50 rounded">
       <span className="text-slate-400">└</span>
@@ -83,13 +85,13 @@ function JobRow({ job, actions }: { job: Job; actions: NodeActions }) {
           onClick={() => actions.onScheduleJob(job.id, job.componentId)}
           className="px-2 py-0.5 rounded border border-slate-300 text-slate-600 hover:border-blue-400 hover:text-blue-600 transition-colors"
         >
-          + Instance
+          {t('maintenance.add_instance')}
         </button>
         <button
           onClick={() => actions.onEditJob(job, '')}
           className="px-2 py-0.5 rounded border border-slate-300 text-slate-600 hover:border-slate-500 hover:text-slate-800 transition-colors"
         >
-          Edit
+          {t('common.edit')}
         </button>
       </div>
     </div>
@@ -107,6 +109,7 @@ function ComponentNode({
   actions: NodeActions;
   jobsByComponentId: Map<string, Job[]>;
 }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(depth < 2);
   const jobs = jobsByComponentId.get(node.id) ?? [];
   const hasContent = node.children.length > 0 || jobs.length > 0;
@@ -140,31 +143,31 @@ function ComponentNode({
             onClick={() => actions.onLogHours(node)}
             className="text-xs px-2 py-0.5 rounded border border-slate-300 text-slate-600 hover:border-green-400 hover:text-green-700 transition-colors"
           >
-            Log h
+            {t('maintenance.log_reading')}
           </button>
           <button
             onClick={() => actions.onAddJob(node.id, node.name)}
             className="text-xs px-2 py-0.5 rounded border border-slate-300 text-slate-600 hover:border-blue-400 hover:text-blue-600 transition-colors"
           >
-            + Job
+            {t('maintenance.new_job')}
           </button>
           <button
             onClick={() => actions.onAddChild(node.id, node.name)}
             className="text-xs px-2 py-0.5 rounded border border-slate-300 text-slate-600 hover:border-slate-500 hover:text-slate-800 transition-colors"
           >
-            + Child
+            {t('maintenance.add_child')}
           </button>
           <button
             onClick={() => actions.onEditComponent(node)}
             className="text-xs px-2 py-0.5 rounded border border-slate-300 text-slate-600 hover:border-slate-500 hover:text-slate-800 transition-colors"
           >
-            Edit
+            {t('common.edit')}
           </button>
           <button
             onClick={() => actions.onDeleteComponent(node.id, node.name)}
             className="text-xs px-2 py-0.5 rounded border border-red-200 text-red-400 hover:border-red-400 hover:text-red-600 transition-colors"
           >
-            Delete
+            {t('common.delete')}
           </button>
         </div>
       </div>
@@ -202,6 +205,16 @@ type Modal =
   | { kind: 'instance'; jobId: string; componentId: string };
 
 export function ComponentsPage() {
+  const { t } = useTranslation();
+  const tabLabels: Record<MaintenanceTab, string> = {
+    components: t('maintenance.tab_components'),
+    jobs: t('maintenance.tab_jobs'),
+    history: t('maintenance.tab_history'),
+    templates: t('maintenance.tab_templates'),
+    'running-hours': t('maintenance.tab_running_hours'),
+    projects: t('maintenance.tab_projects'),
+  };
+  const TABS = TAB_IDS.map((id) => ({ id, label: tabLabels[id] }));
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab: MaintenanceTab = (searchParams.get('tab') as MaintenanceTab) ?? 'components';
 
@@ -270,7 +283,7 @@ export function ComponentsPage() {
             margin: '0 0 16px',
           }}
         >
-          Maintenance
+          {t('maintenance.title')}
         </h1>
         <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #E5E3DA' }}>
           {TABS.map((t) => (
@@ -321,9 +334,13 @@ export function ComponentsPage() {
               <h1 className="text-xl font-bold text-slate-900" style={{ display: 'none' }}>
                 Components
               </h1>
-              <p className="text-sm text-slate-500 mt-0.5">Equipment hierarchy for this vessel</p>
+              <p className="text-sm text-slate-500 mt-0.5">
+                {t('maintenance.equipment_hierarchy')}
+              </p>
             </div>
-            <Button onClick={() => setModal({ kind: 'component' })}>+ New Component</Button>
+            <Button onClick={() => setModal({ kind: 'component' })}>
+              {t('maintenance.new_component')}
+            </Button>
           </div>
 
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
@@ -335,12 +352,12 @@ export function ComponentsPage() {
             {error && <div className="p-6 text-sm text-red-600">{error}</div>}
             {!loading && !error && components.length === 0 && (
               <div className="p-8 text-center text-slate-500 text-sm">
-                No components yet.{' '}
+                {t('maintenance.no_components')}{' '}
                 <button
                   className="text-blue-600 hover:underline"
                   onClick={() => setModal({ kind: 'component' })}
                 >
-                  Add the first one.
+                  {t('maintenance.add_first_component')}
                 </button>
               </div>
             )}

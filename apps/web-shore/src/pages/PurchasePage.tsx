@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { Badge, type BadgeColor, Button, Spinner, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
@@ -115,11 +116,21 @@ export interface Quote {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const titleCase = (s: string) =>
-  s
-    .replace(/_/g, ' ')
-    .toLowerCase()
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+const STATUS_KEY: Record<string, string> = {
+  DRAFT: 'purchase.status_draft',
+  SUBMITTED: 'purchase.status_submitted',
+  APPROVED: 'purchase.status_approved',
+  REJECTED: 'purchase.status_rejected',
+  ORDERED: 'purchase.status_ordered',
+  SENT: 'purchase.status_sent',
+  ACKNOWLEDGED: 'purchase.status_confirmed',
+  IN_TRANSIT: 'purchase.status_in_transit',
+  PARTIALLY_RECEIVED: 'purchase.status_partial',
+  RECEIVED: 'purchase.status_received',
+  INVOICED: 'purchase.status_invoiced',
+  CLOSED: 'purchase.status_closed',
+  CANCELLED: 'purchase.status_cancelled',
+};
 
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -180,19 +191,26 @@ function Chip({
 
 // ─── Lifecycle stepper ───────────────────────────────────────────────────────
 
-const LIFECYCLE = [
-  { id: 'DRAFT', label: 'Draft' },
-  { id: 'SENT', label: 'Sent' },
-  { id: 'ACKNOWLEDGED', label: 'Confirmed' },
-  { id: 'IN_TRANSIT', label: 'In Transit' },
-  { id: 'PARTIALLY_RECEIVED', label: 'Partial' },
-  { id: 'RECEIVED', label: 'Received' },
-  { id: 'CLOSED', label: 'Closed' },
-] as const;
-
-type LifecycleId = (typeof LIFECYCLE)[number]['id'];
+type LifecycleId =
+  | 'DRAFT'
+  | 'SENT'
+  | 'ACKNOWLEDGED'
+  | 'IN_TRANSIT'
+  | 'PARTIALLY_RECEIVED'
+  | 'RECEIVED'
+  | 'CLOSED';
 
 function LifecycleStepper({ status }: { status: POStatus }) {
+  const { t } = useTranslation();
+  const LIFECYCLE = [
+    { id: 'DRAFT' as const, label: t('purchase.status_draft') },
+    { id: 'SENT' as const, label: t('purchase.status_sent') },
+    { id: 'ACKNOWLEDGED' as const, label: t('purchase.status_confirmed') },
+    { id: 'IN_TRANSIT' as const, label: t('purchase.status_in_transit') },
+    { id: 'PARTIALLY_RECEIVED' as const, label: t('purchase.status_partial') },
+    { id: 'RECEIVED' as const, label: t('purchase.status_received') },
+    { id: 'CLOSED' as const, label: t('purchase.status_closed') },
+  ];
   if (status === 'CANCELLED') {
     return (
       <div className="flex items-center gap-2 py-1">
@@ -275,6 +293,7 @@ function LifecycleStepper({ status }: { status: POStatus }) {
 // ─── GRN form (inline within PO detail pane) ─────────────────────────────────
 
 function GrnForm({ po, onPosted }: { po: PurchaseOrder; onPosted: () => void }) {
+  const { t } = useTranslation();
   const [qtys, setQtys] = useState<Record<string, string>>(() =>
     Object.fromEntries(po.lines.map((l) => [l.id, l.quantity])),
   );
@@ -307,7 +326,7 @@ function GrnForm({ po, onPosted }: { po: PurchaseOrder; onPosted: () => void }) 
         className="text-[10.5px] font-semibold uppercase tracking-widest mb-3"
         style={{ color: 'var(--ink-3)' }}
       >
-        Post Goods Receipt
+        {t('purchase.post_grn')}
       </div>
       {error && (
         <div
@@ -320,9 +339,9 @@ function GrnForm({ po, onPosted }: { po: PurchaseOrder; onPosted: () => void }) 
       <table className="w-full text-left text-xs mb-3">
         <thead>
           <tr style={{ color: 'var(--ink-3)' }}>
-            <th className="pb-1.5 font-medium">Description</th>
-            <th className="pb-1.5 text-right font-medium">Ordered</th>
-            <th className="pb-1.5 text-right font-medium w-20">Received</th>
+            <th className="pb-1.5 font-medium">{t('common.description')}</th>
+            <th className="pb-1.5 text-right font-medium">{t('purchase.ordered')}</th>
+            <th className="pb-1.5 text-right font-medium w-20">{t('purchase.received_qty')}</th>
           </tr>
         </thead>
         <tbody>
@@ -351,15 +370,15 @@ function GrnForm({ po, onPosted }: { po: PurchaseOrder; onPosted: () => void }) 
       </table>
       <TextArea
         id="grn-notes"
-        label="Notes"
+        label={t('common.notes')}
         rows={2}
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
-        placeholder="Delivery note number, condition remarks…"
+        placeholder={t('purchase.delivery_note_placeholder')}
       />
       <div className="mt-3 flex justify-end">
         <Button size="sm" loading={saving} onClick={handlePost}>
-          Post GRN
+          {t('purchase.post_grn')}
         </Button>
       </div>
     </div>
@@ -377,6 +396,7 @@ function PODetailPane({
   onClose: () => void;
   onUpdated: () => void;
 }) {
+  const { t } = useTranslation();
   const [po, setPo] = useState<PurchaseOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -439,7 +459,9 @@ function PODetailPane({
                     · {po.poNumber}
                   </span>
                 )}
-                <Badge color={PO_STATUS_COLOR[po.status]}>{titleCase(po.status)}</Badge>
+                <Badge color={PO_STATUS_COLOR[po.status]}>
+                  {t(STATUS_KEY[po.status] ?? po.status)}
+                </Badge>
                 <div className="flex-1" />
                 <button
                   onClick={onClose}
@@ -477,7 +499,7 @@ function PODetailPane({
                   className="text-[10.5px] font-semibold uppercase tracking-widest mb-1"
                   style={{ color: 'var(--ink-3)' }}
                 >
-                  Total
+                  {t('purchase.col_total')}
                 </div>
                 <div
                   className="font-mono text-[17px] font-semibold"
@@ -491,7 +513,7 @@ function PODetailPane({
                   className="text-[10.5px] font-semibold uppercase tracking-widest mb-1"
                   style={{ color: 'var(--ink-3)' }}
                 >
-                  Lines · received
+                  {t('purchase.lines_received')}
                 </div>
                 <div
                   className="font-mono text-[17px] font-semibold"
@@ -510,7 +532,7 @@ function PODetailPane({
                   className="px-4 pt-3 pb-1 text-[10.5px] font-semibold uppercase tracking-widest"
                   style={{ color: 'var(--ink-3)' }}
                 >
-                  Lines
+                  {t('purchase.lines')}
                 </div>
                 {po.lines.map((l) => {
                   const received =
@@ -568,7 +590,7 @@ function PODetailPane({
                   className="px-4 pt-3 pb-1 text-[10.5px] font-semibold uppercase tracking-widest"
                   style={{ color: 'var(--ink-3)' }}
                 >
-                  Goods Receipts
+                  {t('purchase.tab_grns')}
                 </div>
                 {po.receipts.map((r) => (
                   <div
@@ -609,7 +631,7 @@ function PODetailPane({
                   className="text-[10.5px] font-semibold uppercase tracking-widest mb-1"
                   style={{ color: 'var(--ink-3)' }}
                 >
-                  Notes
+                  {t('common.notes')}
                 </div>
                 <div className="text-[12px]" style={{ color: 'var(--ink-2)' }}>
                   {po.notes}
@@ -648,7 +670,7 @@ function PODetailPane({
                   loading={actionLoading}
                   onClick={() => doAction('send')}
                 >
-                  Send to supplier
+                  {t('purchase.send_to_supplier')}
                 </Button>
               </>
             )}
@@ -661,14 +683,14 @@ function PODetailPane({
                   loading={actionLoading}
                   onClick={() => doAction('send')}
                 >
-                  Resend
+                  {t('purchase.resend')}
                 </Button>
               </>
             )}
             {!['DRAFT', 'SENT', 'CANCELLED', 'CLOSED'].includes(po.status) &&
               !canReceive(po.status) && (
                 <div className="flex-1 text-center text-xs" style={{ color: 'var(--ink-3)' }}>
-                  No actions available
+                  {t('purchase.no_actions')}
                 </div>
               )}
             {['DRAFT', 'SENT', 'ACKNOWLEDGED', 'IN_TRANSIT', 'PARTIALLY_RECEIVED'].includes(
@@ -687,6 +709,7 @@ const REQ_FILTERS = ['ALL', 'DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'] as con
 type ReqFilter = (typeof REQ_FILTERS)[number];
 
 function RequisitionsTab() {
+  const { t } = useTranslation();
   const [reqs, setReqs] = useState<Requisition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -739,13 +762,13 @@ function RequisitionsTab() {
         <div className="flex gap-1.5 flex-wrap">
           {REQ_FILTERS.map((f) => (
             <Chip key={f} active={filter === f} onClick={() => setFilter(f)}>
-              {f === 'ALL' ? 'All' : titleCase(f)}
+              {f === 'ALL' ? t('common.all') : t(STATUS_KEY[f] ?? f)}
             </Chip>
           ))}
         </div>
         <div className="flex-1" />
         <span className="text-[11px]" style={{ color: 'var(--ink-3)' }}>
-          {reqs.length} {filter !== 'ALL' ? titleCase(filter).toLowerCase() : ''}
+          {reqs.length} {filter !== 'ALL' ? t(STATUS_KEY[filter] ?? filter).toLowerCase() : ''}
         </span>
       </div>
 
@@ -759,11 +782,11 @@ function RequisitionsTab() {
           borderBottom: '1px solid var(--border)',
         }}
       >
-        <span>Req</span>
-        <span>Item / notes</span>
-        <span className="text-right">Value</span>
-        <span>Status</span>
-        <span>Requested</span>
+        <span>{t('purchase.col_req')}</span>
+        <span>{t('purchase.col_item_notes')}</span>
+        <span className="text-right">{t('purchase.col_value')}</span>
+        <span>{t('common.status')}</span>
+        <span>{t('certificates.issued')}</span>
         <span />
       </div>
 
@@ -781,7 +804,7 @@ function RequisitionsTab() {
         )}
         {!loading && !error && reqs.length === 0 && (
           <div className="p-10 text-center text-xs" style={{ color: 'var(--ink-3)' }}>
-            No requisitions found.
+            {t('purchase.no_requisitions')}
           </div>
         )}
         {!loading &&
@@ -837,7 +860,9 @@ function RequisitionsTab() {
                     {fmtAmt(r.totalAmount, r.currency)}
                   </div>
                 </div>
-                <Badge color={REQ_STATUS_COLOR[r.status]}>{titleCase(r.status)}</Badge>
+                <Badge color={REQ_STATUS_COLOR[r.status]}>
+                  {t(STATUS_KEY[r.status] ?? r.status)}
+                </Badge>
                 <span className="text-[11px]" style={{ color: 'var(--ink-3)' }}>
                   {fmtDate(r.requestedAt)}
                 </span>
@@ -849,7 +874,7 @@ function RequisitionsTab() {
                       loading={actionLoading === `${r.id}-submit`}
                       onClick={() => doAction(r.id, 'submit')}
                     >
-                      Submit
+                      {t('common.submit')}
                     </Button>
                   )}
                   {r.status === 'SUBMITTED' && (
@@ -859,10 +884,10 @@ function RequisitionsTab() {
                         loading={actionLoading === `${r.id}-approve`}
                         onClick={() => doAction(r.id, 'approve')}
                       >
-                        Approve
+                        {t('common.approve')}
                       </Button>
                       <Button size="sm" variant="danger" onClick={() => setRejectTarget(r.id)}>
-                        Reject
+                        {t('common.reject')}
                       </Button>
                     </>
                   )}
@@ -881,11 +906,15 @@ function RequisitionsTab() {
                   <table className="w-full text-[11px] mt-2">
                     <thead>
                       <tr style={{ color: 'var(--ink-3)' }}>
-                        <th className="text-left pb-1.5 font-medium">Description</th>
-                        <th className="text-right pb-1.5 font-medium">Qty</th>
-                        <th className="text-right pb-1.5 font-medium">Unit</th>
-                        <th className="text-right pb-1.5 font-medium">Est. Unit Price</th>
-                        <th className="text-right pb-1.5 font-medium">Est. Total</th>
+                        <th className="text-left pb-1.5 font-medium">{t('common.description')}</th>
+                        <th className="text-right pb-1.5 font-medium">{t('purchase.col_qty')}</th>
+                        <th className="text-right pb-1.5 font-medium">{t('purchase.col_unit')}</th>
+                        <th className="text-right pb-1.5 font-medium">
+                          {t('purchase.col_est_unit_price')}
+                        </th>
+                        <th className="text-right pb-1.5 font-medium">
+                          {t('purchase.col_est_total')}
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -945,6 +974,7 @@ function RequisitionsTab() {
 // ─── RFQs tab ─────────────────────────────────────────────────────────────────
 
 function RFQsTab() {
+  const { t } = useTranslation();
   const [rfqs, setRfqs] = useState<Rfq[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -1016,7 +1046,7 @@ function RFQsTab() {
           )}
           {!loading && rfqs.length === 0 && (
             <div className="p-6 text-xs text-center" style={{ color: 'var(--ink-3)' }}>
-              No RFQs yet.
+              {t('purchase.no_pos')}
             </div>
           )}
           {!loading &&
@@ -1066,7 +1096,7 @@ function RFQsTab() {
             className="flex-1 flex items-center justify-center text-xs"
             style={{ color: 'var(--ink-3)' }}
           >
-            Select an RFQ to compare quotes.
+            {t('purchase.select_rfq_hint')}
           </div>
         )}
         {selectedRfq && (
@@ -1101,7 +1131,7 @@ function RFQsTab() {
                 )}
               </div>
               <Button size="sm" variant="secondary">
-                Email suppliers
+                {t('purchase.email_suppliers')}
               </Button>
             </div>
 
@@ -1121,7 +1151,7 @@ function RFQsTab() {
                     color: 'var(--ink-3)',
                   }}
                 >
-                  Quotes are still coming in.
+                  {t('purchase.quotes_coming_in')}
                   {selectedRfq.dueAt && ` Closes ${fmtDate(selectedRfq.dueAt)}.`}
                 </div>
               )}
@@ -1149,7 +1179,7 @@ function RFQsTab() {
                           className="text-[10.5px] font-semibold uppercase tracking-widest"
                           style={{ color: 'var(--ink-3)' }}
                         >
-                          Compare
+                          {t('purchase.compare')}
                         </span>
                       </div>
                       {quotes.map((q) => (
@@ -1210,7 +1240,7 @@ function RFQsTab() {
                         className="px-3 py-2.5 flex items-center text-[11px] font-medium uppercase tracking-widest"
                         style={{ background: 'var(--surface)', color: 'var(--ink-3)' }}
                       >
-                        Notes
+                        {t('common.notes')}
                       </div>
                       {quotes.map((q) => (
                         <div
@@ -1227,7 +1257,7 @@ function RFQsTab() {
                         className="px-3 py-2.5 flex items-center text-[11px] font-medium uppercase tracking-widest"
                         style={{ background: 'var(--surface-2)', color: 'var(--ink-3)' }}
                       >
-                        Valid until
+                        {t('purchase.valid_until')}
                       </div>
                       {quotes.map((q) => (
                         <div
@@ -1249,11 +1279,11 @@ function RFQsTab() {
                         >
                           {q.status === 'accepted' ? (
                             <Button size="sm" style={{ width: '100%' }} disabled>
-                              Awarded
+                              {t('purchase.awarded')}
                             </Button>
                           ) : q.status === 'rejected' ? (
                             <span className="text-xs" style={{ color: 'var(--ink-4)' }}>
-                              Rejected
+                              {t('purchase.status_rejected')}
                             </span>
                           ) : (
                             <Button
@@ -1263,7 +1293,7 @@ function RFQsTab() {
                               loading={actionLoading === q.id}
                               onClick={() => awardQuote(q.id)}
                             >
-                              Award & convert to PO
+                              {t('purchase.award_convert_po')}
                             </Button>
                           )}
                         </div>
@@ -1281,19 +1311,19 @@ function RFQsTab() {
 
 // ─── Purchase Orders tab ──────────────────────────────────────────────────────
 
-const PO_STAGE_FILTERS = [
-  { id: 'all', label: 'All' },
-  { id: 'DRAFT', label: 'Draft' },
-  { id: 'SENT', label: 'Sent' },
-  { id: 'ACKNOWLEDGED', label: 'Confirmed' },
-  { id: 'IN_TRANSIT', label: 'In Transit' },
-  { id: 'PARTIALLY_RECEIVED', label: 'Partial' },
-  { id: 'RECEIVED', label: 'Received' },
-  { id: 'INVOICED', label: 'Invoiced' },
-  { id: 'CLOSED', label: 'Closed' },
-];
-
 function PurchaseOrdersTab() {
+  const { t } = useTranslation();
+  const PO_STAGE_FILTERS = [
+    { id: 'all', label: t('common.all') },
+    { id: 'DRAFT', label: t('purchase.status_draft') },
+    { id: 'SENT', label: t('purchase.status_sent') },
+    { id: 'ACKNOWLEDGED', label: t('purchase.status_confirmed') },
+    { id: 'IN_TRANSIT', label: t('purchase.status_in_transit') },
+    { id: 'PARTIALLY_RECEIVED', label: t('purchase.status_partial') },
+    { id: 'RECEIVED', label: t('purchase.status_received') },
+    { id: 'INVOICED', label: t('purchase.status_invoiced') },
+    { id: 'CLOSED', label: t('purchase.status_closed') },
+  ];
   const [pos, setPOs] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1370,12 +1400,12 @@ function PurchaseOrdersTab() {
             borderBottom: '1px solid var(--border)',
           }}
         >
-          <span>PO</span>
-          <span>Supplier / note</span>
-          <span>Port</span>
-          <span>ETA</span>
-          <span>Stage</span>
-          <span className="text-right">Total</span>
+          <span>{t('purchase.col_po')}</span>
+          <span>{t('purchase.col_supplier_note')}</span>
+          <span>{t('purchase.col_port')}</span>
+          <span>{t('purchase.col_eta')}</span>
+          <span>{t('purchase.col_stage')}</span>
+          <span className="text-right">{t('purchase.col_total')}</span>
         </div>
 
         {/* Rows */}
@@ -1392,7 +1422,7 @@ function PurchaseOrdersTab() {
           )}
           {!loading && !error && filteredPOs.length === 0 && (
             <div className="p-10 text-center text-xs" style={{ color: 'var(--ink-3)' }}>
-              No purchase orders found.
+              {t('purchase.no_pos')}
             </div>
           )}
           {!loading &&
@@ -1439,7 +1469,9 @@ function PurchaseOrdersTab() {
                 <span className="font-mono text-[11px]" style={{ color: 'var(--ink-3)' }}>
                   {po.expectedDeliveryAt ? fmtDate(po.expectedDeliveryAt) : '—'}
                 </span>
-                <Badge color={PO_STATUS_COLOR[po.status]}>{titleCase(po.status)}</Badge>
+                <Badge color={PO_STATUS_COLOR[po.status]}>
+                  {t(STATUS_KEY[po.status] ?? po.status)}
+                </Badge>
                 <div className="text-right">
                   <div
                     className="font-mono text-[12.5px] font-semibold"
@@ -1483,7 +1515,7 @@ function PurchaseOrdersTab() {
           }}
         >
           <p className="text-xs text-center px-8" style={{ color: 'var(--ink-3)' }}>
-            Select a purchase order to inspect lines, approvals, and receipt status.
+            {t('purchase.select_po_hint')}
           </p>
         </aside>
       )}
@@ -1506,6 +1538,7 @@ interface FlatGrn {
 }
 
 function GoodsReceiptsTab() {
+  const { t } = useTranslation();
   const [grns, setGrns] = useState<FlatGrn[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -1565,11 +1598,11 @@ function GoodsReceiptsTab() {
         }}
       >
         <span>GRN</span>
-        <span>Against PO</span>
-        <span>Supplier</span>
-        <span>Date</span>
-        <span>Receipt</span>
-        <span>Discrepancy</span>
+        <span>{t('purchase.col_against_po')}</span>
+        <span>{t('purchase.col_supplier')}</span>
+        <span>{t('common.date')}</span>
+        <span>{t('purchase.col_receipt')}</span>
+        <span>{t('purchase.col_discrepancy')}</span>
       </div>
 
       <div className="flex-1 overflow-y-auto" style={{ background: 'var(--surface)' }}>
@@ -1580,7 +1613,7 @@ function GoodsReceiptsTab() {
         )}
         {!loading && grns.length === 0 && (
           <div className="p-10 text-center text-xs" style={{ color: 'var(--ink-3)' }}>
-            No goods receipts yet.
+            {t('purchase.no_grns')}
           </div>
         )}
         {!loading &&
@@ -1612,7 +1645,8 @@ function GoodsReceiptsTab() {
                 className="text-[11.5px] truncate"
                 style={{ color: g.hasDiscrepancy ? 'var(--sig-amber)' : 'var(--ink-3)' }}
               >
-                {g.notes ?? (g.hasDiscrepancy ? 'Partial receipt' : 'Full receipt')}
+                {g.notes ??
+                  (g.hasDiscrepancy ? t('purchase.partial_receipt') : t('purchase.full_receipt'))}
               </span>
             </div>
           ))}
@@ -1634,6 +1668,7 @@ interface SupplierFull {
 }
 
 function SuppliersTab() {
+  const { t } = useTranslation();
   const [suppliers, setSuppliers] = useState<SupplierFull[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1670,10 +1705,10 @@ function SuppliersTab() {
         style={{ background: 'var(--surface)', borderBottom: '1px solid var(--hairline)' }}
       >
         <span className="text-xs" style={{ color: 'var(--ink-3)' }}>
-          Vendors available when creating purchase orders.
+          {t('purchase.vendors_available')}
         </span>
         <Button size="sm" onClick={() => setCreating(true)}>
-          + New Supplier
+          {t('purchase.new_supplier')}
         </Button>
       </div>
 
@@ -1687,10 +1722,10 @@ function SuppliersTab() {
           borderBottom: '1px solid var(--border)',
         }}
       >
-        <span>Name</span>
-        <span>Contact</span>
-        <span>Email</span>
-        <span>Country</span>
+        <span>{t('purchase.col_name')}</span>
+        <span>{t('purchase.col_contact')}</span>
+        <span>{t('purchase.col_email')}</span>
+        <span>{t('purchase.col_country')}</span>
         <span />
       </div>
 
@@ -1708,14 +1743,14 @@ function SuppliersTab() {
         {!loading && !error && suppliers.length === 0 && (
           <div className="p-10 text-center">
             <p className="text-xs mb-2" style={{ color: 'var(--ink-3)' }}>
-              No suppliers yet.
+              {t('purchase.no_suppliers')}
             </p>
             <button
               className="text-xs font-medium underline"
               style={{ color: 'var(--sig-blue)' }}
               onClick={() => setCreating(true)}
             >
-              Add the first one
+              {t('purchase.add_first_supplier')}
             </button>
           </div>
         )}
@@ -1754,14 +1789,14 @@ function SuppliersTab() {
                   style={{ color: 'var(--ink-2)' }}
                   onClick={() => setEditing(s)}
                 >
-                  Edit
+                  {t('common.edit')}
                 </button>
                 <button
                   className="text-xs font-medium"
                   style={{ color: 'var(--sig-red)' }}
                   onClick={() => handleDelete(s.id, s.name)}
                 >
-                  Delete
+                  {t('common.delete')}
                 </button>
               </div>
             </div>
@@ -1793,6 +1828,7 @@ function SuppliersTab() {
 // ─── Footer stats bar ─────────────────────────────────────────────────────────
 
 function FooterStats({ pos }: { pos: PurchaseOrder[] }) {
+  const { t } = useTranslation();
   const inTransit = pos.filter((p) =>
     ['IN_TRANSIT', 'PARTIALLY_RECEIVED'].includes(p.status),
   ).length;
@@ -1814,24 +1850,24 @@ function FooterStats({ pos }: { pos: PurchaseOrder[] }) {
         <b className="font-mono" style={{ color: 'var(--ink)' }}>
           {pos.length}
         </b>{' '}
-        POs
+        {t('purchase.pos_count')}
       </span>
       <span style={{ color: 'var(--hairline)' }}>·</span>
       <span>
         <b className="font-mono" style={{ color: 'var(--sig-amber)' }}>
           {inTransit}
         </b>{' '}
-        in transit
+        {t('purchase.in_transit')}
       </span>
       <span style={{ color: 'var(--hairline)' }}>·</span>
       <span>
         <b className="font-mono" style={{ color: 'var(--sig-blue)' }}>
           {active}
         </b>{' '}
-        active
+        {t('purchase.active')}
       </span>
       <div className="flex-1" />
-      <span style={{ color: 'var(--ink-3)' }}>Open PO value</span>
+      <span style={{ color: 'var(--ink-3)' }}>{t('purchase.open_po_value')}</span>
       <span
         className="font-mono text-[13px] font-semibold"
         style={{ color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}
@@ -1846,17 +1882,17 @@ function FooterStats({ pos }: { pos: PurchaseOrder[] }) {
 
 type Tab = 'requisitions' | 'rfq' | 'po' | 'grn' | 'suppliers';
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'requisitions', label: 'Requisitions' },
-  { id: 'rfq', label: 'RFQs' },
-  { id: 'po', label: 'Purchase Orders' },
-  { id: 'grn', label: 'Goods Receipts' },
-  { id: 'suppliers', label: 'Suppliers' },
-];
-
 export function PurchasePage() {
+  const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
   const tab = (params.get('tab') as Tab | null) ?? 'requisitions';
+  const tabs: { id: Tab; label: string }[] = [
+    { id: 'requisitions', label: t('purchase.tab_requisitions') },
+    { id: 'rfq', label: t('purchase.tab_rfqs') },
+    { id: 'po', label: t('purchase.tab_pos') },
+    { id: 'grn', label: t('purchase.tab_grns') },
+    { id: 'suppliers', label: t('purchase.tab_suppliers') },
+  ];
   const [search, setSearch] = useState('');
   const [pos, setPOs] = useState<PurchaseOrder[]>([]);
   const [creating, setCreating] = useState(false);
@@ -1891,7 +1927,7 @@ export function PurchasePage() {
           className="text-[16px] font-semibold m-0"
           style={{ color: 'var(--ink)', letterSpacing: '-0.01em' }}
         >
-          Purchase
+          {t('purchase.title')}
         </h1>
         <div className="flex-1" />
         {/* Search */}
@@ -1916,13 +1952,13 @@ export function PurchasePage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search PO, supplier, requisition…"
+            placeholder={t('purchase.search_placeholder')}
             className="flex-1 bg-transparent outline-none text-[12px]"
             style={{ color: 'var(--ink)', border: 'none' }}
           />
         </div>
         <Button size="sm" onClick={() => setCreating(true)}>
-          + New Requisition
+          {t('purchase.new_requisition')}
         </Button>
       </div>
 
@@ -1931,18 +1967,18 @@ export function PurchasePage() {
         className="flex gap-0 flex-shrink-0 px-4"
         style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}
       >
-        {TABS.map((t) => (
+        {tabs.map((tabItem) => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
+            key={tabItem.id}
+            onClick={() => setTab(tabItem.id)}
             className="px-4 py-2.5 text-[13px] font-medium border-b-2 transition-colors flex items-center gap-2"
             style={
-              tab === t.id
+              tab === tabItem.id
                 ? { borderBottomColor: 'var(--navy)', color: 'var(--navy)', marginBottom: '-1px' }
                 : { borderBottomColor: 'transparent', color: 'var(--ink-3)' }
             }
           >
-            {t.label}
+            {tabItem.label}
           </button>
         ))}
       </div>

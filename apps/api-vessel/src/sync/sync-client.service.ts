@@ -1,4 +1,11 @@
-import { GrpcSyncTransport, SyncEngine, type SyncDelta } from '@fleetops/sync-engine';
+import {
+  GrpcSyncTransport,
+  NodemailerImapProvider,
+  SmtpSyncTransport,
+  SyncEngine,
+  type SyncDelta,
+  type SyncTransport,
+} from '@fleetops/sync-engine';
 import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { resolve } from 'node:path';
 import { DrizzleSyncAdapter } from './drizzle-sync-adapter';
@@ -37,7 +44,7 @@ const RECONNECT_BASE_DELAY_MS = 1_000;
 export class SyncClientService implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly log = new Logger(SyncClientService.name);
   private engine: SyncEngine | null = null;
-  private transport: GrpcSyncTransport | null = null;
+  private transport: SyncTransport | null = null;
   private reconnectAttempt = 0;
   private drainTimer: NodeJS.Timeout | null = null;
   private stopping = false;
@@ -62,7 +69,11 @@ export class SyncClientService implements OnApplicationBootstrap, OnApplicationS
     const { clock, nodeId } = this.clocks.entryFor(tenantId, vesselId);
     this.engine = new SyncEngine(this.adapter, clock, nodeId);
 
-    void this.connectLoop({ tenantId, vesselId, nodeId });
+    if (process.env['SMTP_SYNC_ENABLED'] === '1') {
+      await this.bootSmtp({ tenantId, vesselId, nodeId });
+    } else {
+      void this.connectLoop({ tenantId, vesselId, nodeId });
+    }
   }
 
   async onApplicationShutdown(): Promise<void> {
@@ -141,6 +152,67 @@ export class SyncClientService implements OnApplicationBootstrap, OnApplicationS
     } catch (err) {
       this.log.warn(`outbox drain failed: ${(err as Error).message}`);
     }
+  }
+
+  /**
+   * Boot the SMTP fallback transport (ADR 0002 §6). Used when
+   * `SMTP_SYNC_ENABLED=1`. The vessel periodically flushes its outbox as a
+   * batch email; the shore's IMAP poll drives the exchange.
+   *
+   * Required env vars: SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS,
+   *   IMAP_HOST, IMAP_PORT, IMAP_SECURE, IMAP_USER, IMAP_PASS,
+   *   SMTP_SYNC_FROM_ADDRESS, SMTP_SYNC_TO_ADDRESS (shore email),
+   *   SMTP_SYNC_BATCH_INTERVAL_MS (default 3 600 000).
+   */
+  private async bootSmtp(opts: {
+    tenantId: string;
+    vesselId: string;
+    nodeId: string;
+  }): Promise<void> {
+    const smtpPort = Number(process.env['SMTP_PORT'] ?? '587');
+    const imapPort = Number(process.env['IMAP_PORT'] ?? '993');
+    const smtpSecure = process.env['SMTP_SECURE'] === '1';
+    const imapSecure = process.env['IMAP_SECURE'] !== '0';
+    const batchIntervalMs = Number(process.env['SMTP_SYNC_BATCH_INTERVAL_MS'] ?? 3_600_000);
+    const pollIntervalMs = Number(process.env['SMTP_SYNC_POLL_INTERVAL_MS'] ?? 300_000);
+
+    const provider = new NodemailerImapProvider({
+      smtp: {
+        host: process.env['SMTP_HOST'] ?? 'localhost',
+        port: smtpPort,
+        secure: smtpSecure,
+        auth: { user: process.env['SMTP_USER'] ?? '', pass: process.env['SMTP_PASS'] ?? '' },
+      },
+      imap: {
+        host: process.env['IMAP_HOST'] ?? 'localhost',
+        port: imapPort,
+        secure: imapSecure,
+        auth: { user: process.env['IMAP_USER'] ?? '', pass: process.env['IMAP_PASS'] ?? '' },
+      },
+      pollIntervalMs,
+    });
+
+    const transport = new SmtpSyncTransport(
+      {
+        nodeId: opts.nodeId,
+        tenantId: opts.tenantId,
+        vesselId: opts.vesselId,
+        fromAddress:
+          process.env['SMTP_SYNC_FROM_ADDRESS'] ?? process.env['SMTP_USER'] ?? 'vessel@fleetops.io',
+        toAddress: process.env['SMTP_SYNC_TO_ADDRESS'] ?? 'shore@fleetops.io',
+        batchIntervalMs,
+      },
+      provider,
+    );
+
+    await transport.start(async (d: SyncDelta) => {
+      if (this.engine !== null) await this.engine.applyRemoteDelta(d);
+    });
+    this.transport = transport;
+    this.log.log(
+      `SMTP sync transport active — batch every ${batchIntervalMs}ms, IMAP poll every ${pollIntervalMs}ms`,
+    );
+    this.startDrainLoop();
   }
 
   /** Test accessor — exposed for e2e verification, not for app code. */

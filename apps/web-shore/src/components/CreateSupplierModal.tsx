@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -18,6 +19,7 @@ const EMPTY = {
 };
 
 export function CreateSupplierModal({ open, onClose, onCreated }: Props) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,15 +62,15 @@ export function CreateSupplierModal({ open, onClose, onCreated }: Props) {
   return (
     <Modal
       open={open}
-      title="New Supplier"
+      title={t('purchase.new_supplier')}
       onClose={handleClose}
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Create Supplier
+            {t('purchase.new_supplier')}
           </Button>
         </>
       }
@@ -79,7 +81,7 @@ export function CreateSupplierModal({ open, onClose, onCreated }: Props) {
         )}
         <Input
           id="sup-name"
-          label="Company name *"
+          label={`${t('companies.company_name')} *`}
           value={form.name}
           onChange={set('name')}
           autoFocus
@@ -87,13 +89,13 @@ export function CreateSupplierModal({ open, onClose, onCreated }: Props) {
         <div className="grid grid-cols-2 gap-3">
           <Input
             id="sup-contact"
-            label="Contact person"
+            label={t('purchase.col_contact')}
             value={form.contactName}
             onChange={set('contactName')}
           />
           <Input
             id="sup-email"
-            label="Email"
+            label={t('purchase.col_email')}
             type="email"
             value={form.contactEmail}
             onChange={set('contactEmail')}
@@ -106,7 +108,7 @@ export function CreateSupplierModal({ open, onClose, onCreated }: Props) {
           />
           <Input
             id="sup-country"
-            label="Country"
+            label={t('purchase.col_country')}
             value={form.country}
             onChange={set('country')}
             placeholder="NL"
@@ -114,7 +116,7 @@ export function CreateSupplierModal({ open, onClose, onCreated }: Props) {
         </div>
         <TextArea
           id="sup-addr"
-          label="Address"
+          label={t('inventory.location')}
           rows={2}
           value={form.address}
           onChange={set('address')}

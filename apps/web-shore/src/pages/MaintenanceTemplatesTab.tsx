@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Spinner } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 import type { Job } from '../components/EditJobModal.js';
@@ -35,6 +36,7 @@ export function MaintenanceTemplatesTab({
   onEditJob,
   onScheduleJob,
 }: TemplatesTabProps) {
+  const { t } = useTranslation();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [compsById, setCompsById] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -67,7 +69,7 @@ export function MaintenanceTemplatesTab({
     <div>
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
         <Button variant="secondary" size="sm" onClick={() => onCreateJob('', '')}>
-          + New Job Template
+          {t('maintenance.new_job')}
         </Button>
       </div>
 
@@ -90,7 +92,7 @@ export function MaintenanceTemplatesTab({
               color: '#8893A0',
             }}
           >
-            Job
+            {t('maintenance.job')}
           </span>
           <span
             style={{
@@ -101,7 +103,7 @@ export function MaintenanceTemplatesTab({
               color: '#8893A0',
             }}
           >
-            Component
+            {t('maintenance.tab_components')}
           </span>
           <span
             style={{
@@ -112,7 +114,7 @@ export function MaintenanceTemplatesTab({
               color: '#8893A0',
             }}
           >
-            Interval
+            {t('maintenance.interval_days')}
           </span>
           <span
             style={{
@@ -123,7 +125,7 @@ export function MaintenanceTemplatesTab({
               color: '#8893A0',
             }}
           >
-            Priority
+            {t('common.status')}
           </span>
           <span
             style={{
@@ -135,7 +137,7 @@ export function MaintenanceTemplatesTab({
               textAlign: 'right',
             }}
           >
-            Est. h
+            {t('maintenance.hours_abbr')}
           </span>
           <span />
         </div>
@@ -144,7 +146,7 @@ export function MaintenanceTemplatesTab({
           <div
             style={{ padding: '32px 16px', textAlign: 'center', color: '#8893A0', fontSize: 12 }}
           >
-            No job templates yet. Add one via the Components tab.
+            {t('maintenance.no_templates')}
           </div>
         )}
 
@@ -269,7 +271,7 @@ export function MaintenanceTemplatesTab({
                     fontFamily: 'inherit',
                   }}
                 >
-                  + Instance
+                  {t('maintenance.add_instance')}
                 </button>
                 <button
                   onClick={() => onEditJob(j, compName)}
@@ -284,7 +286,7 @@ export function MaintenanceTemplatesTab({
                     fontFamily: 'inherit',
                   }}
                 >
-                  Edit
+                  {t('common.edit')}
                 </button>
               </div>
             </div>

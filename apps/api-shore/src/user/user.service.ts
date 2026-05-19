@@ -1,9 +1,16 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { newId } from '@fleetops/domain';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateUserDto } from './dto/create-user.dto';
+import type { UpdateProfileDto } from './dto/update-profile.dto';
 
 const SALT_ROUNDS = 12;
 
@@ -145,6 +152,82 @@ export class UserService {
     });
     if (!user) throw new NotFoundException(`Super admin ${email} not found`);
     return user;
+  }
+
+  async getMe(userId: string, tenantId: string | null) {
+    const where = { id: userId, deletedAt: null as Date | null };
+    const select = {
+      id: true,
+      email: true,
+      username: true,
+      firstName: true,
+      lastName: true,
+      role: true,
+    };
+    const user = tenantId
+      ? await this.prisma.withTenant(tenantId, (tx) => tx.user.findFirst({ where, select }))
+      : await this.prisma.user.findFirst({ where, select });
+    if (!user) throw new NotFoundException('User not found');
+    return user;
+  }
+
+  async updateMe(userId: string, tenantId: string | null, dto: UpdateProfileDto) {
+    const where = { id: userId, deletedAt: null as Date | null };
+    const existing = tenantId
+      ? await this.prisma.withTenant(tenantId, (tx) => tx.user.findFirst({ where }))
+      : await this.prisma.user.findFirst({ where });
+    if (!existing) throw new NotFoundException('User not found');
+
+    if (dto.newPassword) {
+      if (!dto.currentPassword) {
+        throw new BadRequestException('currentPassword is required to set a new password');
+      }
+      if (!existing.passwordHash) {
+        throw new BadRequestException('This account uses SSO — password change not allowed');
+      }
+      const valid = await bcrypt.compare(dto.currentPassword, existing.passwordHash);
+      if (!valid) throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    const data: Record<string, unknown> = {};
+    if (dto.firstName !== undefined) data['firstName'] = dto.firstName || null;
+    if (dto.lastName !== undefined) data['lastName'] = dto.lastName || null;
+    if (dto.email !== undefined) data['email'] = dto.email;
+    if (dto.newPassword) data['passwordHash'] = await bcrypt.hash(dto.newPassword, SALT_ROUNDS);
+
+    const updated = tenantId
+      ? await this.prisma.withTenant(tenantId, (tx) =>
+          tx.user.update({
+            where: { id: userId },
+            data,
+            select: {
+              id: true,
+              tenantId: true,
+              vesselId: true,
+              email: true,
+              username: true,
+              firstName: true,
+              lastName: true,
+              role: true,
+            },
+          }),
+        )
+      : await this.prisma.user.update({
+          where: { id: userId },
+          data,
+          select: {
+            id: true,
+            tenantId: true,
+            vesselId: true,
+            email: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+          },
+        });
+
+    return updated;
   }
 
   /** Creates a SUPER_ADMIN with no tenant. Bypasses withTenant(). */

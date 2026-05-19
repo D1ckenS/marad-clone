@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { Badge, type BadgeColor, Spinner } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
@@ -97,11 +98,11 @@ interface ManagementReview {
 
 // ─── Metadata ─────────────────────────────────────────────────────────────────
 
-const CAT_META: Record<ObjCategory, { label: string; color: BadgeColor; short: string }> = {
-  safety: { label: 'Safety', color: 'red', short: 'SAFE' },
-  quality: { label: 'Quality', color: 'blue', short: 'QUAL' },
-  env: { label: 'Environmental', color: 'green', short: 'ENV' },
-  health: { label: 'Health', color: 'purple', short: 'HLTH' },
+const CAT_META: Record<ObjCategory, { labelKey: string; color: BadgeColor; short: string }> = {
+  safety: { labelKey: 'qhse.cat_safety', color: 'red', short: 'SAFE' },
+  quality: { labelKey: 'qhse.cat_quality', color: 'blue', short: 'QUAL' },
+  env: { labelKey: 'qhse.cat_env', color: 'green', short: 'ENV' },
+  health: { labelKey: 'qhse.cat_health', color: 'purple', short: 'HLTH' },
 };
 
 const toneColor = (t: string): BadgeColor =>
@@ -115,21 +116,14 @@ const toneColor = (t: string): BadgeColor =>
           ? 'green'
           : 'slate';
 
-const stageMeta: Record<number, { label: string; tone: string; bg: string }> = {
-  1: { label: 'Awareness', tone: 'var(--sig-red)', bg: '#F2DDD8' },
-  2: { label: 'Implementation', tone: 'var(--sig-amber)', bg: '#F4E7D0' },
-  3: { label: 'Measurement', tone: 'var(--sig-blue)', bg: '#DDE7F3' },
-  4: { label: 'Continuous improvement', tone: 'var(--sig-green)', bg: '#E2EEE6' },
+const stageMeta: Record<number, { labelKey: string; tone: string; bg: string }> = {
+  1: { labelKey: 'qhse.awareness', tone: 'var(--sig-red)', bg: '#F2DDD8' },
+  2: { labelKey: 'qhse.implementation', tone: 'var(--sig-amber)', bg: '#F4E7D0' },
+  3: { labelKey: 'qhse.measurement', tone: 'var(--sig-blue)', bg: '#DDE7F3' },
+  4: { labelKey: 'qhse.continuous_improvement', tone: 'var(--sig-green)', bg: '#E2EEE6' },
 };
 
 type Tab = 'obj' | 'audit' | 'env' | 'dryb' | 'review';
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'obj', label: 'Objectives' },
-  { id: 'audit', label: 'Audits' },
-  { id: 'env', label: 'Environmental' },
-  { id: 'dryb', label: 'DryBMS' },
-  { id: 'review', label: 'Management review' },
-];
 
 // ─── Shared atoms ─────────────────────────────────────────────────────────────
 
@@ -205,6 +199,7 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
 // ─── Objectives tab ───────────────────────────────────────────────────────────
 
 function ObjectivesTab({ objectives, loading }: { objectives: QhseObjective[]; loading: boolean }) {
+  const { t } = useTranslation();
   const [catFilter, setCatFilter] = useState<'all' | ObjCategory>('all');
   if (loading)
     return (
@@ -246,10 +241,11 @@ function ObjectivesTab({ objectives, loading }: { objectives: QhseObjective[]; l
           className="text-[10.5px] font-semibold uppercase tracking-widest"
           style={{ color: 'var(--ink-3)' }}
         >
-          Category
+          {t('qhse.category')}
         </span>
         <button onClick={() => setCatFilter('all')} style={chipStyle(catFilter === 'all')}>
-          All · {objectives.length}
+          {t('qhse.category_all')}
+          {objectives.length}
         </button>
         {(Object.entries(CAT_META) as [ObjCategory, (typeof CAT_META)[ObjCategory]][]).map(
           ([k, v]) => (
@@ -269,14 +265,14 @@ function ObjectivesTab({ objectives, loading }: { objectives: QhseObjective[]; l
                           : '#5E479F',
                 }}
               />
-              {v.label}
+              {t(v.labelKey)}
             </button>
           ),
         )}
         <div className="flex-1" />
         <span className="text-[11.5px]" style={{ color: 'var(--ink-3)' }}>
-          {visible.filter((o) => o.status === 'green').length} on target ·{' '}
-          {visible.filter((o) => o.status !== 'green').length} attention
+          {visible.filter((o) => o.status === 'green').length} {t('qhse.on_target')} ·{' '}
+          {visible.filter((o) => o.status !== 'green').length} {t('qhse.attention')}
         </span>
       </div>
 
@@ -293,11 +289,11 @@ function ObjectivesTab({ objectives, loading }: { objectives: QhseObjective[]; l
                     className="text-[10.5px] font-semibold uppercase tracking-widest"
                     style={{ color: 'var(--ink-3)' }}
                   >
-                    {m.label}
+                    {t(m.labelKey)}
                   </span>
                   <Badge color={m.color}>{m.short}</Badge>
                   <span className="text-[11px]" style={{ color: 'var(--ink-3)' }}>
-                    {items.length} KPI{items.length === 1 ? '' : 's'}
+                    {items.length} {items.length === 1 ? t('qhse.kpi') : t('qhse.kpis')}
                   </span>
                 </div>
                 <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
@@ -348,7 +344,7 @@ function ObjectivesTab({ objectives, loading }: { objectives: QhseObjective[]; l
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="font-mono text-[10px]" style={{ color: 'var(--ink-3)' }}>
-                            target {o.target}
+                            {t('qhse.target_lower')} {o.target}
                           </span>
                           <Sparkline data={o.trend} color={color} />
                         </div>
@@ -376,6 +372,7 @@ function AuditsTab({
   auditFindings: AuditFinding[];
   loading: boolean;
 }) {
+  const { t } = useTranslation();
   if (loading)
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -390,23 +387,23 @@ function AuditsTab({
     <div className="flex-1 overflow-y-auto min-h-0" style={{ background: 'var(--bg)' }}>
       <div className="grid gap-2 p-4" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
         <KpiTile
-          label="Audits · 12mo"
+          label={t('qhse.audits_12mo')}
           value={audits.length}
           sub={`${audits.filter((a) => a.kind === 'External').length} ext · ${audits.filter((a) => a.kind === 'Internal').length} int`}
         />
         <KpiTile
-          label="Open SMS findings"
+          label={t('qhse.open_sms_findings')}
           value={openFindings.length}
-          sub={`${openFindings.filter((f) => f.classification.includes('NC')).length} NC · ${openFindings.filter((f) => f.classification === 'OFI').length} OFI`}
+          sub={`${openFindings.filter((f) => f.classification.includes('NC')).length} ${t('qhse.nc')} ${openFindings.filter((f) => f.classification === 'OFI').length} ${t('qhse.ofi')}`}
           {...(openFindings.length > 0 ? { accent: 'var(--sig-amber)' } : {})}
         />
         <KpiTile
-          label="Overdue close-outs"
+          label={t('qhse.overdue_closeouts')}
           value={overdue}
           sub=""
           {...(overdue > 0 ? { accent: 'var(--sig-red)' } : {})}
         />
-        <KpiTile label="Avg close-out" value="—" sub="target ≤ 60d" />
+        <KpiTile label={t('qhse.avg_closeout')} value="—" sub={t('qhse.target_60d')} />
       </div>
 
       {/* Schedule */}
@@ -419,12 +416,12 @@ function AuditsTab({
             className="flex items-center gap-3 px-4 py-2.5"
             style={{ borderBottom: '1px solid var(--hairline)', background: 'var(--surface-sunk)' }}
           >
-            <span className="text-[12px] font-semibold">Audit schedule</span>
+            <span className="text-[12px] font-semibold">{t('qhse.audit_schedule')}</span>
             <span
               className="text-[10.5px] font-semibold uppercase tracking-widest"
               style={{ color: 'var(--ink-3)' }}
             >
-              LAST 6 · NEXT 6 MONTHS
+              {t('qhse.last_6_next_6')}
             </span>
             <div className="flex-1" />
             <button
@@ -436,7 +433,7 @@ function AuditsTab({
                 cursor: 'pointer',
               }}
             >
-              + Schedule
+              {t('qhse.schedule_audit')}
             </button>
           </div>
           <div
@@ -448,16 +445,16 @@ function AuditsTab({
               borderBottom: '1px solid var(--hairline)',
             }}
           >
-            <span>ID</span>
-            <span>Kind</span>
-            <span>Scope</span>
-            <span>Auditor</span>
-            <span>When</span>
-            <span>Findings</span>
+            <span>{t('qhse.col_id')}</span>
+            <span>{t('qhse.col_kind')}</span>
+            <span>{t('qhse.col_scope')}</span>
+            <span>{t('qhse.col_auditor')}</span>
+            <span>{t('qhse.col_when')}</span>
+            <span>{t('qhse.col_findings')}</span>
             <span />
           </div>
           {audits.length === 0 ? (
-            <EmptyState msg="No audits scheduled. Internal and external audits will appear here." />
+            <EmptyState msg={t('qhse.no_audits')} />
           ) : (
             audits.map((a) => (
               <div
@@ -516,7 +513,7 @@ function AuditsTab({
                 background: 'var(--surface-sunk)',
               }}
             >
-              Open SMS findings
+              {t('qhse.open_sms_findings')}
             </div>
             <div
               className="grid gap-2 px-4 py-2 text-[10.5px] font-semibold uppercase tracking-widest"
@@ -527,12 +524,12 @@ function AuditsTab({
                 borderBottom: '1px solid var(--hairline)',
               }}
             >
-              <span>ID</span>
-              <span>Class</span>
-              <span>From</span>
-              <span>Finding / SMS ref</span>
-              <span>Owner / due</span>
-              <span>Days left</span>
+              <span>{t('qhse.col_id')}</span>
+              <span>{t('qhse.col_class')}</span>
+              <span>{t('qhse.col_from')}</span>
+              <span>{t('qhse.col_finding_ref')}</span>
+              <span>{t('qhse.col_owner_due')}</span>
+              <span>{t('qhse.col_days_left')}</span>
               <span />
             </div>
             {auditFindings.map((f) => (
@@ -575,7 +572,7 @@ function AuditsTab({
                     {f.owner}
                   </div>
                   <div className="font-mono text-[10.5px]" style={{ color: 'var(--ink-3)' }}>
-                    due {f.dueAt}
+                    {f.dueAt}
                   </div>
                 </div>
                 <Badge color={f.daysLeft < 0 ? 'red' : f.daysLeft < 14 ? 'amber' : 'green'}>
@@ -590,7 +587,7 @@ function AuditsTab({
                     color: 'var(--ink-2)',
                   }}
                 >
-                  Close
+                  {t('common.close_verb')}
                 </button>
               </div>
             ))}
@@ -683,6 +680,7 @@ function EnvironmentalTab({
   discharges: DischargeLog[];
   loading: boolean;
 }) {
+  const { t } = useTranslation();
   if (loading)
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -698,28 +696,34 @@ function EnvironmentalTab({
     <div className="flex-1 overflow-y-auto min-h-0" style={{ background: 'var(--bg)' }}>
       <div className="grid gap-2 p-4" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
         <KpiTile
-          label="CII rating · YTD"
+          label={t('qhse.cii_rating')}
           value="—"
-          sub="configure fleet reporting"
+          sub={t('qhse.configure_reporting')}
           accent="var(--sig-amber)"
         />
         <KpiTile
-          label={`Fuel · ${legs.length} legs`}
+          label={`${t('qhse.fuel')} ${legs.length} ${t('qhse.legs')}`}
           value={totalFuel > 0 ? `${totalFuel.toFixed(0)} t` : '—'}
           sub={
-            totalNm > 0 ? `${((totalFuel / totalNm) * 1000).toFixed(1)} kg/nm` : 'no voyages yet'
+            totalNm > 0
+              ? `${((totalFuel / totalNm) * 1000).toFixed(1)} kg/nm`
+              : t('qhse.no_voyages')
           }
         />
         <KpiTile
-          label="CO₂ · YTD"
+          label={t('qhse.co2_ytd')}
           value={totalCO2 > 0 ? `${(totalCO2 / 1000).toFixed(1)} kt` : '—'}
-          sub="vs CII baseline"
+          sub={t('qhse.vs_cii_baseline')}
         />
-        <KpiTile label="Discharge logs" value={discharges.length} sub="last 30 days" />
         <KpiTile
-          label="Distance"
+          label={t('qhse.discharge_logs')}
+          value={discharges.length}
+          sub={t('qhse.last_30_days')}
+        />
+        <KpiTile
+          label={t('qhse.col_distance')}
           value={totalNm > 0 ? `${(totalNm / 1000).toFixed(1)} k nm` : '—'}
-          sub={`${legs.reduce((a, l) => a + l.hours, 0)} h underway`}
+          sub={`${legs.reduce((a, l) => a + l.hours, 0)} ${t('qhse.col_h_underway')}`}
         />
       </div>
 
@@ -732,10 +736,10 @@ function EnvironmentalTab({
             className="flex items-center gap-3 px-4 py-2.5"
             style={{ borderBottom: '1px solid var(--hairline)', background: 'var(--surface-sunk)' }}
           >
-            <span className="text-[12px] font-semibold">CII rating — annual efficiency ratio</span>
+            <span className="text-[12px] font-semibold">{t('qhse.cii_annual_ratio')}</span>
             <div className="flex-1" />
             <span className="font-mono text-[11px]" style={{ color: 'var(--ink-2)' }}>
-              gCO₂ / t·nm · IMO MEPC 337(76)
+              {t('qhse.cii_mepc')}
             </span>
           </div>
           <CIIBands current={null} />
@@ -751,7 +755,7 @@ function EnvironmentalTab({
             className="px-4 py-2.5 text-[12px] font-semibold"
             style={{ borderBottom: '1px solid var(--hairline)', background: 'var(--surface-sunk)' }}
           >
-            Voyage emissions · IMO DCS / EU MRV
+            {t('qhse.voyage_emissions')}
           </div>
           <div
             className="grid gap-2 px-4 py-2 text-[10.5px] font-semibold uppercase tracking-widest"
@@ -762,14 +766,14 @@ function EnvironmentalTab({
               borderBottom: '1px solid var(--hairline)',
             }}
           >
-            <span>Leg</span>
-            <span>Route</span>
-            <span>Dates</span>
-            <span style={{ textAlign: 'right' }}>nm</span>
-            <span style={{ textAlign: 'right' }}>Fuel (t)</span>
-            <span style={{ textAlign: 'right' }}>CO₂ (t)</span>
-            <span style={{ textAlign: 'right' }}>SOx</span>
-            <span style={{ textAlign: 'right' }}>NOx</span>
+            <span>{t('qhse.col_leg')}</span>
+            <span>{t('qhse.col_route')}</span>
+            <span>{t('qhse.col_dates')}</span>
+            <span style={{ textAlign: 'right' }}>{t('qhse.col_nm')}</span>
+            <span style={{ textAlign: 'right' }}>{t('qhse.col_fuel_t')}</span>
+            <span style={{ textAlign: 'right' }}>{t('qhse.col_co2_t')}</span>
+            <span style={{ textAlign: 'right' }}>{t('qhse.col_sox')}</span>
+            <span style={{ textAlign: 'right' }}>{t('qhse.col_nox')}</span>
           </div>
           {legs.length === 0 ? (
             <EmptyState msg="No voyage legs recorded. Log fuel consumption data to generate IMO DCS and EU MRV reports." />
@@ -838,7 +842,7 @@ function EnvironmentalTab({
                 background: 'var(--surface-sunk)',
               }}
             >
-              <span className="text-[12px] font-semibold">MARPOL discharge log · last 30 days</span>
+              <span className="text-[12px] font-semibold">{t('qhse.marpol_log')}</span>
               <div className="flex-1" />
               <button
                 className="text-[11px] px-2 py-0.5 rounded-1 border"
@@ -849,7 +853,7 @@ function EnvironmentalTab({
                   color: 'var(--ink-2)',
                 }}
               >
-                Open record books
+                {t('qhse.open_record_books')}
               </button>
             </div>
             <div
@@ -861,11 +865,11 @@ function EnvironmentalTab({
                 borderBottom: '1px solid var(--hairline)',
               }}
             >
-              <span>ID</span>
-              <span>Kind</span>
-              <span>When</span>
-              <span>Notes</span>
-              <span style={{ textAlign: 'right' }}>Volume</span>
+              <span>{t('qhse.col_id')}</span>
+              <span>{t('qhse.col_kind')}</span>
+              <span>{t('common.date')}</span>
+              <span>{t('common.notes')}</span>
+              <span style={{ textAlign: 'right' }}>{t('qhse.col_volume')}</span>
               <span />
             </div>
             {discharges.map((d) => (
@@ -915,6 +919,7 @@ function EnvironmentalTab({
 // ─── DryBMS tab ───────────────────────────────────────────────────────────────
 
 function DryBmsTab({ elements, loading }: { elements: DryBmsElement[]; loading: boolean }) {
+  const { t } = useTranslation();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   if (loading)
     return (
@@ -940,26 +945,26 @@ function DryBmsTab({ elements, loading }: { elements: DryBmsElement[]; loading: 
     <div className="flex-1 overflow-y-auto min-h-0" style={{ background: 'var(--bg)' }}>
       <div className="grid gap-2 p-4" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
         <KpiTile
-          label="Avg maturity"
+          label={t('qhse.avg_maturity')}
           value={avg}
-          sub={`of 4.0 · ${elements.length} elements`}
+          sub={`${t('qhse.of_4')} ${elements.length} ${t('qhse.elements')}`}
           accent="var(--navy)"
         />
         <KpiTile
-          label="At / above target"
+          label={t('qhse.at_above_target')}
           value={elements.length ? `${atTarget}/${elements.length}` : '—'}
           sub={elements.length ? `${Math.round((atTarget / elements.length) * 100)}%` : ''}
           accent="var(--sig-green)"
         />
         <KpiTile
-          label="Below target"
+          label={t('qhse.below_target')}
           value={elements.length ? elements.length - atTarget : '—'}
-          sub="see remediation plan"
+          sub={t('qhse.remediation_plan')}
           {...(elements.length && elements.length - atTarget > 0
             ? { accent: 'var(--sig-amber)' }
             : {})}
         />
-        <KpiTile label="Last assessed" value="—" sub="RightShip / DPA" />
+        <KpiTile label={t('qhse.last_assessed')} value="—" sub="RightShip / DPA" />
       </div>
 
       {elements.length === 0 ? (
@@ -977,9 +982,7 @@ function DryBmsTab({ elements, loading }: { elements: DryBmsElement[]; loading: 
                 background: 'var(--surface-sunk)',
               }}
             >
-              <span className="text-[12px] font-semibold">
-                DryBMS self-assessment · maturity 1 → 4
-              </span>
+              <span className="text-[12px] font-semibold">{t('qhse.drybms_self_assessment')}</span>
               <div className="flex-1" />
               {[1, 2, 3, 4].map((s) => (
                 <span
@@ -1139,7 +1142,7 @@ function DryBmsTab({ elements, loading }: { elements: DryBmsElement[]; loading: 
                     cursor: 'pointer',
                   }}
                 >
-                  Update score
+                  {t('qhse.update_score')}
                 </button>
               </div>
               <div className="grid gap-2 p-4" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
@@ -1173,7 +1176,7 @@ function DryBmsTab({ elements, loading }: { elements: DryBmsElement[]; loading: 
                             letterSpacing: '0.04em',
                           }}
                         >
-                          TARGET
+                          {t('qhse.target')}
                         </span>
                       )}
                       <div className="flex items-center gap-2 mb-1.5">
@@ -1193,7 +1196,7 @@ function DryBmsTab({ elements, loading }: { elements: DryBmsElement[]; loading: 
                         >
                           {s}
                         </span>
-                        <span className="text-[12px] font-semibold">{m.label}</span>
+                        <span className="text-[12px] font-semibold">{t(m.labelKey)}</span>
                       </div>
                       {isCurrent && sel.evidence && (
                         <div
@@ -1209,7 +1212,7 @@ function DryBmsTab({ elements, loading }: { elements: DryBmsElement[]; loading: 
                             className="text-[9px] font-semibold uppercase tracking-widest block mb-1"
                             style={{ color: 'var(--ink-3)' }}
                           >
-                            EVIDENCE
+                            {t('qhse.evidence')}
                           </span>
                           {sel.evidence}
                         </div>
@@ -1229,6 +1232,7 @@ function DryBmsTab({ elements, loading }: { elements: DryBmsElement[]; loading: 
 // ─── Management review tab ────────────────────────────────────────────────────
 
 function MgmtReviewTab({ reviews, loading }: { reviews: ManagementReview[]; loading: boolean }) {
+  const { t } = useTranslation();
   if (loading)
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -1249,13 +1253,13 @@ function MgmtReviewTab({ reviews, loading }: { reviews: ManagementReview[]; load
           className="text-[10.5px] font-semibold uppercase tracking-widest flex-1"
           style={{ color: 'var(--ink-3)' }}
         >
-          Management reviews
+          {t('qhse.management_reviews')}
         </span>
         <button
           className="px-3 py-1 rounded-2 text-[12px] font-medium"
           style={{ background: 'var(--navy)', color: '#fff', border: 'none', cursor: 'pointer' }}
         >
-          + Schedule review
+          {t('qhse.schedule_review')}
         </button>
       </div>
 
@@ -1269,7 +1273,7 @@ function MgmtReviewTab({ reviews, loading }: { reviews: ManagementReview[]; load
                 className="text-[10.5px] font-semibold uppercase tracking-widest mb-2"
                 style={{ color: 'var(--ink-3)' }}
               >
-                Upcoming
+                {t('qhse.upcoming')}
               </div>
               <div className="flex flex-col gap-2">
                 {upcoming.map((r) => (
@@ -1284,7 +1288,7 @@ function MgmtReviewTab({ reviews, loading }: { reviews: ManagementReview[]; load
                 className="text-[10.5px] font-semibold uppercase tracking-widest mb-2"
                 style={{ color: 'var(--ink-3)' }}
               >
-                Recent
+                {t('qhse.recent')}
               </div>
               <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
                 {past.map((r) => (
@@ -1300,6 +1304,7 @@ function MgmtReviewTab({ reviews, loading }: { reviews: ManagementReview[]; load
 }
 
 function ReviewCard({ r }: { r: ManagementReview }) {
+  const { t } = useTranslation();
   const borderColor =
     r.tone === 'red'
       ? 'var(--sig-red)'
@@ -1338,7 +1343,7 @@ function ReviewCard({ r }: { r: ManagementReview }) {
               className="text-[9px] font-semibold uppercase tracking-widest block"
               style={{ color: 'var(--ink-3)' }}
             >
-              CHAIR
+              {t('qhse.chair')}
             </span>
             <div className="text-[12px] mt-0.5" style={{ color: 'var(--ink)' }}>
               {r.chair}
@@ -1349,10 +1354,10 @@ function ReviewCard({ r }: { r: ManagementReview }) {
               className="text-[9px] font-semibold uppercase tracking-widest block"
               style={{ color: 'var(--ink-3)' }}
             >
-              ACTIONS
+              {t('qhse.actions')}
             </span>
             <div className="text-[12px] mt-0.5" style={{ color: 'var(--ink)' }}>
-              {r.actionsDone}/{r.actionsTotal} closed
+              {r.actionsDone}/{r.actionsTotal} {t('qhse.actions_done')}
             </div>
           </div>
         </div>
@@ -1365,7 +1370,9 @@ function ReviewCard({ r }: { r: ManagementReview }) {
         style={{ borderTop: '1px solid var(--hairline)', background: 'var(--surface-2)' }}
       >
         <span className="text-[11px]" style={{ color: 'var(--ink-3)' }}>
-          {typeof r.attendees === 'number' ? `${r.attendees} attendees` : 'invitations pending'}
+          {typeof r.attendees === 'number'
+            ? `${r.attendees} ${t('qhse.attendees')}`
+            : t('qhse.invitations_pending')}
         </span>
         <button
           className="text-[11px] px-2 py-0.5 rounded-1 border"
@@ -1376,7 +1383,7 @@ function ReviewCard({ r }: { r: ManagementReview }) {
             color: 'var(--ink-2)',
           }}
         >
-          Open minutes
+          {t('qhse.open_minutes')}
         </button>
       </div>
     </div>
@@ -1386,9 +1393,10 @@ function ReviewCard({ r }: { r: ManagementReview }) {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function QHSEPage() {
+  const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
   const tab = (params.get('tab') as Tab | null) ?? 'obj';
-  const setTab = (t: Tab) => setParams(t === 'obj' ? {} : { tab: t });
+  const setTab = (tabId: Tab) => setParams(tabId === 'obj' ? {} : { tab: tabId });
 
   const [objectives, setObjectives] = useState<QhseObjective[]>([]);
   const [audits, setAudits] = useState<Audit[]>([]);
@@ -1475,12 +1483,16 @@ export function QHSEPage() {
           className="text-[16px] font-semibold m-0"
           style={{ color: 'var(--ink)', letterSpacing: '-0.01em' }}
         >
-          QHSE
+          {t('qhse.title')}
         </h1>
         <span className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
           ISM + DryBMS + ISO 14001
         </span>
-        {offTarget > 0 && <Badge color="amber">{offTarget} OFF TARGET</Badge>}
+        {offTarget > 0 && (
+          <Badge color="amber">
+            {offTarget} {t('qhse.attention').toUpperCase()}
+          </Badge>
+        )}
         <div className="flex-1" />
         <button
           className="px-3 py-1 rounded-2 text-[12px] font-medium border"
@@ -1497,7 +1509,7 @@ export function QHSEPage() {
           className="px-3 py-1 rounded-2 text-[12px] font-medium"
           style={{ background: 'var(--navy)', color: '#fff', border: 'none', cursor: 'pointer' }}
         >
-          + Log audit
+          {t('qhse.log_audit')}
         </button>
       </div>
 
@@ -1506,10 +1518,18 @@ export function QHSEPage() {
         className="flex gap-0 flex-shrink-0 px-4 overflow-x-auto"
         style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}
       >
-        {TABS.map((t) => (
+        {(
+          [
+            { id: 'obj', label: t('qhse.tab_objectives') },
+            { id: 'audit', label: t('qhse.tab_audits') },
+            { id: 'env', label: t('qhse.tab_environmental') },
+            { id: 'dryb', label: t('qhse.tab_drybms') },
+            { id: 'review', label: t('qhse.tab_management_review') },
+          ] as { id: Tab; label: string }[]
+        ).map((tabItem) => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
+            key={tabItem.id}
+            onClick={() => setTab(tabItem.id)}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -1517,24 +1537,24 @@ export function QHSEPage() {
               padding: '12px 16px',
               border: 'none',
               background: 'transparent',
-              borderBottom: `2px solid ${tab === t.id ? 'var(--navy)' : 'transparent'}`,
+              borderBottom: `2px solid ${tab === tabItem.id ? 'var(--navy)' : 'transparent'}`,
               cursor: 'pointer',
-              color: tab === t.id ? 'var(--ink)' : 'var(--ink-2)',
+              color: tab === tabItem.id ? 'var(--ink)' : 'var(--ink-2)',
               fontSize: 13,
-              fontWeight: tab === t.id ? 600 : 500,
+              fontWeight: tab === tabItem.id ? 600 : 500,
               marginBottom: -1,
               whiteSpace: 'nowrap',
             }}
           >
-            <span>{t.label}</span>
+            <span>{tabItem.label}</span>
             <span
               className="font-mono text-[10.5px] px-1.5 py-px rounded-[10px]"
               style={{
-                background: tab === t.id ? 'var(--navy)' : 'var(--surface-2)',
-                color: tab === t.id ? '#fff' : 'var(--ink-3)',
+                background: tab === tabItem.id ? 'var(--navy)' : 'var(--surface-2)',
+                color: tab === tabItem.id ? '#fff' : 'var(--ink-3)',
               }}
             >
-              {counts[t.id]}
+              {counts[tabItem.id]}
             </span>
           </button>
         ))}

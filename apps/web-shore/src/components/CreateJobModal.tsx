@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, Select, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
-import { TypicalPartsList, partsToJson, type TypicalPart } from './TypicalPartsList.js';
+import { TypicalPartsList, type TypicalPart } from './TypicalPartsList.js';
+import { partsToJson } from './partsUtils.js';
 
 interface Props {
   open: boolean;
@@ -24,6 +26,7 @@ const EMPTY = {
 };
 
 export function CreateJobModal({ open, componentId, componentName, onClose, onCreated }: Props) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(EMPTY);
   const [mode, setMode] = useState<IntervalMode>('days');
   const [typicalParts, setTypicalParts] = useState<TypicalPart[]>([]);
@@ -86,10 +89,10 @@ export function CreateJobModal({ open, componentId, componentName, onClose, onCr
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Create Job
+            {t('common.create')} {t('maintenance.job')}
           </Button>
         </>
       }
@@ -100,7 +103,7 @@ export function CreateJobModal({ open, componentId, componentName, onClose, onCr
         )}
         <Input
           id="job-title"
-          label="Title *"
+          label={`${t('common.title')} *`}
           value={form.title}
           onChange={set('title')}
           placeholder="Oil Change"
@@ -108,7 +111,7 @@ export function CreateJobModal({ open, componentId, componentName, onClose, onCr
         />
         <TextArea
           id="job-desc"
-          label="Description"
+          label={t('common.description')}
           rows={2}
           value={form.description}
           onChange={set('description')}
@@ -117,7 +120,9 @@ export function CreateJobModal({ open, componentId, componentName, onClose, onCr
 
         {/* Interval type toggle */}
         <div>
-          <span className="block text-sm font-medium text-slate-700 mb-1">Interval *</span>
+          <span className="block text-sm font-medium text-slate-700 mb-1">
+            {t('common.interval')} *
+          </span>
           <div className="flex rounded-md border border-slate-200 overflow-hidden text-sm mb-2">
             {(['days', 'hours'] as const).map((m) => (
               <button
@@ -129,14 +134,14 @@ export function CreateJobModal({ open, componentId, componentName, onClose, onCr
                     : 'bg-white text-slate-600 hover:bg-slate-50'
                 }`}
               >
-                {m === 'days' ? 'Calendar days' : 'Running hours'}
+                {m === 'days' ? t('maintenance.days') : t('maintenance.hours_abbr')}
               </button>
             ))}
           </div>
           {mode === 'days' ? (
             <Input
               id="job-days"
-              label="Every N days"
+              label={t('maintenance.interval_days')}
               type="number"
               min="1"
               step="1"
@@ -147,7 +152,7 @@ export function CreateJobModal({ open, componentId, componentName, onClose, onCr
           ) : (
             <Input
               id="job-hours"
-              label="Every N running hours"
+              label={t('maintenance.interval_hours')}
               type="number"
               min="1"
               step="1"
@@ -161,7 +166,7 @@ export function CreateJobModal({ open, componentId, componentName, onClose, onCr
         <div className="flex gap-3">
           <div className="flex-1">
             <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="job-priority">
-              Priority
+              {t('common.priority')}
             </label>
             <Select
               value={form.priority}

@@ -19,6 +19,8 @@ interface AppShellProps {
   userEmail?: string | undefined;
   userDisplayName?: string | undefined; // shown instead of email prefix; falls back to email
   onLogout?: () => void | undefined;
+  onProfileClick?: () => void | undefined;
+  logoutLabel?: string | undefined;
   children: ReactNode;
   // vessel / company context
   companyName?: string | undefined;
@@ -26,6 +28,8 @@ interface AppShellProps {
   selectedVesselId?: string | null | undefined;
   onVesselChange?: ((id: string | null) => void) | undefined;
   isVesselLocked?: boolean | undefined;
+  /** Extra content rendered at the bottom of the sidebar, above the account block. */
+  sidebarFooterContent?: ReactNode | undefined;
 }
 
 function BearingMark({ size = 20 }: { size?: number }) {
@@ -82,13 +86,22 @@ function ModBadge({
   );
 }
 
-function Initials({ email }: { email: string }) {
-  const name = email.split('@')[0] ?? '';
-  const parts = name.split(/[._-]/);
-  const letters =
-    parts.length >= 2 && parts[0] && parts[1]
-      ? (parts[0][0] ?? '') + (parts[1][0] ?? '')
-      : name.slice(0, 2);
+function Initials({ email, displayName }: { email: string; displayName?: string | undefined }) {
+  let letters: string;
+  if (displayName) {
+    const parts = displayName.trim().split(/\s+/);
+    const first = parts[0] ?? '';
+    const last = parts[parts.length - 1] ?? '';
+    letters =
+      parts.length >= 2 && first && last ? (first[0] ?? '') + (last[0] ?? '') : first.slice(0, 2);
+  } else {
+    const name = email.split('@')[0] ?? '';
+    const parts = name.split(/[._-]/);
+    letters =
+      parts.length >= 2 && parts[0] && parts[1]
+        ? (parts[0][0] ?? '') + (parts[1][0] ?? '')
+        : name.slice(0, 2);
+  }
   return (
     <div
       style={{
@@ -190,12 +203,15 @@ export function AppShell({
   userEmail,
   userDisplayName,
   onLogout,
+  onProfileClick,
+  logoutLabel = 'Sign out',
   children,
   companyName,
   vessels,
   selectedVesselId,
   onVesselChange,
   isVesselLocked,
+  sidebarFooterContent,
 }: AppShellProps) {
   const anyActive = nav.some((item) =>
     item.href === '/' ? currentPath === '/' : currentPath.startsWith(item.href),
@@ -308,6 +324,13 @@ export function AppShell({
           })}
         </nav>
 
+        {/* Extra sidebar footer content (e.g. language switcher) */}
+        {sidebarFooterContent && (
+          <div style={{ padding: '8px 12px', borderTop: '1px solid #EEEBE2' }}>
+            {sidebarFooterContent}
+          </div>
+        )}
+
         {/* Account block */}
         {userEmail && (
           <div
@@ -319,7 +342,21 @@ export function AppShell({
               gap: 8,
             }}
           >
-            <Initials email={userEmail} />
+            <button
+              onClick={onProfileClick}
+              disabled={!onProfileClick}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: onProfileClick ? 'pointer' : 'default',
+                flexShrink: 0,
+                borderRadius: 6,
+              }}
+              title="Edit profile"
+            >
+              <Initials email={userEmail} displayName={userDisplayName ?? undefined} />
+            </button>
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
               <p
                 style={{
@@ -354,7 +391,7 @@ export function AppShell({
                     e.currentTarget.style.color = '#8893A0';
                   }}
                 >
-                  Sign out
+                  {logoutLabel}
                 </button>
               )}
             </div>

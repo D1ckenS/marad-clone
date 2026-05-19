@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 import { CreatePartModal } from '../components/CreatePartModal.js';
@@ -62,7 +63,6 @@ const T = {
 };
 const STATUS_C = { green: T.green, amber: T.amber, red: T.red, purple: T.purple };
 const STATUS_BG = { green: T.greenBg, amber: T.amberBg, red: T.redBg, purple: T.purpleBg };
-const STATUS_LABEL = { green: 'IN STOCK', amber: 'BELOW MIN', red: 'AT REORDER', purple: 'ZERO' };
 const MOVE_C: Record<string, string> = {
   RECEIPT: T.green,
   CONSUMPTION: T.red,
@@ -225,6 +225,13 @@ function DetailPane({
   onStockConfig: (id: string, name: string) => void;
   onBarcodes: (id: string, name: string) => void;
 }) {
+  const { t } = useTranslation();
+  const STATUS_LABEL = {
+    green: t('inventory.status_green'),
+    amber: t('inventory.status_amber'),
+    red: t('inventory.status_red'),
+    purple: t('inventory.status_purple'),
+  };
   const [movements, setMovements] = useState<Movement[]>([]);
   const [loadingMov, setLoadingMov] = useState(false);
 
@@ -253,7 +260,7 @@ function DetailPane({
         }}
       >
         <p style={{ fontSize: 12.5, color: T.ink3, textAlign: 'center' }}>
-          Click a part to see stock levels and movement history.
+          {t('inventory.select_part_hint')}
         </p>
       </aside>
     );
@@ -332,7 +339,7 @@ function DetailPane({
           <StockBar rob={rob} min={min} max={max} reorder={reorder} />
         ) : (
           <p style={{ padding: '14px 16px', fontSize: 12, color: T.ink3 }}>
-            No stock levels configured.
+            {t('inventory.no_parts')}
           </p>
         )}
 
@@ -349,7 +356,7 @@ function DetailPane({
                 color: T.ink3,
               }}
             >
-              Stock by location
+              {t('inventory.stock_by_location')}
             </div>
             {part.stockLevels.map((l) => (
               <div
@@ -411,14 +418,16 @@ function DetailPane({
               color: T.ink3,
             }}
           >
-            Movements
+            {t('inventory.movements_header')}
           </div>
           {loadingMov && (
-            <p style={{ padding: '8px 16px', fontSize: 11.5, color: T.ink3 }}>Loading…</p>
+            <p style={{ padding: '8px 16px', fontSize: 11.5, color: T.ink3 }}>
+              {t('common.loading')}
+            </p>
           )}
           {!loadingMov && movements.length === 0 && (
             <p style={{ padding: '8px 16px', fontSize: 11.5, color: T.ink3 }}>
-              No movements recorded.
+              {t('inventory.no_movements')}
             </p>
           )}
           {movements.slice(0, 8).map((m) => {
@@ -496,13 +505,13 @@ function DetailPane({
         }}
       >
         <Button size="sm" onClick={() => onMovement(part.id, part.name)}>
-          Post movement
+          {t('inventory.post_movement')}
         </Button>
         <Button size="sm" variant="secondary" onClick={() => onStockConfig(part.id, part.name)}>
-          Stock config
+          {t('inventory.add_stock_level')}
         </Button>
         <Button size="sm" variant="secondary" onClick={() => onBarcodes(part.id, part.name)}>
-          Barcodes
+          {t('inventory.manage_barcodes')}
         </Button>
       </div>
     </aside>
@@ -511,24 +520,24 @@ function DetailPane({
 
 // ── Column definitions — append here to add more ───────────────────────────
 const COLUMNS = [
-  { key: 'status', label: '', width: 28 },
-  { key: 'code', label: 'Part code', width: 110 },
-  { key: 'name', label: 'Description', width: 240 },
-  { key: 'location', label: 'Location', width: 130 },
-  { key: 'rob', label: 'ROB', width: 70, align: 'right' },
-  { key: 'unit', label: 'Unit', width: 50 },
-  { key: 'min', label: 'Min', width: 55, align: 'right' },
-  { key: 'reorder', label: 'Reorder', width: 65, align: 'right' },
-  { key: 'max', label: 'Max', width: 55, align: 'right' },
+  { key: 'status', labelKey: '', width: 28 },
+  { key: 'code', labelKey: 'inventory.col_code', width: 110 },
+  { key: 'name', labelKey: 'inventory.col_description', width: 240 },
+  { key: 'location', labelKey: 'inventory.location', width: 130 },
+  { key: 'rob', labelKey: 'inventory.rob', width: 70, align: 'right' },
+  { key: 'unit', labelKey: 'inventory.unit', width: 50 },
+  { key: 'min', labelKey: 'inventory.col_min', width: 55, align: 'right' },
+  { key: 'reorder', labelKey: 'inventory.col_reorder', width: 65, align: 'right' },
+  { key: 'max', labelKey: 'inventory.col_max', width: 55, align: 'right' },
 ] as const;
 type ColKey = (typeof COLUMNS)[number]['key'];
 
-const FILTERS: { id: StatusFilter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'green', label: '≥ min' },
-  { id: 'amber', label: '< min' },
-  { id: 'red', label: '≤ reorder' },
-  { id: 'purple', label: 'Zero' },
+const FILTER_KEYS = [
+  { id: 'all' as StatusFilter, labelKey: 'inventory.filter_all' },
+  { id: 'green' as StatusFilter, labelKey: 'inventory.filter_in_stock' },
+  { id: 'amber' as StatusFilter, labelKey: 'inventory.filter_below_min' },
+  { id: 'red' as StatusFilter, labelKey: 'inventory.filter_at_reorder' },
+  { id: 'purple' as StatusFilter, labelKey: 'inventory.filter_zero' },
 ];
 
 // ── Main page ──────────────────────────────────────────────────────────────
@@ -540,6 +549,7 @@ type ActiveModal =
   | { kind: 'barcodes'; partId: string; partName: string };
 
 export function InventoryPage() {
+  const { t } = useTranslation();
   const [parts, setParts] = useState<Part[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
@@ -728,7 +738,7 @@ export function InventoryPage() {
               color: T.ink3,
             }}
           >
-            Locations
+            {t('inventory.locations')}
           </span>
         </div>
         <div
@@ -742,7 +752,7 @@ export function InventoryPage() {
           }}
         >
           {[
-            { id: 'all', name: 'All locations', count: parts.length },
+            { id: 'all', name: t('inventory.locations'), count: parts.length },
             ...locations.map((l) => ({ id: l.id, name: l.name, count: countByLoc.get(l.id) ?? 0 })),
           ].map((l) => (
             <button
@@ -797,7 +807,7 @@ export function InventoryPage() {
               marginBottom: 6,
             }}
           >
-            By status
+            {t('inventory.by_status')}
           </div>
           {(['green', 'amber', 'red', 'purple'] as const).map((s) => (
             <div
@@ -806,7 +816,14 @@ export function InventoryPage() {
             >
               <Dot status={s} />
               <span style={{ flex: 1, fontSize: 11.5, color: T.ink2 }}>
-                {{ green: '≥ min', amber: '< min', red: '≤ reorder', purple: 'zero' }[s]}
+                {
+                  {
+                    green: t('inventory.filter_in_stock'),
+                    amber: t('inventory.filter_below_min'),
+                    red: t('inventory.filter_at_reorder'),
+                    purple: t('inventory.filter_zero'),
+                  }[s]
+                }
               </span>
               <span style={{ fontFamily: '"Geist Mono",monospace', fontSize: 10.5, color: T.ink }}>
                 {statusCounts[s]}
@@ -839,13 +856,15 @@ export function InventoryPage() {
             flexShrink: 0,
           }}
         >
-          <span style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>Inventory</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>
+            {t('inventory.title')}
+          </span>
           <span style={{ color: T.ink3, fontSize: 11.5 }}>
             · {visible.length} of {parts.length}
           </span>
           <div style={{ flex: 1 }} />
           {/* Filter chips */}
-          {FILTERS.map((f) => (
+          {FILTER_KEYS.map((f) => (
             <button
               key={f.id}
               onClick={() => setFilter(f.id)}
@@ -862,13 +881,13 @@ export function InventoryPage() {
                 color: filter === f.id ? '#fff' : T.ink2,
               }}
             >
-              {f.label}
+              {t(f.labelKey)}
             </button>
           ))}
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search…"
+            placeholder={t('common.search') + '…'}
             style={{
               height: 28,
               padding: '0 10px',
@@ -897,7 +916,7 @@ export function InventoryPage() {
                 fontFamily: 'inherit',
               }}
             >
-              Columns · {visibleCols.length}
+              {t('inventory.columns_picker')} · {visibleCols.length}
             </button>
             {colPickerOpen && (
               <>
@@ -919,7 +938,7 @@ export function InventoryPage() {
                     padding: 4,
                   }}
                 >
-                  {COLUMNS.filter((c) => c.label).map((c) => (
+                  {COLUMNS.filter((c) => c.labelKey).map((c) => (
                     <label
                       key={c.key}
                       style={{
@@ -943,7 +962,7 @@ export function InventoryPage() {
                         }
                         style={{ accentColor: T.navy }}
                       />
-                      {c.label}
+                      {t(c.labelKey)}
                     </label>
                   ))}
                 </div>
@@ -951,7 +970,7 @@ export function InventoryPage() {
             )}
           </div>
           <Button size="sm" onClick={() => setCreateOpen(true)}>
-            + New Part
+            {t('inventory.new_part')}
           </Button>
         </div>
 
@@ -995,7 +1014,7 @@ export function InventoryPage() {
                     justifyContent: 'align' in c && c.align === 'right' ? 'flex-end' : 'flex-start',
                   }}
                 >
-                  {c.label}
+                  {c.labelKey ? t(c.labelKey) : ''}
                 </div>
               ))}
               <div style={{ flex: 1 }} />
@@ -1003,17 +1022,17 @@ export function InventoryPage() {
 
             {loading && (
               <div style={{ padding: 40, textAlign: 'center', color: T.ink3, fontSize: 13 }}>
-                Loading…
+                {t('common.loading')}
               </div>
             )}
             {!loading && visible.length === 0 && (
               <div style={{ padding: 40, textAlign: 'center' }}>
                 <p style={{ fontSize: 13, color: T.ink3, margin: '0 0 12px' }}>
-                  {parts.length === 0 ? 'No parts yet.' : 'No parts match the current filter.'}
+                  {parts.length === 0 ? t('inventory.no_parts') : t('inventory.no_parts')}
                 </p>
                 {parts.length === 0 && (
                   <Button size="sm" onClick={() => setCreateOpen(true)}>
-                    + New Part
+                    {t('inventory.new_part')}
                   </Button>
                 )}
               </div>

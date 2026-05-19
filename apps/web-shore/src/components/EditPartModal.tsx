@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export function EditPartModal({ open, part, onClose, onSaved }: Props) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [partNumber, setPartNumber] = useState('');
   const [unit, setUnit] = useState('');
@@ -65,15 +67,15 @@ export function EditPartModal({ open, part, onClose, onSaved }: Props) {
   return (
     <Modal
       open={open}
-      title="Edit Part"
+      title={t('common.edit')}
       onClose={handleClose}
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Save
+            {t('common.save')}
           </Button>
         </>
       }
@@ -84,7 +86,7 @@ export function EditPartModal({ open, part, onClose, onSaved }: Props) {
         )}
         <Input
           id="ep-name"
-          label="Name *"
+          label={t('inventory.part_name')}
           value={name}
           onChange={(e) => setName(e.target.value)}
           autoFocus
@@ -93,7 +95,7 @@ export function EditPartModal({ open, part, onClose, onSaved }: Props) {
           <div className="flex-1">
             <Input
               id="ep-num"
-              label="Part Number"
+              label={t('inventory.part_number')}
               value={partNumber}
               onChange={(e) => setPartNumber(e.target.value)}
             />
@@ -101,7 +103,7 @@ export function EditPartModal({ open, part, onClose, onSaved }: Props) {
           <div className="w-28">
             <Input
               id="ep-unit"
-              label="Unit"
+              label={t('inventory.unit')}
               value={unit}
               onChange={(e) => setUnit(e.target.value)}
               placeholder="pcs / L / kg"
@@ -110,7 +112,7 @@ export function EditPartModal({ open, part, onClose, onSaved }: Props) {
         </div>
         <TextArea
           id="ep-desc"
-          label="Description"
+          label={t('common.description')}
           rows={2}
           value={description}
           onChange={(e) => setDescription(e.target.value)}

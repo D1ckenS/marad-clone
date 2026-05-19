@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, Select, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -33,6 +34,7 @@ const EMPTY_LINE: ReqLine = {
 };
 
 export function CreateRequisitionModal({ open, onClose, onCreated }: Props) {
+  const { t } = useTranslation();
   const [header, setHeader] = useState(EMPTY_HEADER);
   const [lines, setLines] = useState<ReqLine[]>([]);
   const [parts, setParts] = useState<Part[]>([]);
@@ -138,10 +140,10 @@ export function CreateRequisitionModal({ open, onClose, onCreated }: Props) {
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Create Requisition
+            {t('purchase.new_requisition')}
           </Button>
         </>
       }

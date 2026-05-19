@@ -1,6 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
+import { BudgetModule } from './budget/budget.module';
+import { FleetviewModule } from './fleetview/fleetview.module';
+import { TechLibraryModule } from './tech-library/tech-library.module';
+import { OcimfInspectionModule } from './ocimf-inspection/ocimf-inspection.module';
+import { AccountingModule } from './accounting/accounting.module';
+import { ClassSocietyModule } from './class-society/class-society.module';
+import { BiModule } from './bi/bi.module';
+import { ComplianceModule } from './compliance/compliance.module';
 import { CapaModule } from './capa/capa.module';
 import { ChecklistInstanceModule } from './checklist-instance/checklist-instance.module';
 import { ChecklistTemplateModule } from './checklist-template/checklist-template.module';
@@ -109,6 +117,14 @@ import { VesselModule } from './vessel/vessel.module';
     ConsumptionLogModule,
     FlgoReportModule,
     ProjectModule,
+    BudgetModule,
+    FleetviewModule,
+    TechLibraryModule,
+    OcimfInspectionModule,
+    AccountingModule,
+    ClassSocietyModule,
+    BiModule,
+    ComplianceModule,
   ],
 })
 export class AppModule {}

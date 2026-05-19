@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -11,6 +12,7 @@ interface Props {
 const EMPTY = { name: '', partNumber: '', unit: 'pcs', description: '' };
 
 export function CreatePartModal({ open, onClose, onCreated }: Props) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,15 +53,15 @@ export function CreatePartModal({ open, onClose, onCreated }: Props) {
   return (
     <Modal
       open={open}
-      title="New Part"
+      title={t('inventory.new_part')}
       onClose={handleClose}
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Create Part
+            {t('common.create')}
           </Button>
         </>
       }
@@ -70,7 +72,7 @@ export function CreatePartModal({ open, onClose, onCreated }: Props) {
         )}
         <Input
           id="part-name"
-          label="Name *"
+          label={t('inventory.part_name')}
           value={form.name}
           onChange={set('name')}
           placeholder="Engine Oil SAE 40"
@@ -80,7 +82,7 @@ export function CreatePartModal({ open, onClose, onCreated }: Props) {
           <div className="flex-1">
             <Input
               id="part-num"
-              label="Part Number"
+              label={t('inventory.part_number')}
               value={form.partNumber}
               onChange={set('partNumber')}
               placeholder="OIL-001"
@@ -89,7 +91,7 @@ export function CreatePartModal({ open, onClose, onCreated }: Props) {
           <div className="w-32">
             <Input
               id="part-unit"
-              label="Unit"
+              label={t('inventory.unit')}
               value={form.unit}
               onChange={set('unit')}
               placeholder="pcs / L / kg"
@@ -98,7 +100,7 @@ export function CreatePartModal({ open, onClose, onCreated }: Props) {
         </div>
         <TextArea
           id="part-desc"
-          label="Description"
+          label={t('common.description')}
           rows={2}
           value={form.description}
           onChange={set('description')}

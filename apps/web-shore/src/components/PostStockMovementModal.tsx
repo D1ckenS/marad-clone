@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, Select, Spinner } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -25,6 +26,7 @@ const TYPE_HELP: Record<MovementType, string> = {
 };
 
 export function PostStockMovementModal({ open, partId, partName, onClose, onPosted }: Props) {
+  const { t } = useTranslation();
   const [locations, setLocations] = useState<Location[]>([]);
   const [loadingLocs, setLoadingLocs] = useState(false);
   const [locationId, setLocationId] = useState('');
@@ -95,10 +97,10 @@ export function PostStockMovementModal({ open, partId, partName, onClose, onPost
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Post
+            {t('inventory.post_movement')}
           </Button>
         </>
       }

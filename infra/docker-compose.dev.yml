@@ -45,7 +45,53 @@ services:
     volumes:
       - meili_data:/meili_data
 
+  # ── Apache Superset (BI / embedded dashboards) ───────────────────────────────
+  # Access the Superset UI at http://localhost:8088 (admin / fleetops_superset_dev).
+  # On first start the init script runs db upgrade + create-admin + init, which
+  # takes ~30 seconds. The container is healthy once port 8088 responds.
+  superset:
+    image: apache/superset:4.1.0
+    restart: unless-stopped
+    environment:
+      SUPERSET_CONFIG_PATH: /app/superset_config.py
+      SUPERSET_SECRET_KEY: fleetops-superset-dev-secret-change-me
+      CYPRESS_CONFIG: 'false'
+    volumes:
+      - superset_home:/app/superset_home
+      - ./superset_config.py:/app/superset_config.py:ro
+    ports:
+      - '8088:8088'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Init on first start, then serve. Idempotent — safe to re-run.
+    command: >
+      bash -c "
+        superset db upgrade &&
+        superset fab create-admin
+          --username admin
+          --firstname Fleet
+          --lastname Admin
+          --email admin@fleetops.dev
+          --password fleetops_superset_dev
+          2>/dev/null || true &&
+        superset init &&
+        gunicorn
+          --bind 0.0.0.0:8088
+          --workers 2
+          --worker-class gevent
+          --timeout 120
+          'superset.app:create_app()'
+      "
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -sf http://localhost:8088/health || exit 1']
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 60s
+
 volumes:
   postgres_data:
   minio_data:
   meili_data:
+  superset_home:

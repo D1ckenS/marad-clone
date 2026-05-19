@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Badge, Button, Input, Modal, Spinner } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -27,6 +28,7 @@ function CreateCompanyModal({
   const [adminEmail, setAdminEmail] = useState('');
   const [adminUsername, setAdminUsername] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
+  const { t } = useTranslation();
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
@@ -56,11 +58,11 @@ function CreateCompanyModal({
   };
 
   return (
-    <Modal open title="Add company" onClose={onClose} size="sm">
+    <Modal open title={t('companies.add_company')} onClose={onClose} size="sm">
       <div className="flex flex-col gap-3 p-4">
         <div>
           <label className="text-[11.5px] font-medium mb-1 block" style={{ color: 'var(--ink-2)' }}>
-            Company name *
+            {t('companies.company_name')} *
           </label>
           <Input
             value={name}
@@ -71,7 +73,7 @@ function CreateCompanyModal({
         </div>
         <div>
           <label className="text-[11.5px] font-medium mb-1 block" style={{ color: 'var(--ink-2)' }}>
-            Short name{' '}
+            {t('companies.short_name_optional')}{' '}
             <span style={{ color: 'var(--ink-3)' }}>
               (shown in the sidebar — falls back to full name)
             </span>
@@ -97,7 +99,7 @@ function CreateCompanyModal({
               className="text-[11.5px] font-medium mb-1 block"
               style={{ color: 'var(--ink-2)' }}
             >
-              Email *
+              {t('companies.admin_email')} *
             </label>
             <Input
               value={adminEmail}
@@ -110,7 +112,7 @@ function CreateCompanyModal({
               className="text-[11.5px] font-medium mb-1 block"
               style={{ color: 'var(--ink-2)' }}
             >
-              Username *
+              {t('companies.admin_username')} *
             </label>
             <Input
               value={adminUsername}
@@ -123,7 +125,7 @@ function CreateCompanyModal({
               className="text-[11.5px] font-medium mb-1 block"
               style={{ color: 'var(--ink-2)' }}
             >
-              Password *
+              {t('companies.admin_password')} *
             </label>
             <Input
               type="password"
@@ -140,10 +142,10 @@ function CreateCompanyModal({
         )}
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button onClick={submit} loading={saving}>
-            Create company
+            {t('companies.create_company')}
           </Button>
         </div>
       </div>
@@ -160,6 +162,7 @@ function EditCompanyModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState(company.name);
   const [shortName, setShortName] = useState(company.shortName ?? '');
   const [saving, setSaving] = useState(false);
@@ -186,17 +189,17 @@ function EditCompanyModal({
   };
 
   return (
-    <Modal open title="Edit company" onClose={onClose} size="sm">
+    <Modal open title={t('companies.edit')} onClose={onClose} size="sm">
       <div className="flex flex-col gap-3 p-4">
         <div>
           <label className="text-[11.5px] font-medium mb-1 block" style={{ color: 'var(--ink-2)' }}>
-            Company name *
+            {t('companies.company_name')} *
           </label>
           <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
         </div>
         <div>
           <label className="text-[11.5px] font-medium mb-1 block" style={{ color: 'var(--ink-2)' }}>
-            Short name{' '}
+            {t('companies.short_name_optional')}{' '}
             <span style={{ color: 'var(--ink-3)' }}>
               (shown in the sidebar — falls back to full name)
             </span>
@@ -214,10 +217,10 @@ function EditCompanyModal({
         )}
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button onClick={submit} loading={saving}>
-            Save
+            {t('common.save')}
           </Button>
         </div>
       </div>
@@ -238,6 +241,7 @@ function CreateAdminModal({
 }) {
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
+  const { t } = useTranslation();
   const [password, setPassword] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
@@ -278,7 +282,7 @@ function CreateAdminModal({
         </p>
         <div>
           <label className="text-[11.5px] font-medium mb-1 block" style={{ color: 'var(--ink-2)' }}>
-            Email *
+            {t('companies.admin_email')} *
           </label>
           <Input
             value={email}
@@ -289,7 +293,8 @@ function CreateAdminModal({
         </div>
         <div>
           <label className="text-[11.5px] font-medium mb-1 block" style={{ color: 'var(--ink-2)' }}>
-            Username * <span style={{ color: 'var(--ink-3)' }}>(used to log in)</span>
+            {t('companies.admin_username')} *{' '}
+            <span style={{ color: 'var(--ink-3)' }}>(used to log in)</span>
           </label>
           <Input
             value={username}
@@ -300,7 +305,7 @@ function CreateAdminModal({
         </div>
         <div>
           <label className="text-[11.5px] font-medium mb-1 block" style={{ color: 'var(--ink-2)' }}>
-            Password *
+            {t('companies.admin_password')} *
           </label>
           <Input
             type="password"
@@ -316,10 +321,10 @@ function CreateAdminModal({
         )}
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button onClick={submit} loading={saving}>
-            Create admin
+            {t('companies.add_admin')}
           </Button>
         </div>
       </div>
@@ -330,6 +335,7 @@ function CreateAdminModal({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function CompaniesPage() {
+  const { t } = useTranslation();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -356,14 +362,14 @@ export function CompaniesPage() {
             className="text-[20px] font-semibold m-0"
             style={{ letterSpacing: '-0.01em', color: 'var(--ink)' }}
           >
-            Companies
+            {t('companies.title')}
           </h1>
           <p className="text-[12.5px] mt-0.5 m-0" style={{ color: 'var(--ink-3)' }}>
-            Platform-level management · visible only to super admins
+            {t('companies.subtitle')}
           </p>
         </div>
         <div className="flex-1" />
-        <Button onClick={() => setShowCreate(true)}>+ Add company</Button>
+        <Button onClick={() => setShowCreate(true)}>{t('companies.add_company')}</Button>
       </div>
 
       {loading ? (
@@ -385,17 +391,17 @@ export function CompaniesPage() {
               borderBottom: '1px solid var(--hairline)',
             }}
           >
-            <span>Company</span>
-            <span>Short name</span>
-            <span style={{ textAlign: 'left' }}>Vessels</span>
-            <span style={{ textAlign: 'left' }}>Users</span>
-            <span>Created</span>
-            <span style={{ textAlign: 'center' }}>Action</span>
+            <span>{t('companies.col_company')}</span>
+            <span>{t('companies.col_short_name')}</span>
+            <span style={{ textAlign: 'left' }}>{t('companies.col_vessels')}</span>
+            <span style={{ textAlign: 'left' }}>{t('companies.col_users')}</span>
+            <span>{t('companies.col_created')}</span>
+            <span style={{ textAlign: 'center' }}>{t('companies.col_action')}</span>
           </div>
 
           {companies.length === 0 && (
             <div className="px-4 py-8 text-center text-[12.5px]" style={{ color: 'var(--ink-3)' }}>
-              No companies yet.
+              {t('companies.no_companies')}
             </div>
           )}
 
@@ -453,7 +459,7 @@ export function CompaniesPage() {
                     cursor: 'pointer',
                   }}
                 >
-                  + Admin
+                  {t('companies.add_admin')}
                 </button>
                 <button
                   onClick={() => setEdit(c)}
@@ -465,7 +471,7 @@ export function CompaniesPage() {
                     color: 'var(--ink-2)',
                   }}
                 >
-                  Edit
+                  {t('companies.edit')}
                 </button>
               </div>
             </div>

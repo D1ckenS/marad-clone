@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, Select, Spinner } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -18,6 +19,7 @@ interface Props {
 const NEW_LOC = '__new__';
 
 export function AddStockLevelModal({ open, partId, partName, onClose, onSaved }: Props) {
+  const { t } = useTranslation();
   const [locations, setLocations] = useState<Location[]>([]);
   const [loadingLocs, setLoadingLocs] = useState(false);
   const [locationId, setLocationId] = useState('');
@@ -89,10 +91,10 @@ export function AddStockLevelModal({ open, partId, partName, onClose, onSaved }:
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Save
+            {t('common.save')}
           </Button>
         </>
       }

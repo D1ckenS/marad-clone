@@ -4,6 +4,7 @@
  * with add/remove controls and a part picker.
  */
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Select } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export function TypicalPartsList({ value, onChange }: Props) {
+  const { t } = useTranslation();
   const [parts, setParts] = useState<PartOption[]>([]);
   const [addingPartId, setAddingPartId] = useState('');
   const [addingQty, setAddingQty] = useState('');
@@ -62,20 +64,20 @@ export function TypicalPartsList({ value, onChange }: Props) {
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-slate-700">Typical parts used</span>
+        <span className="text-sm font-medium text-slate-700">
+          {t('maintenance.typical_parts_used')}
+        </span>
         <button
           type="button"
           onClick={() => setShowAdd((v) => !v)}
           className="text-xs text-blue-600 hover:underline"
         >
-          {showAdd ? 'Cancel' : '+ Add part'}
+          {showAdd ? t('common.cancel') : t('maintenance.add_part')}
         </button>
       </div>
 
       {value.length === 0 && !showAdd && (
-        <p className="text-xs text-slate-400 italic">
-          No parts defined. These pre-fill the sign-off form.
-        </p>
+        <p className="text-xs text-slate-400 italic">{t('maintenance.no_typical_parts')}</p>
       )}
 
       {value.map((p) => (
@@ -97,17 +99,17 @@ export function TypicalPartsList({ value, onChange }: Props) {
       {showAdd && (
         <div className="mt-2 flex items-end gap-2 bg-slate-50 p-2 rounded-md">
           <div className="flex-1">
-            <label className="block text-xs text-slate-500 mb-1">Part</label>
+            <label className="block text-xs text-slate-500 mb-1">{t('common.part')}</label>
             <Select
               value={addingPartId}
               onChange={setAddingPartId}
               options={parts.map((p) => ({ value: p.id, label: p.name }))}
-              placeholder="— Select —"
+              placeholder={t('common.select_placeholder')}
             />
           </div>
           <div className="w-24">
             <label className="block text-xs text-slate-500 mb-1">
-              Qty {selectedPart?.unit ? `(${selectedPart.unit})` : ''}
+              {t('common.qty')} {selectedPart?.unit ? `(${selectedPart.unit})` : ''}
             </label>
             <Input
               id="tpl-qty"
@@ -125,17 +127,4 @@ export function TypicalPartsList({ value, onChange }: Props) {
       )}
     </div>
   );
-}
-
-export function partsToJson(parts: TypicalPart[]): string | undefined {
-  return parts.length > 0 ? JSON.stringify(parts) : undefined;
-}
-
-export function partsFromJson(json: string | null | undefined): TypicalPart[] {
-  if (!json) return [];
-  try {
-    return JSON.parse(json) as TypicalPart[];
-  } catch {
-    return [];
-  }
 }

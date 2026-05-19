@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, Select, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
-import { partsFromJson, type TypicalPart } from './TypicalPartsList.js';
+import { type TypicalPart } from './TypicalPartsList.js';
+import { partsFromJson } from './partsUtils.js';
 
 interface Part {
   id: string;
@@ -35,6 +37,7 @@ export function SignOffModal({
   onClose,
   onSuccess,
 }: SignOffModalProps) {
+  const { t } = useTranslation();
   const [hoursWorked, setHoursWorked] = useState('');
   const [notes, setNotes] = useState('');
   const [photos, setPhotos] = useState<File[]>([]);
@@ -162,15 +165,15 @@ export function SignOffModal({
   return (
     <Modal
       open={jobInstanceId !== null}
-      title="Sign Off Job"
+      title={t('maintenance.sign_off_job')}
       onClose={handleClose}
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={loading}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={loading} onClick={handleSubmit}>
-            Sign Off
+            {t('maintenance.sign_off')}
           </Button>
         </>
       }
@@ -180,7 +183,7 @@ export function SignOffModal({
 
         <Input
           id="hoursWorked"
-          label="Hours worked"
+          label={t('maintenance.hours_worked')}
           type="number"
           min="0"
           step="0.5"
@@ -191,8 +194,8 @@ export function SignOffModal({
 
         <TextArea
           id="notes"
-          label="Notes"
-          placeholder="Observations, findings…"
+          label={t('common.notes')}
+          placeholder={t('common.notes_placeholder')}
           rows={3}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
@@ -201,20 +204,20 @@ export function SignOffModal({
         {/* ── Parts consumed ─────────────────────────────────────── */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-slate-700">Parts consumed</span>
+            <span className="text-sm font-medium text-slate-700">
+              {t('maintenance.parts_consumed')}
+            </span>
             <button
               type="button"
               onClick={() => setShowAddLine((v) => !v)}
               className="text-xs text-blue-600 hover:underline"
             >
-              {showAddLine ? 'Cancel' : '+ Add part'}
+              {showAddLine ? t('common.cancel') : t('maintenance.add_part')}
             </button>
           </div>
 
           {consumed.length === 0 && !showAddLine && (
-            <p className="text-xs text-slate-400 italic">
-              No parts recorded. Leave empty if none used.
-            </p>
+            <p className="text-xs text-slate-400 italic">{t('maintenance.no_parts_recorded')}</p>
           )}
 
           {consumed.map((line, idx) => (
@@ -255,27 +258,29 @@ export function SignOffModal({
           {showAddLine && (
             <div className="mt-2 flex items-end gap-2 bg-slate-50 p-2 rounded-md">
               <div className="flex-1">
-                <label className="block text-xs text-slate-500 mb-1">Part</label>
+                <label className="block text-xs text-slate-500 mb-1">{t('common.part')}</label>
                 <Select
                   value={addPartId}
                   onChange={setAddPartId}
                   options={parts.map((p) => ({ value: p.id, label: p.name }))}
-                  placeholder="— Select —"
+                  placeholder={t('common.select_placeholder')}
                   size="sm"
                 />
               </div>
               <div className="w-32">
-                <label className="block text-xs text-slate-500 mb-1">Location</label>
+                <label className="block text-xs text-slate-500 mb-1">
+                  {t('inventory.location')}
+                </label>
                 <Select
                   value={addLocationId}
                   onChange={setAddLocationId}
                   options={locations.map((l) => ({ value: l.id, label: l.name }))}
-                  placeholder="— Select —"
+                  placeholder={t('common.select_placeholder')}
                   size="sm"
                 />
               </div>
               <div className="w-20">
-                <label className="block text-xs text-slate-500 mb-1">Qty</label>
+                <label className="block text-xs text-slate-500 mb-1">{t('common.qty')}</label>
                 <Input
                   id="add-qty"
                   type="number"
@@ -298,7 +303,7 @@ export function SignOffModal({
 
         {/* ── Photos ─────────────────────────────────────────────── */}
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-slate-700">Photos</label>
+          <label className="text-sm font-medium text-slate-700">{t('maintenance.photos')}</label>
           <button
             type="button"
             onClick={() => fileRef.current?.click()}

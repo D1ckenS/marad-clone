@@ -1,7 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { api } from '../api/client.js';
-import { useAuth } from './AuthContext.js';
+import { useAuth } from './useAuth.js';
 
 export interface Vessel {
   id: string;
@@ -9,7 +9,7 @@ export interface Vessel {
   imoNumber: string | null;
 }
 
-interface VesselContextValue {
+export interface VesselContextValue {
   companyName: string; // shortName ?? name — use this everywhere in the UI
   vessels: Vessel[];
   selectedVesselId: string | null; // null = "all vessels"
@@ -18,7 +18,7 @@ interface VesselContextValue {
   reload: () => void;
 }
 
-const VesselContext = createContext<VesselContextValue | null>(null);
+export const VesselContext = createContext<VesselContextValue | null>(null);
 
 const STORAGE_KEY = 'fleetops_selected_vessel';
 
@@ -93,15 +93,4 @@ export function VesselProvider({ children }: { children: ReactNode }) {
       {children}
     </VesselContext.Provider>
   );
-}
-
-export function useVessel(): VesselContextValue {
-  const ctx = useContext(VesselContext);
-  if (!ctx) throw new Error('useVessel must be used within VesselProvider');
-  return ctx;
-}
-
-export function useVesselFilter(): string | undefined {
-  const { selectedVesselId } = useVessel();
-  return selectedVesselId ?? undefined;
 }

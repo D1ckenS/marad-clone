@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Spinner } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
-const STATUS_COLOR: Record<string, { bg: string; text: string; label: string }> = {
-  PLANNING: { bg: '#F4F2EC', text: '#0A1F33', label: 'Planning' },
-  ACTIVE: { bg: '#D1FAE5', text: '#2F7D4F', label: 'Active' },
-  ON_HOLD: { bg: '#FEF3C7', text: '#B5731E', label: 'On Hold' },
-  COMPLETED: { bg: '#DBEAFE', text: '#1F5B9D', label: 'Completed' },
-  CANCELLED: { bg: '#FEE2E2', text: '#AB382E', label: 'Cancelled' },
+const STATUS_COLOR: Record<string, { bg: string; text: string; labelKey: string }> = {
+  PLANNING: { bg: '#F4F2EC', text: '#0A1F33', labelKey: 'maintenance.project_status_planning' },
+  ACTIVE: { bg: '#D1FAE5', text: '#2F7D4F', labelKey: 'maintenance.project_status_active' },
+  ON_HOLD: { bg: '#FEF3C7', text: '#B5731E', labelKey: 'maintenance.project_status_on_hold' },
+  COMPLETED: { bg: '#DBEAFE', text: '#1F5B9D', labelKey: 'maintenance.project_status_completed' },
+  CANCELLED: { bg: '#FEE2E2', text: '#AB382E', labelKey: 'maintenance.project_status_cancelled' },
 };
 
 const TASK_COLOR: Record<string, { bg: string; border: string }> = {
@@ -554,6 +555,7 @@ function ProjectCard({
   onStatusChange: (id: string, status: string) => void;
   onDelete: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(true);
   const statusStyle = STATUS_COLOR[project.status] ?? STATUS_COLOR['PLANNING']!;
 
@@ -616,7 +618,7 @@ function ProjectCard({
             color: statusStyle.text,
           }}
         >
-          {statusStyle.label}
+          {t(statusStyle.labelKey)}
         </span>
         {project.startDate && (
           <span style={{ fontSize: 12, color: '#8893A0' }}>
@@ -652,7 +654,7 @@ function ProjectCard({
         >
           {Object.entries(STATUS_COLOR).map(([k, v]) => (
             <option key={k} value={k}>
-              {v.label}
+              {t(v.labelKey)}
             </option>
           ))}
         </select>
@@ -788,6 +790,7 @@ function ProjectCard({
 }
 
 export function MaintenanceProjectsTab() {
+  const { t } = useTranslation();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -847,7 +850,7 @@ export function MaintenanceProjectsTab() {
               <div style={{ fontSize: 20, fontWeight: 700, color: '#0A1F33' }}>
                 {statusCounts[k] ?? 0}
               </div>
-              <div style={{ fontSize: 11, color: '#8893A0' }}>{v.label}</div>
+              <div style={{ fontSize: 11, color: '#8893A0' }}>{t(v.labelKey)}</div>
             </div>
           ))}
         </div>

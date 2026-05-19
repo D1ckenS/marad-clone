@@ -14,6 +14,8 @@ interface SelectProps {
   disabled?: boolean;
   /** sm = compact inline use; md = standard form height (default). */
   size?: 'sm' | 'md';
+  /** Which direction the dropdown opens. Default: bottom. Use top when the trigger is near the bottom of a constrained container. */
+  placement?: 'bottom' | 'top';
 }
 
 const HEIGHT = { sm: 28, md: 36 };
@@ -27,6 +29,7 @@ export function Select({
   placeholder,
   disabled,
   size = 'md',
+  placement = 'bottom',
 }: SelectProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -107,7 +110,7 @@ export function Select({
         <div
           style={{
             position: 'absolute',
-            top: 'calc(100% + 4px)',
+            ...(placement === 'top' ? { bottom: 'calc(100% + 4px)' } : { top: 'calc(100% + 4px)' }),
             left: 0,
             right: 0,
             background: 'var(--surface)',

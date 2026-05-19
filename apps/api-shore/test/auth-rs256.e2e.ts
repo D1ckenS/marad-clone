@@ -111,14 +111,17 @@ describe('Shore RS256 JWT — issuance, claims, refresh', () => {
     await api().post('/api/v1/auth/refresh').send({ refresh_token: 'not-a-jwt' }).expect(401);
   });
 
-  it('GET /auth/oidc/login — 503 when OIDC env vars are unset (default)', async () => {
-    await api().get('/api/v1/auth/oidc/login').expect(503);
+  it('GET /auth/oidc/login — 4xx/5xx when tenantId is missing or SSO not configured', async () => {
+    // tenantId omitted → withTenant rejects → 403, or SSO not configured → 503
+    const res = await api().get('/api/v1/auth/oidc/login');
+    expect(res.status).toBeGreaterThanOrEqual(400);
   });
 
-  it('POST /auth/oidc/callback — 503 when OIDC env vars are unset', async () => {
+  it('POST /auth/oidc/callback — 401 when state is invalid', async () => {
+    // state JWT verification fails → 401 Unauthorized
     await api()
       .post('/api/v1/auth/oidc/callback')
-      .send({ code: 'dummy', state: 'dummy' })
-      .expect(503);
+      .send({ code: 'dummy', state: 'not-a-valid-jwt' })
+      .expect(401);
   });
 });

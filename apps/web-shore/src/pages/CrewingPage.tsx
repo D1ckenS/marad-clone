@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { Badge, type BadgeColor, Spinner } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
@@ -225,6 +226,7 @@ function Chip({
 // ─── Crew tab ─────────────────────────────────────────────────────────────────
 
 function CrewDetailPane({ c, onClose }: { c: CrewMember; onClose: () => void }) {
+  const { t } = useTranslation();
   const [certs, setCerts] = useState<CrewCert[]>([]);
 
   useEffect(() => {
@@ -324,12 +326,12 @@ function CrewDetailPane({ c, onClose }: { c: CrewMember; onClose: () => void }) 
             className="text-[10.5px] font-semibold uppercase tracking-widest mb-2"
             style={{ color: 'var(--ink-3)' }}
           >
-            MLC 2006 — Status
+            {t('crewing.mlc_status')}
           </div>
           <div className="flex items-center gap-2">
             <Badge color={mlcColor(c.mlcStatus)}>{mlcLabel(c.mlcStatus)}</Badge>
             <span className="text-[11px]" style={{ color: 'var(--ink-3)' }}>
-              See Rest Hours tab for full 14-day log
+              {t('crewing.mlc_see_rest_hours')}
             </span>
           </div>
         </div>
@@ -345,7 +347,7 @@ function CrewDetailPane({ c, onClose }: { c: CrewMember; onClose: () => void }) 
         </div>
         {certs.length === 0 ? (
           <div className="px-4 pb-4 text-xs" style={{ color: 'var(--ink-3)' }}>
-            No certificates recorded.
+            {t('crewing.no_certs')}
           </div>
         ) : (
           certs.map((cc) => (
@@ -392,13 +394,13 @@ function CrewDetailPane({ c, onClose }: { c: CrewMember; onClose: () => void }) 
             cursor: 'pointer',
           }}
         >
-          Roster
+          {t('crewing.roster')}
         </button>
         <button
           className="flex-1 py-1.5 rounded-2 text-xs font-medium"
           style={{ background: 'var(--navy)', color: '#fff', border: 'none', cursor: 'pointer' }}
         >
-          Open profile
+          {t('crewing.open_profile')}
         </button>
       </div>
     </aside>
@@ -406,6 +408,7 @@ function CrewDetailPane({ c, onClose }: { c: CrewMember; onClose: () => void }) 
 }
 
 function CrewTab({ crew, loading }: { crew: CrewMember[]; loading: boolean }) {
+  const { t } = useTranslation();
   const [selected, setSelected] = useState<string | null>(null);
   const [dept, setDept] = useState('All');
 
@@ -424,18 +427,25 @@ function CrewTab({ crew, loading }: { crew: CrewMember[]; loading: boolean }) {
             className="text-[10.5px] font-semibold uppercase tracking-widest"
             style={{ color: 'var(--ink-3)' }}
           >
-            Department
+            {t('crewing.department')}
           </span>
           <div className="flex gap-1.5">
-            {['All', 'Deck', 'Engine', 'Galley'].map((d) => (
-              <Chip key={d} active={dept === d} onClick={() => setDept(d)}>
-                {d}
+            {(
+              [
+                ['All', t('crewing.dept_all')],
+                ['Deck', t('crewing.dept_deck')],
+                ['Engine', t('crewing.dept_engine')],
+                ['Galley', t('crewing.dept_galley')],
+              ] as [string, string][]
+            ).map(([val, label]) => (
+              <Chip key={val} active={dept === val} onClick={() => setDept(val)}>
+                {label}
               </Chip>
             ))}
           </div>
           <div className="flex-1" />
           <span className="text-[11.5px]" style={{ color: 'var(--ink-3)' }}>
-            {visible.length} of {crew.length} on board
+            {visible.length} {t('crewing.of')} {crew.length} {t('crewing.on_board')}
           </span>
         </div>
 
@@ -450,12 +460,12 @@ function CrewTab({ crew, loading }: { crew: CrewMember[]; loading: boolean }) {
           }}
         >
           <span />
-          <span>Crew / rank</span>
-          <span>Dept</span>
-          <span>Nat</span>
-          <span>Sign-off</span>
-          <span>MLC rest</span>
-          <span>Certs</span>
+          <span>{t('crewing.col_crew_rank')}</span>
+          <span>{t('crewing.col_dept')}</span>
+          <span>{t('crewing.col_nat')}</span>
+          <span>{t('crewing.col_signoff')}</span>
+          <span>{t('crewing.col_mlc_rest')}</span>
+          <span>{t('crewing.col_certs')}</span>
         </div>
 
         {/* Rows */}
@@ -465,9 +475,7 @@ function CrewTab({ crew, loading }: { crew: CrewMember[]; loading: boolean }) {
               <Spinner />
             </div>
           )}
-          {!loading && crew.length === 0 && (
-            <EmptyState message="No crew members on record. Sign-on records will appear here." />
-          )}
+          {!loading && crew.length === 0 && <EmptyState message={t('crewing.no_crew')} />}
           {!loading &&
             visible.map((c) => (
               <div
@@ -530,7 +538,7 @@ function CrewTab({ crew, loading }: { crew: CrewMember[]; loading: boolean }) {
           }}
         >
           <p className="text-xs text-center" style={{ color: 'var(--ink-3)' }}>
-            Select a crew member to view contract, MLC compliance, and certificates.
+            {t('crewing.select_member_hint')}
           </p>
         </aside>
       )}
@@ -541,6 +549,7 @@ function CrewTab({ crew, loading }: { crew: CrewMember[]; loading: boolean }) {
 // ─── Rotation tab ─────────────────────────────────────────────────────────────
 
 function RotationTab({ crew, loading }: { crew: CrewMember[]; loading: boolean }) {
+  const { t } = useTranslation();
   const { months, totalDays, windowStart, todayOffset } = useMemo(() => {
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth() - 3, 1);
@@ -576,14 +585,14 @@ function RotationTab({ crew, loading }: { crew: CrewMember[]; loading: boolean }
             className="text-[10.5px] font-semibold uppercase tracking-widest"
             style={{ color: 'var(--ink-3)' }}
           >
-            Crew rotations — 8-month window
+            {t('crewing.crew_rotations')}
           </span>
           <div className="flex-1" />
           <button
             className="px-3 py-1 rounded-2 border text-[11px] font-medium"
             style={{ borderColor: 'var(--border)', color: 'var(--ink-2)', cursor: 'pointer' }}
           >
-            Plan roster
+            {t('crewing.plan_roster')}
           </button>
         </div>
 
@@ -599,7 +608,7 @@ function RotationTab({ crew, loading }: { crew: CrewMember[]; loading: boolean }
             className="px-4 py-1.5 text-[10px] uppercase tracking-widest"
             style={{ color: 'var(--ink-3)' }}
           >
-            Crew
+            {t('crewing.tab_crew')}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(${months.length}, 1fr)` }}>
             {months.map((m, i) => (
@@ -624,7 +633,7 @@ function RotationTab({ crew, loading }: { crew: CrewMember[]; loading: boolean }
         )}
         {!loading && crew.length === 0 && (
           <div className="p-8 text-xs text-center" style={{ color: 'var(--ink-3)' }}>
-            No crew contracts to display.
+            {t('crewing.no_contracts')}
           </div>
         )}
         {!loading &&
@@ -722,6 +731,7 @@ function RotationTab({ crew, loading }: { crew: CrewMember[]; loading: boolean }
 // ─── Rest Hours tab ───────────────────────────────────────────────────────────
 
 function RestHoursTab({ crew, loading: crewLoading }: { crew: CrewMember[]; loading: boolean }) {
+  const { t } = useTranslation();
   const [crewId, setCrewId] = useState<string | null>(null);
   const [entries, setEntries] = useState<RestHourEntry[]>([]);
   const [entriesLoading, setEntriesLoading] = useState(false);
@@ -764,7 +774,7 @@ function RestHoursTab({ crew, loading: crewLoading }: { crew: CrewMember[]; load
           className="px-4 py-2 text-[10.5px] font-semibold uppercase tracking-widest flex-shrink-0"
           style={{ borderBottom: '1px solid var(--hairline)', color: 'var(--ink-3)' }}
         >
-          Crew · sorted by risk
+          {t('crewing.crew_by_risk')}
         </div>
         <div className="flex-1 overflow-y-auto p-1.5">
           {crewLoading && (
@@ -774,7 +784,7 @@ function RestHoursTab({ crew, loading: crewLoading }: { crew: CrewMember[]; load
           )}
           {!crewLoading && sortedCrew.length === 0 && (
             <p className="p-4 text-xs text-center" style={{ color: 'var(--ink-3)' }}>
-              No crew on record.
+              {t('crewing.no_crew_rotation')}
             </p>
           )}
           {sortedCrew.map((c) => {
@@ -825,9 +835,7 @@ function RestHoursTab({ crew, loading: crewLoading }: { crew: CrewMember[]; load
 
       {/* Detail */}
       <section className="flex-1 overflow-y-auto min-w-0" style={{ background: 'var(--bg)' }}>
-        {!sel && (
-          <EmptyState message="Select a crew member to view their 14-day work / rest log." />
-        )}
+        {!sel && <EmptyState message={t('crewing.select_crew_hint')} />}
         {sel && (
           <>
             {/* Header */}
@@ -849,14 +857,14 @@ function RestHoursTab({ crew, loading: crewLoading }: { crew: CrewMember[]; load
                   </span>
                 </div>
                 <div className="text-[11.5px]" style={{ color: 'var(--ink-3)' }}>
-                  14-day work / rest log · MLC 2006
+                  {t('crewing.log_14day')}
                 </div>
               </div>
               <button
                 className="px-3 py-1 rounded-2 border text-xs font-medium"
                 style={{ borderColor: 'var(--border)', color: 'var(--ink-2)', cursor: 'pointer' }}
               >
-                Export PDF
+                {t('crewing.export_pdf')}
               </button>
             </div>
 
@@ -873,9 +881,7 @@ function RestHoursTab({ crew, loading: crewLoading }: { crew: CrewMember[]; load
                   style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
                 >
                   <p className="text-xs" style={{ color: 'var(--ink-3)' }}>
-                    No rest hour entries recorded for this crew member.
-                    <br />
-                    Entries are logged automatically from the noon report feed.
+                    {t('crewing.no_rest_entries')}
                   </p>
                 </div>
               </div>
@@ -887,27 +893,27 @@ function RestHoursTab({ crew, loading: crewLoading }: { crew: CrewMember[]; load
                 <div className="grid grid-cols-4 gap-2.5 p-4">
                   {[
                     {
-                      label: 'Rest — daily avg',
+                      label: t('crewing.rest_daily_avg'),
                       value: `${restAvg} h`,
-                      sub: 'of ≥10 h required',
+                      sub: t('crewing.of_10h_required'),
                       bad: restAvg !== '—' && parseFloat(restAvg) < 10,
                     },
                     {
-                      label: 'Breaches — 24 h rule',
+                      label: t('crewing.breaches_24h'),
                       value: String(breaches24),
-                      sub: 'days < 10 h rest',
+                      sub: t('crewing.days_lt_10h'),
                       bad: breaches24 > 0,
                     },
                     {
-                      label: 'Breaches — 7-day rule',
+                      label: t('crewing.breaches_7d'),
                       value: String(breaches7),
-                      sub: 'rolling weeks < 77 h',
+                      sub: t('crewing.rolling_weeks'),
                       bad: breaches7 > 0,
                     },
                     {
-                      label: 'Compliance',
+                      label: t('crewing.compliance'),
                       value: `${Math.round(((14 - breaches24) / 14) * 100)}%`,
-                      sub: 'last 14 days',
+                      sub: t('crewing.last_14_days'),
                       bad: sel.mlcStatus === 'breach',
                     },
                   ].map((kpi) => (
@@ -946,7 +952,7 @@ function RestHoursTab({ crew, loading: crewLoading }: { crew: CrewMember[]; load
                         className="text-[10.5px] font-semibold uppercase tracking-widest"
                         style={{ color: 'var(--ink-3)' }}
                       >
-                        Work / rest log · hourly · 14 days
+                        {t('crewing.work_rest_log')}
                       </span>
                       <div className="flex-1" />
                       <div
@@ -963,7 +969,7 @@ function RestHoursTab({ crew, loading: crewLoading }: { crew: CrewMember[]; load
                               display: 'inline-block',
                             }}
                           />{' '}
-                          work
+                          {t('crewing.work')}
                         </span>
                         <span className="flex items-center gap-1">
                           <span
@@ -976,7 +982,7 @@ function RestHoursTab({ crew, loading: crewLoading }: { crew: CrewMember[]; load
                               display: 'inline-block',
                             }}
                           />{' '}
-                          rest
+                          {t('crewing.rest')}
                         </span>
                         <span className="flex items-center gap-1">
                           <span
@@ -989,7 +995,7 @@ function RestHoursTab({ crew, loading: crewLoading }: { crew: CrewMember[]; load
                               display: 'inline-block',
                             }}
                           />{' '}
-                          breach
+                          {t('crewing.breach')}
                         </span>
                       </div>
                     </div>
@@ -1016,8 +1022,8 @@ function RestHoursTab({ crew, loading: crewLoading }: { crew: CrewMember[]; load
                             {String(h).padStart(2, '0')}
                           </span>
                         ))}
-                        <span style={{ textAlign: 'right' }}>24 h</span>
-                        <span style={{ textAlign: 'right' }}>7-day</span>
+                        <span style={{ textAlign: 'right' }}>{t('crewing.24h')}</span>
+                        <span style={{ textAlign: 'right' }}>{t('crewing.7day')}</span>
                       </div>
                       {grid.map((row, d) => {
                         const breach24 = metrics.breach24[d] ?? false;
@@ -1090,11 +1096,8 @@ function RestHoursTab({ crew, loading: crewLoading }: { crew: CrewMember[]; load
                         color: 'var(--ink-3)',
                       }}
                     >
-                      <span>
-                        MLC 2006: rest must be ≥ 10 h in any 24 h window and ≥ 77 h in any 7-day
-                        rolling window.
-                      </span>
-                      <span className="font-mono">Source: noon report · watchkeeping log</span>
+                      <span>{t('crewing.mlc_rule')}</span>
+                      <span className="font-mono">{t('crewing.source_noon')}</span>
                     </div>
                   </div>
                 </div>
@@ -1110,6 +1113,7 @@ function RestHoursTab({ crew, loading: crewLoading }: { crew: CrewMember[]; load
 // ─── Certificates tab ─────────────────────────────────────────────────────────
 
 function CertificatesTab() {
+  const { t } = useTranslation();
   const [certs, setCerts] = useState<CrewCert[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'critical' | 'soon'>('all');
@@ -1144,9 +1148,9 @@ function CertificatesTab() {
         </span>
         <div className="flex gap-1.5">
           {[
-            { id: 'all' as const, label: `All · ${certs.length}` },
-            { id: 'critical' as const, label: 'Expiring ≤ 7 d' },
-            { id: 'soon' as const, label: 'Expiring ≤ 90 d' },
+            { id: 'all' as const, label: `${t('common.all')} · ${certs.length}` },
+            { id: 'critical' as const, label: t('crewing.expiring_7d') },
+            { id: 'soon' as const, label: t('crewing.expiring_90d') },
           ].map((f) => (
             <Chip key={f.id} active={filter === f.id} onClick={() => setFilter(f.id)}>
               {f.label}
@@ -1158,13 +1162,13 @@ function CertificatesTab() {
           className="px-3 py-1 rounded-2 border text-xs font-medium"
           style={{ borderColor: 'var(--border)', color: 'var(--ink-2)', cursor: 'pointer' }}
         >
-          Notification thresholds
+          {t('crewing.notification_thresholds')}
         </button>
         <button
           className="px-3 py-1 rounded-2 text-xs font-medium"
           style={{ background: 'var(--navy)', color: '#fff', border: 'none', cursor: 'pointer' }}
         >
-          + Upload cert
+          {t('crewing.upload_cert')}
         </button>
       </div>
 
@@ -1178,12 +1182,12 @@ function CertificatesTab() {
           borderBottom: '1px solid var(--border)',
         }}
       >
-        <span>Cert</span>
-        <span>Crew</span>
-        <span>Type</span>
-        <span>Issuing authority</span>
-        <span>Expires</span>
-        <span>Days left</span>
+        <span>{t('crewing.col_cert')}</span>
+        <span>{t('crewing.col_crew')}</span>
+        <span>{t('crewing.col_type')}</span>
+        <span>{t('crewing.col_authority')}</span>
+        <span>{t('crewing.col_expires')}</span>
+        <span>{t('crewing.col_days_left')}</span>
         <span />
       </div>
 
@@ -1194,7 +1198,7 @@ function CertificatesTab() {
             <Spinner />
           </div>
         )}
-        {!loading && certs.length === 0 && <EmptyState message="No certificates on record." />}
+        {!loading && certs.length === 0 && <EmptyState message={t('crewing.no_certs_on_record')} />}
         {!loading &&
           visible.map((cc) => (
             <div
@@ -1237,7 +1241,7 @@ function CertificatesTab() {
                   cursor: 'pointer',
                 }}
               >
-                {cc.status === 'red' ? 'Renew' : 'Open'}
+                {cc.status === 'red' ? t('crewing.renew') : t('common.open')}
               </button>
             </div>
           ))}
@@ -1249,6 +1253,7 @@ function CertificatesTab() {
 // ─── Drills tab ───────────────────────────────────────────────────────────────
 
 function DrillsTab() {
+  const { t } = useTranslation();
   const [drills, setDrills] = useState<Drill[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -1273,12 +1278,12 @@ function DrillsTab() {
           className="text-[10.5px] font-semibold uppercase tracking-widest"
           style={{ color: 'var(--ink-3)' }}
         >
-          Drill register · last 90 d
+          {t('crewing.drill_register')}
         </span>
         {drills.length > 0 && (
           <span className="text-[11.5px]" style={{ color: 'var(--ink-3)' }}>
-            {drills.length} drill{drills.length !== 1 ? 's' : ''} · {totalFindings} finding
-            {totalFindings !== 1 ? 's' : ''}
+            {drills.length} {drills.length !== 1 ? t('crewing.drills') : t('crewing.drill')} ·{' '}
+            {totalFindings} {totalFindings !== 1 ? t('crewing.findings') : t('crewing.finding')}
           </span>
         )}
         <div className="flex-1" />
@@ -1286,13 +1291,13 @@ function DrillsTab() {
           className="px-3 py-1 rounded-2 border text-xs font-medium"
           style={{ borderColor: 'var(--border)', color: 'var(--ink-2)', cursor: 'pointer' }}
         >
-          Filter type
+          {t('crewing.filter_type')}
         </button>
         <button
           className="px-3 py-1 rounded-2 text-xs font-medium"
           style={{ background: 'var(--navy)', color: '#fff', border: 'none', cursor: 'pointer' }}
         >
-          + Schedule drill
+          {t('crewing.schedule_drill')}
         </button>
       </div>
 
@@ -1306,13 +1311,13 @@ function DrillsTab() {
           borderBottom: '1px solid var(--border)',
         }}
       >
-        <span>Drill</span>
-        <span>Date</span>
-        <span>Type</span>
-        <span>Location</span>
-        <span className="text-right">Duration</span>
-        <span>Attendance</span>
-        <span className="text-right">Findings</span>
+        <span>{t('crewing.col_drill')}</span>
+        <span>{t('crewing.col_date')}</span>
+        <span>{t('crewing.col_type')}</span>
+        <span>{t('crewing.col_location')}</span>
+        <span className="text-right">{t('crewing.col_duration')}</span>
+        <span>{t('crewing.col_attendance')}</span>
+        <span className="text-right">{t('crewing.findings')}</span>
         <span />
       </div>
 
@@ -1323,9 +1328,7 @@ function DrillsTab() {
             <Spinner />
           </div>
         )}
-        {!loading && drills.length === 0 && (
-          <EmptyState message="No drills recorded in the last 90 days." />
-        )}
+        {!loading && drills.length === 0 && <EmptyState message={t('crewing.no_drills')} />}
         {!loading &&
           drills.map((d) => {
             const attendanceLabel =
@@ -1380,7 +1383,7 @@ function DrillsTab() {
                   className="px-2.5 py-1 rounded-2 border text-[11px] font-medium justify-self-end"
                   style={{ borderColor: 'var(--border)', color: 'var(--ink-2)', cursor: 'pointer' }}
                 >
-                  Open
+                  {t('common.open')}
                 </button>
               </div>
             );
@@ -1395,6 +1398,7 @@ function DrillsTab() {
 type Tab = 'crew' | 'rotation' | 'rest-hours' | 'certificates' | 'drills';
 
 export function CrewingPage() {
+  const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
   const tab = (params.get('tab') as Tab | null) ?? 'crew';
   const [search, setSearch] = useState('');
@@ -1424,16 +1428,16 @@ export function CrewingPage() {
       .catch(() => undefined);
   }, [loadCrew]);
 
-  const setTab = (t: Tab) => setParams(t === 'crew' ? {} : { tab: t });
+  const setTab = (tabId: Tab) => setParams(tabId === 'crew' ? {} : { tab: tabId });
 
   const nonCompliant = crew.filter((c) => c.mlcStatus !== 'compliant').length;
 
-  const TABS: { id: Tab; label: string; count: number }[] = [
-    { id: 'crew', label: 'Crew', count: crew.length },
-    { id: 'rotation', label: 'Rotation', count: crew.length },
-    { id: 'rest-hours', label: 'Rest hours', count: nonCompliant },
-    { id: 'certificates', label: 'Certificates', count: certCount },
-    { id: 'drills', label: 'Drills', count: drillCount },
+  const crewTabs: { id: Tab; label: string; count: number }[] = [
+    { id: 'crew', label: t('crewing.tab_crew'), count: crew.length },
+    { id: 'rotation', label: t('crewing.tab_rotation'), count: crew.length },
+    { id: 'rest-hours', label: t('crewing.tab_rest_hours'), count: nonCompliant },
+    { id: 'certificates', label: t('crewing.tab_certificates'), count: certCount },
+    { id: 'drills', label: t('crewing.tab_drills'), count: drillCount },
   ];
 
   return (
@@ -1455,10 +1459,11 @@ export function CrewingPage() {
           className="text-[16px] font-semibold m-0"
           style={{ color: 'var(--ink)', letterSpacing: '-0.01em' }}
         >
-          Crewing
+          {t('crewing.title')}
         </h1>
         <span className="text-[12px] whitespace-nowrap" style={{ color: 'var(--ink-3)' }}>
-          {crew.length > 0 ? `${crew.length} on board · ` : ''}MLC 2006
+          {crew.length > 0 ? `${crew.length} ${t('crewing.on_board')} · ` : ''}
+          {t('crewing.mlc')}
         </span>
         <div className="flex-1" />
         <div
@@ -1482,7 +1487,7 @@ export function CrewingPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search crew, certs…"
+            placeholder={t('crewing.search_placeholder')}
             className="flex-1 bg-transparent outline-none text-[12px]"
             style={{ color: 'var(--ink)', border: 'none' }}
           />
@@ -1491,13 +1496,13 @@ export function CrewingPage() {
           className="px-3 py-1 rounded-2 border text-xs font-medium"
           style={{ borderColor: 'var(--border)', color: 'var(--ink-2)', cursor: 'pointer' }}
         >
-          Crew pool
+          {t('crewing.crew_pool')}
         </button>
         <button
           className="px-3 py-1 rounded-2 text-xs font-medium"
           style={{ background: 'var(--navy)', color: '#fff', border: 'none', cursor: 'pointer' }}
         >
-          + Sign on
+          {t('crewing.sign_on')}
         </button>
       </div>
 
@@ -1506,26 +1511,26 @@ export function CrewingPage() {
         className="flex gap-0 flex-shrink-0 px-4 overflow-x-auto"
         style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}
       >
-        {TABS.map((t) => (
+        {crewTabs.map((tabItem) => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
+            key={tabItem.id}
+            onClick={() => setTab(tabItem.id)}
             className="flex items-center gap-2 px-4 py-2.5 text-[13px] font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0"
             style={
-              tab === t.id
+              tab === tabItem.id
                 ? { borderBottomColor: 'var(--navy)', color: 'var(--navy)', marginBottom: -1 }
                 : { borderBottomColor: 'transparent', color: 'var(--ink-3)' }
             }
           >
-            <span>{t.label}</span>
+            <span>{tabItem.label}</span>
             <span
               className="font-mono text-[10.5px] px-1.5 py-px rounded-[10px]"
               style={{
-                background: tab === t.id ? 'var(--navy)' : 'var(--surface-2)',
-                color: tab === t.id ? '#fff' : 'var(--ink-3)',
+                background: tab === tabItem.id ? 'var(--navy)' : 'var(--surface-2)',
+                color: tab === tabItem.id ? '#fff' : 'var(--ink-3)',
               }}
             >
-              {t.count}
+              {tabItem.count}
             </span>
           </button>
         ))}

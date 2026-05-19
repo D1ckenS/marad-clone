@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { Badge, type BadgeColor, Spinner } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
@@ -103,43 +104,37 @@ interface Capa {
 
 // ─── Metadata ─────────────────────────────────────────────────────────────────
 
-const PERMIT_KIND_META: Record<PermitKind, { label: string; color: BadgeColor; short: string }> = {
-  hot: { label: 'Hot work', color: 'red', short: 'HOT' },
-  enc: { label: 'Enclosed space', color: 'red', short: 'ENC' },
-  aloft: { label: 'Working aloft', color: 'amber', short: 'ALFT' },
-  overside: { label: 'Over the side', color: 'amber', short: 'OS' },
-  elec: { label: 'Electrical LO-TO', color: 'amber', short: 'ELEC' },
-  cold: { label: 'Cold work', color: 'blue', short: 'COLD' },
-  bunker: { label: 'Bunkering', color: 'slate', short: 'BNK' },
-  crane: { label: 'Crane / lifting', color: 'amber', short: 'LIFT' },
+const PERMIT_KIND_META: Record<PermitKind, { labelKey: string; color: BadgeColor; short: string }> =
+  {
+    hot: { labelKey: 'safety.permit_type_hot', color: 'red', short: 'HOT' },
+    enc: { labelKey: 'safety.permit_type_enc', color: 'red', short: 'ENC' },
+    aloft: { labelKey: 'safety.permit_type_aloft', color: 'amber', short: 'ALFT' },
+    overside: { labelKey: 'safety.permit_type_overside', color: 'amber', short: 'OS' },
+    elec: { labelKey: 'safety.permit_type_elec', color: 'amber', short: 'ELEC' },
+    cold: { labelKey: 'safety.permit_type_cold', color: 'blue', short: 'COLD' },
+    bunker: { labelKey: 'safety.permit_type_bunker', color: 'slate', short: 'BNK' },
+    crane: { labelKey: 'safety.permit_type_crane', color: 'amber', short: 'LIFT' },
+  };
+
+const statusMeta: Record<string, { color: BadgeColor; labelKey: string }> = {
+  active: { color: 'green', labelKey: 'safety.status_active' },
+  awaiting: { color: 'amber', labelKey: 'safety.status_awaiting' },
+  closed: { color: 'slate', labelKey: 'safety.status_closed' },
+  suspended: { color: 'red', labelKey: 'safety.status_suspended' },
+  investigation: { color: 'amber', labelKey: 'safety.status_investigation' },
+  action: { color: 'blue', labelKey: 'safety.status_action' },
+  verification: { color: 'purple', labelKey: 'safety.verifying' },
+  open: { color: 'red', labelKey: 'safety.status_open' },
 };
 
-const statusMeta: Record<string, { color: BadgeColor; label: string }> = {
-  active: { color: 'green', label: 'ACTIVE' },
-  awaiting: { color: 'amber', label: 'AWAITING' },
-  closed: { color: 'slate', label: 'CLOSED' },
-  suspended: { color: 'red', label: 'SUSPENDED' },
-  investigation: { color: 'amber', label: 'INVESTIGATION' },
-  action: { color: 'blue', label: 'ACTION' },
-  verification: { color: 'purple', label: 'VERIFYING' },
-  open: { color: 'red', label: 'OPEN' },
-};
-
-const findingMeta: Record<FindingKind, { color: BadgeColor; label: string }> = {
-  'near-miss': { color: 'red', label: 'NEAR-MISS' },
-  NC: { color: 'amber', label: 'NON-CONF' },
-  observation: { color: 'blue', label: 'OBSERV' },
-  hazard: { color: 'purple', label: 'HAZARD' },
+const findingMeta: Record<FindingKind, { color: BadgeColor; labelKey: string }> = {
+  'near-miss': { color: 'red', labelKey: 'safety.finding_near_miss' },
+  NC: { color: 'amber', labelKey: 'safety.finding_nc' },
+  observation: { color: 'blue', labelKey: 'safety.finding_observation' },
+  hazard: { color: 'purple', labelKey: 'safety.finding_hazard' },
 };
 
 type Tab = 'permit' | 'find' | 'jha' | 'eq' | 'capa';
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'permit', label: 'Permits to work' },
-  { id: 'find', label: 'Findings' },
-  { id: 'jha', label: 'JHA' },
-  { id: 'eq', label: 'Equipment' },
-  { id: 'capa', label: 'CAPA' },
-];
 
 // ─── Shared atoms ─────────────────────────────────────────────────────────────
 
@@ -154,13 +149,15 @@ function EmptyState({ msg }: { msg: string }) {
 }
 
 function StatusBadge({ s }: { s: string }) {
-  const m = statusMeta[s] ?? { color: 'slate' as BadgeColor, label: s.toUpperCase() };
-  return <Badge color={m.color}>{m.label}</Badge>;
+  const { t } = useTranslation();
+  const m = statusMeta[s];
+  return <Badge color={m?.color ?? 'slate'}>{m ? t(m.labelKey) : s.toUpperCase()}</Badge>;
 }
 
 // ─── Permits tab ──────────────────────────────────────────────────────────────
 
 function PermitsTab({ permits, loading }: { permits: WorkPermit[]; loading: boolean }) {
+  const { t } = useTranslation();
   const [selected, setSelected] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | PermitStatus>('all');
 
@@ -205,7 +202,10 @@ function PermitsTab({ permits, loading }: { permits: WorkPermit[]; loading: bool
         >
           {(['all', 'active', 'awaiting', 'closed'] as const).map((f) => (
             <button key={f} onClick={() => setFilter(f)} style={chipStyle(filter === f)}>
-              {f.charAt(0).toUpperCase() + f.slice(1)}
+              {f === 'all'
+                ? t('common.all')
+                : t(`safety.status_${f}`).charAt(0) +
+                  t(`safety.status_${f}`).slice(1).toLowerCase()}
               <span className="font-mono text-[10px] ml-1 opacity-70">
                 {f === 'all' ? permits.length : permits.filter((p) => p.status === f).length}
               </span>
@@ -213,12 +213,12 @@ function PermitsTab({ permits, loading }: { permits: WorkPermit[]; loading: bool
           ))}
         </div>
         {visible.length === 0 ? (
-          <EmptyState msg="No permits match this filter." />
+          <EmptyState msg={t('safety.no_permits')} />
         ) : (
           <div className="flex-1 overflow-y-auto">
             {visible.map((p) => {
               const km = PERMIT_KIND_META[p.kind] ?? {
-                label: p.kind,
+                labelKey: p.kind,
                 color: 'slate' as BadgeColor,
                 short: p.kind,
               };
@@ -252,7 +252,8 @@ function PermitsTab({ permits, loading }: { permits: WorkPermit[]; loading: bool
                     {p.location}
                   </div>
                   <div className="text-[10.5px]" style={{ color: 'var(--ink-3)' }}>
-                    Sup. {p.supervisor} · <span className="font-mono">{p.countdown}</span>
+                    {t('safety.supervisor_abbrev')} {p.supervisor} ·{' '}
+                    <span className="font-mono">{p.countdown}</span>
                   </div>
                 </div>
               );
@@ -268,7 +269,7 @@ function PermitsTab({ permits, loading }: { permits: WorkPermit[]; loading: bool
           style={{ background: 'var(--bg)' }}
         >
           <p className="text-xs" style={{ color: 'var(--ink-3)' }}>
-            Select a permit to view details
+            {t('safety.select_permit_hint')}
           </p>
         </div>
       ) : (
@@ -306,9 +307,12 @@ function PermitsTab({ permits, loading }: { permits: WorkPermit[]; loading: bool
             }}
           >
             {[
-              ['Valid from', sel.validFrom],
-              ['Valid to', sel.validTo],
-              [sel.status === 'active' ? 'Time remaining' : 'Status', sel.countdown],
+              [t('safety.valid_from'), sel.validFrom],
+              [t('safety.valid_to'), sel.validTo],
+              [
+                sel.status === 'active' ? t('safety.time_remaining') : t('common.status'),
+                sel.countdown,
+              ],
             ].map(([k, v]) => (
               <div key={k} className="px-4 py-3" style={{ background: 'var(--surface)' }}>
                 <div
@@ -340,17 +344,19 @@ function PermitsTab({ permits, loading }: { permits: WorkPermit[]; loading: bool
                     className="text-[10.5px] font-semibold uppercase tracking-widest"
                     style={{ color: 'var(--ink-3)' }}
                   >
-                    Gas monitoring · interval {sel.gasChecks.interval}
+                    {t('safety.gas_monitoring')} {sel.gasChecks.interval}
                   </span>
                   <div className="flex-1" />
-                  <Badge color="green">NEXT {sel.gasChecks.next}</Badge>
+                  <Badge color="green">
+                    {t('safety.next')} {sel.gasChecks.next}
+                  </Badge>
                 </div>
                 <div
                   className="grid gap-px"
                   style={{ gridTemplateColumns: 'repeat(5, 1fr)', background: 'var(--hairline)' }}
                 >
                   {[
-                    ['Last check', sel.gasChecks.last],
+                    [t('safety.last_check'), sel.gasChecks.last],
                     ['LEL', sel.gasChecks.lel],
                     ['O₂', sel.gasChecks.o2],
                     ['H₂S', sel.gasChecks.h2s],
@@ -374,9 +380,14 @@ function PermitsTab({ permits, loading }: { permits: WorkPermit[]; loading: bool
           {/* Hazards + PPE */}
           <div className="grid gap-3 px-4 py-0 pb-3" style={{ gridTemplateColumns: '1fr 1fr' }}>
             {[
-              { label: 'Hazards', items: sel.hazards, prefix: '!', prefixColor: 'var(--sig-red)' },
               {
-                label: 'PPE required',
+                label: t('safety.hazards'),
+                items: sel.hazards,
+                prefix: '!',
+                prefixColor: 'var(--sig-red)',
+              },
+              {
+                label: t('safety.ppe_required'),
                 items: sel.ppe,
                 prefix: '✓',
                 prefixColor: 'var(--sig-green)',
@@ -428,7 +439,7 @@ function PermitsTab({ permits, loading }: { permits: WorkPermit[]; loading: bool
                   background: 'var(--surface-sunk)',
                 }}
               >
-                Sign-offs
+                {t('safety.sign_offs')}
               </div>
               {sel.coSigners.map((s, i) => (
                 <div
@@ -473,7 +484,7 @@ function PermitsTab({ permits, loading }: { permits: WorkPermit[]; loading: bool
                   cursor: 'pointer',
                 }}
               >
-                Suspend
+                {t('safety.suspend')}
               </button>
             )}
             {sel.status === 'awaiting' && (
@@ -486,7 +497,7 @@ function PermitsTab({ permits, loading }: { permits: WorkPermit[]; loading: bool
                   color: 'var(--ink)',
                 }}
               >
-                Request changes
+                {t('safety.request_changes')}
               </button>
             )}
             {sel.status === 'awaiting' && (
@@ -499,7 +510,7 @@ function PermitsTab({ permits, loading }: { permits: WorkPermit[]; loading: bool
                   cursor: 'pointer',
                 }}
               >
-                Approve &amp; issue
+                {t('safety.approve_issue')}
               </button>
             )}
             {sel.status === 'active' && (
@@ -512,7 +523,7 @@ function PermitsTab({ permits, loading }: { permits: WorkPermit[]; loading: bool
                   cursor: 'pointer',
                 }}
               >
-                Log gas check
+                {t('safety.log_gas_check')}
               </button>
             )}
             {sel.status === 'closed' && (
@@ -525,7 +536,7 @@ function PermitsTab({ permits, loading }: { permits: WorkPermit[]; loading: bool
                   color: 'var(--ink)',
                 }}
               >
-                Clone
+                {t('safety.clone')}
               </button>
             )}
           </div>
@@ -538,6 +549,7 @@ function PermitsTab({ permits, loading }: { permits: WorkPermit[]; loading: bool
 // ─── Findings tab ─────────────────────────────────────────────────────────────
 
 function FindingsTab({ findings, loading }: { findings: SafetyFinding[]; loading: boolean }) {
+  const { t } = useTranslation();
   const [filter, setFilter] = useState<'all' | 'open' | FindingKind>('all');
 
   const visible = findings.filter((f) =>
@@ -572,18 +584,18 @@ function FindingsTab({ findings, loading }: { findings: SafetyFinding[]; loading
       {/* KPI strip */}
       <div className="grid gap-2 p-4" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
         {[
-          { label: 'Open findings', value: open, sub: 'last 30 days' },
+          { label: t('safety.open_findings'), value: open, sub: t('safety.last_30_days') },
           {
-            label: 'Near-misses · 30d',
+            label: t('safety.ncs_raised'),
             value: nearMisses,
             sub: 'LTI rate 0.00',
             accent: nearMisses > 0 ? 'var(--sig-amber)' : undefined,
           },
-          { label: 'NCs raised · 30d', value: ncs, sub: '' },
+          { label: t('safety.ncs_raised'), value: ncs, sub: '' },
           {
-            label: 'Days since LTI',
+            label: t('safety.days_since_lti'),
             value: '—',
-            sub: 'no incidents recorded',
+            sub: t('safety.no_incidents'),
             accent: 'var(--sig-green)',
           },
         ].map((k) => (
@@ -627,11 +639,11 @@ function FindingsTab({ findings, loading }: { findings: SafetyFinding[]; loading
               className="text-[10.5px] font-semibold uppercase tracking-widest flex-1"
               style={{ color: 'var(--ink-3)' }}
             >
-              Findings register
+              {t('safety.findings_register')}
             </span>
             {(['all', 'open', 'near-miss', 'NC', 'observation'] as const).map((f) => (
               <button key={f} onClick={() => setFilter(f)} style={chipStyle(filter === f)}>
-                {f === 'near-miss' ? 'Near-miss' : f.charAt(0).toUpperCase() + f.slice(1)}
+                {f === 'near-miss' ? t('safety.near_miss') : f.charAt(0).toUpperCase() + f.slice(1)}
               </button>
             ))}
             <button
@@ -643,7 +655,7 @@ function FindingsTab({ findings, loading }: { findings: SafetyFinding[]; loading
                 cursor: 'pointer',
               }}
             >
-              + Raise
+              {t('safety.findings_register')}
             </button>
           </div>
           <div
@@ -655,17 +667,17 @@ function FindingsTab({ findings, loading }: { findings: SafetyFinding[]; loading
               borderBottom: '1px solid var(--hairline)',
             }}
           >
-            <span>ID</span>
-            <span>Date</span>
-            <span>Kind</span>
-            <span>Title / location</span>
-            <span>Raised by</span>
-            <span>Sev</span>
-            <span>CAPA</span>
-            <span>Status</span>
+            <span>{t('safety.col_id')}</span>
+            <span>{t('common.date')}</span>
+            <span>{t('safety.col_kind')}</span>
+            <span>{t('safety.col_title_location')}</span>
+            <span>{t('safety.col_raised_by')}</span>
+            <span>{t('safety.col_sev')}</span>
+            <span>{t('safety.col_capa')}</span>
+            <span>{t('common.status')}</span>
           </div>
           {visible.length === 0 ? (
-            <EmptyState msg="No findings match this filter. Safety findings, near-misses and observations will appear here." />
+            <EmptyState msg={t('safety.no_findings')} />
           ) : (
             visible.map((f) => (
               <div
@@ -683,7 +695,7 @@ function FindingsTab({ findings, loading }: { findings: SafetyFinding[]; loading
                   {f.raisedAt.split(' ').slice(0, 2).join(' ')}
                 </span>
                 <Badge color={findingMeta[f.kind]?.color ?? 'slate'}>
-                  {findingMeta[f.kind]?.label ?? f.kind}
+                  {findingMeta[f.kind] ? t(findingMeta[f.kind]!.labelKey) : f.kind}
                 </Badge>
                 <div className="min-w-0">
                   <div className="text-[12.5px] font-medium truncate">{f.title}</div>
@@ -718,6 +730,7 @@ function FindingsTab({ findings, loading }: { findings: SafetyFinding[]; loading
 // ─── JHA tab ──────────────────────────────────────────────────────────────────
 
 function RiskMatrix({ l, s }: { l: number; s: number }) {
+  const { t } = useTranslation();
   const score = (li: number, si: number) => li * si;
   const cellColor = (sc: number) =>
     sc >= 15
@@ -783,12 +796,12 @@ function RiskMatrix({ l, s }: { l: number; s: number }) {
         </span>
         <span className="text-[11.5px]" style={{ color: 'var(--ink-3)' }}>
           {total >= 15
-            ? 'Intolerable — immediate control required'
+            ? t('safety.risk_intolerable')
             : total >= 8
-              ? 'Substantial — additional control needed'
+              ? t('safety.risk_substantial')
               : total >= 4
-                ? 'Moderate — control via SOPs/PPE'
-                : 'Acceptable — routine controls'}
+                ? t('safety.risk_moderate')
+                : t('safety.risk_acceptable')}
         </span>
       </div>
     </div>
@@ -796,6 +809,7 @@ function RiskMatrix({ l, s }: { l: number; s: number }) {
 }
 
 function JhaTab({ jhas, loading }: { jhas: JHA[]; loading: boolean }) {
+  const { t } = useTranslation();
   const [selected, setSelected] = useState<string | null>(null);
   const sel = jhas.find((j) => j.id === selected) ?? jhas[0] ?? null;
 
@@ -827,7 +841,7 @@ function JhaTab({ jhas, loading }: { jhas: JHA[]; loading: boolean }) {
             className="text-[10.5px] font-semibold uppercase tracking-widest flex-1"
             style={{ color: 'var(--ink-3)' }}
           >
-            Library · {jhas.length} assessments
+            {t('safety.jha_library')} {jhas.length} {t('safety.assessments')}
           </span>
           <button
             className="w-6 h-6 flex items-center justify-center rounded-1 text-[13px]"
@@ -886,7 +900,7 @@ function JhaTab({ jhas, loading }: { jhas: JHA[]; loading: boolean }) {
           style={{ background: 'var(--bg)' }}
         >
           <p className="text-xs" style={{ color: 'var(--ink-3)' }}>
-            Select a JHA to view risk matrices and controls
+            {t('safety.select_jha_hint')}
           </p>
         </div>
       ) : (
@@ -913,7 +927,7 @@ function JhaTab({ jhas, loading }: { jhas: JHA[]; loading: boolean }) {
                   color: 'var(--ink)',
                 }}
               >
-                Revise
+                {t('safety.revise')}
               </button>
               <button
                 className="px-2 py-1 rounded-1 text-[11px]"
@@ -924,7 +938,7 @@ function JhaTab({ jhas, loading }: { jhas: JHA[]; loading: boolean }) {
                   cursor: 'pointer',
                 }}
               >
-                Open as permit JHA
+                {t('safety.open_as_permit_jha')}
               </button>
             </div>
             <h2 className="text-[18px] font-semibold m-0" style={{ letterSpacing: '-0.005em' }}>
@@ -938,14 +952,14 @@ function JhaTab({ jhas, loading }: { jhas: JHA[]; loading: boolean }) {
           <div className="grid gap-3 p-4" style={{ gridTemplateColumns: '1fr 1fr' }}>
             {[
               {
-                label: 'Inherent risk',
-                eyebrow: 'WITHOUT CONTROLS',
+                label: t('safety.inherent_risk'),
+                eyebrow: t('safety.without_controls'),
                 l: sel.inherentL,
                 s: sel.inherentS,
               },
               {
-                label: 'Residual risk',
-                eyebrow: 'WITH CONTROLS APPLIED',
+                label: t('safety.residual_risk'),
+                eyebrow: t('safety.with_controls'),
                 l: sel.residualL,
                 s: sel.residualS,
               },
@@ -988,7 +1002,7 @@ function JhaTab({ jhas, loading }: { jhas: JHA[]; loading: boolean }) {
                   background: 'var(--surface-sunk)',
                 }}
               >
-                Key controls
+                {t('safety.key_controls')}
               </div>
               {sel.keyControls.map((c, i) => (
                 <div
@@ -1018,6 +1032,7 @@ function JhaTab({ jhas, loading }: { jhas: JHA[]; loading: boolean }) {
 // ─── Equipment tab ────────────────────────────────────────────────────────────
 
 function EquipmentTab({ equipment, loading }: { equipment: SafetyEquipment[]; loading: boolean }) {
+  const { t } = useTranslation();
   if (loading)
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -1026,9 +1041,9 @@ function EquipmentTab({ equipment, loading }: { equipment: SafetyEquipment[]; lo
     );
 
   const groups: { cat: 'FFA' | 'LSA' | 'OTH'; label: string }[] = [
-    { cat: 'FFA', label: 'Fire-fighting appliances' },
-    { cat: 'LSA', label: 'Life-saving appliances' },
-    { cat: 'OTH', label: 'Other safety equipment' },
+    { cat: 'FFA', label: t('safety.ffa_label') },
+    { cat: 'LSA', label: t('safety.lsa_label') },
+    { cat: 'OTH', label: t('safety.other_safety') },
   ];
 
   const flagged = equipment.filter((e) => e.status !== 'green').length;
@@ -1038,22 +1053,26 @@ function EquipmentTab({ equipment, loading }: { equipment: SafetyEquipment[]; lo
       <div className="grid gap-2 p-4" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
         {[
           {
-            label: 'FFA items',
+            label: t('safety.ffa_items'),
             value: equipment.filter((e) => e.category === 'FFA').length,
-            sub: `${equipment.filter((e) => e.category === 'FFA' && e.status !== 'green').length} flagged`,
+            sub: `${equipment.filter((e) => e.category === 'FFA' && e.status !== 'green').length} ${t('safety.flagged')}`,
           },
           {
-            label: 'LSA items',
+            label: t('safety.lsa_items'),
             value: equipment.filter((e) => e.category === 'LSA').length,
-            sub: `${equipment.filter((e) => e.category === 'LSA' && e.status !== 'green').length} flagged`,
+            sub: `${equipment.filter((e) => e.category === 'LSA' && e.status !== 'green').length} ${t('safety.flagged')}`,
           },
           {
-            label: 'Items flagged',
+            label: t('safety.items_flagged'),
             value: flagged,
-            sub: 'require attention',
+            sub: t('safety.require_attention'),
             accent: flagged > 0 ? 'var(--sig-amber)' : undefined,
           },
-          { label: 'Total items', value: equipment.length, sub: 'all categories' },
+          {
+            label: t('safety.total_items'),
+            value: equipment.length,
+            sub: t('safety.all_categories'),
+          },
         ].map((k) => (
           <div
             key={k.label}
@@ -1099,7 +1118,7 @@ function EquipmentTab({ equipment, loading }: { equipment: SafetyEquipment[]; lo
               >
                 <span className="text-[12px] font-semibold">{label}</span>
                 <Badge color="slate">
-                  {cat} · {items.length} ITEMS
+                  {cat} · {items.length} {t('safety.items')}
                 </Badge>
                 <div className="flex-1" />
                 <button
@@ -1111,7 +1130,7 @@ function EquipmentTab({ equipment, loading }: { equipment: SafetyEquipment[]; lo
                     color: 'var(--ink-2)',
                   }}
                 >
-                  + Log check
+                  {t('safety.log_check')}
                 </button>
               </div>
               <div
@@ -1123,12 +1142,12 @@ function EquipmentTab({ equipment, loading }: { equipment: SafetyEquipment[]; lo
                   borderBottom: '1px solid var(--hairline)',
                 }}
               >
-                <span>ID</span>
-                <span>Item</span>
-                <span>Location</span>
-                <span>Status</span>
-                <span>Last check</span>
-                <span>Next check</span>
+                <span>{t('safety.col_id')}</span>
+                <span>{t('common.name')}</span>
+                <span>{t('inventory.location')}</span>
+                <span>{t('common.status')}</span>
+                <span>{t('safety.last_check')}</span>
+                <span>{t('certificates.next_survey')}</span>
                 <span />
               </div>
               {items.length === 0 ? (
@@ -1180,7 +1199,7 @@ function EquipmentTab({ equipment, loading }: { equipment: SafetyEquipment[]; lo
                           color: 'var(--ink-2)',
                         }}
                       >
-                        Check
+                        {t('safety.check')}
                       </button>
                     )}
                   </div>
@@ -1197,6 +1216,7 @@ function EquipmentTab({ equipment, loading }: { equipment: SafetyEquipment[]; lo
 // ─── CAPA tab ─────────────────────────────────────────────────────────────────
 
 function CapaTab({ capas, loading }: { capas: Capa[]; loading: boolean }) {
+  const { t } = useTranslation();
   if (loading)
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -1205,10 +1225,10 @@ function CapaTab({ capas, loading }: { capas: Capa[]; loading: boolean }) {
     );
 
   const stages: { id: CapaStage; label: string; color: string }[] = [
-    { id: 'investigation', label: 'Investigation', color: 'var(--sig-amber)' },
-    { id: 'action', label: 'Action', color: 'var(--sig-blue)' },
-    { id: 'verification', label: 'Verification', color: '#5E479F' },
-    { id: 'closed', label: 'Closed', color: 'var(--sig-green)' },
+    { id: 'investigation', label: t('safety.investigation'), color: 'var(--sig-amber)' },
+    { id: 'action', label: t('safety.action'), color: 'var(--sig-blue)' },
+    { id: 'verification', label: t('safety.verification'), color: '#5E479F' },
+    { id: 'closed', label: t('safety.closed'), color: 'var(--sig-green)' },
   ];
 
   const open = capas.filter((c) => c.stage !== 'closed').length;
@@ -1218,21 +1238,21 @@ function CapaTab({ capas, loading }: { capas: Capa[]; loading: boolean }) {
       <div className="grid gap-2 p-4" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
         {[
           {
-            label: 'Open CAPA',
+            label: t('safety.open_capa'),
             value: open,
-            sub: 'in progress',
+            sub: t('safety.in_progress'),
             accent: open > 0 ? 'var(--sig-amber)' : undefined,
           },
-          { label: 'Avg cycle time', value: '—', sub: 'target ≤ 45d' },
+          { label: t('safety.avg_cycle_time'), value: '—', sub: t('safety.target_45d') },
           {
-            label: 'Overdue actions',
+            label: t('safety.overdue_actions'),
             value: capas.filter((c) => c.daysLeft !== null && c.daysLeft < 0).length,
             sub: '',
           },
           {
-            label: 'Closed',
+            label: t('safety.closed'),
             value: capas.filter((c) => c.stage === 'closed').length,
-            sub: 'all time',
+            sub: t('safety.all_time'),
           },
         ].map((k) => (
           <div
@@ -1297,7 +1317,7 @@ function CapaTab({ capas, loading }: { capas: Capa[]; loading: boolean }) {
               <div className="p-2 flex flex-col gap-1.5">
                 {items.length === 0 ? (
                   <div className="py-4 text-center text-[11px]" style={{ color: 'var(--ink-3)' }}>
-                    No items
+                    {t('safety.no_items')}
                   </div>
                 ) : (
                   items.map((c) => (
@@ -1386,9 +1406,10 @@ function CapaTab({ capas, loading }: { capas: Capa[]; loading: boolean }) {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function SafetyPage() {
+  const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
   const tab = (params.get('tab') as Tab | null) ?? 'permit';
-  const setTab = (t: Tab) => setParams(t === 'permit' ? {} : { tab: t });
+  const setTab = (tabId: Tab) => setParams(tabId === 'permit' ? {} : { tab: tabId });
 
   const [permits, setPermits] = useState<WorkPermit[]>([]);
   const [findings, setFindings] = useState<SafetyFinding[]>([]);
@@ -1463,13 +1484,21 @@ export function SafetyPage() {
           className="text-[16px] font-semibold m-0"
           style={{ color: 'var(--ink)', letterSpacing: '-0.01em' }}
         >
-          Safety
+          {t('safety.title')}
         </h1>
         <span className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
           ISM 2006
         </span>
-        {activePermits > 0 && <Badge color="green">{activePermits} ACTIVE</Badge>}
-        {awaitingPermits > 0 && <Badge color="amber">{awaitingPermits} AWAITING</Badge>}
+        {activePermits > 0 && (
+          <Badge color="green">
+            {activePermits} {t('safety.status_active')}
+          </Badge>
+        )}
+        {awaitingPermits > 0 && (
+          <Badge color="amber">
+            {awaitingPermits} {t('safety.status_awaiting')}
+          </Badge>
+        )}
         <div className="flex-1" />
         <button
           className="px-3 py-1 rounded-2 text-[12px] font-medium border"
@@ -1480,13 +1509,13 @@ export function SafetyPage() {
             color: 'var(--ink)',
           }}
         >
-          Toolbox talk
+          {t('safety.toolbox_talk')}
         </button>
         <button
           className="px-3 py-1 rounded-2 text-[12px] font-medium"
           style={{ background: 'var(--navy)', color: '#fff', border: 'none', cursor: 'pointer' }}
         >
-          + New permit
+          {t('safety.new_permit')}
         </button>
       </div>
 
@@ -1495,10 +1524,18 @@ export function SafetyPage() {
         className="flex gap-0 flex-shrink-0 px-4 overflow-x-auto"
         style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}
       >
-        {TABS.map((t) => (
+        {(
+          [
+            { id: 'permit', label: t('safety.tab_permits') },
+            { id: 'find', label: t('safety.tab_findings') },
+            { id: 'jha', label: t('safety.tab_jha') },
+            { id: 'eq', label: t('safety.tab_equipment') },
+            { id: 'capa', label: t('safety.tab_capa') },
+          ] as { id: Tab; label: string }[]
+        ).map((tabItem) => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
+            key={tabItem.id}
+            onClick={() => setTab(tabItem.id)}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -1506,24 +1543,24 @@ export function SafetyPage() {
               padding: '12px 16px',
               border: 'none',
               background: 'transparent',
-              borderBottom: `2px solid ${tab === t.id ? 'var(--navy)' : 'transparent'}`,
+              borderBottom: `2px solid ${tab === tabItem.id ? 'var(--navy)' : 'transparent'}`,
               cursor: 'pointer',
-              color: tab === t.id ? 'var(--ink)' : 'var(--ink-2)',
+              color: tab === tabItem.id ? 'var(--ink)' : 'var(--ink-2)',
               fontSize: 13,
-              fontWeight: tab === t.id ? 600 : 500,
+              fontWeight: tab === tabItem.id ? 600 : 500,
               marginBottom: -1,
               whiteSpace: 'nowrap',
             }}
           >
-            <span>{t.label}</span>
+            <span>{tabItem.label}</span>
             <span
               className="font-mono text-[10.5px] px-1.5 py-px rounded-[10px]"
               style={{
-                background: tab === t.id ? 'var(--navy)' : 'var(--surface-2)',
-                color: tab === t.id ? '#fff' : 'var(--ink-3)',
+                background: tab === tabItem.id ? 'var(--navy)' : 'var(--surface-2)',
+                color: tab === tabItem.id ? '#fff' : 'var(--ink-3)',
               }}
             >
-              {counts[t.id]}
+              {counts[tabItem.id]}
             </span>
           </button>
         ))}

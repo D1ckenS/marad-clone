@@ -1,7 +1,10 @@
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { AppShell } from '@fleetops/ui-kit';
-import { useAuth } from './context/AuthContext.js';
-import { VesselProvider, useVessel } from './context/VesselContext.js';
+import { useAuth } from './context/useAuth.js';
+import { LanguageSwitcher } from './components/LanguageSwitcher.js';
+import { VesselProvider } from './context/VesselContext.js';
+import { useVessel } from './context/useVessel.js';
 import { LoginPage } from './pages/LoginPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { ComponentsPage } from './pages/ComponentsPage.js';
@@ -13,7 +16,12 @@ import { SafetyPage } from './pages/SafetyPage.js';
 import { QHSEPage } from './pages/QHSEPage.js';
 import { VesselsPage } from './pages/VesselsPage.js';
 import { CompaniesPage } from './pages/CompaniesPage.js';
-import { ComingSoonPage } from './pages/ComingSoonPage.js';
+import { IntegrationsPage } from './pages/IntegrationsPage.js';
+import { OidcCallbackPage } from './pages/OidcCallbackPage.js';
+import { FlgoPage } from './pages/FlgoPage.js';
+import { BiPage } from './pages/BiPage.js';
+import { CompliancePage } from './pages/CompliancePage.js';
+import { ProfilePage } from './pages/ProfilePage.js';
 import type { NavItem } from '@fleetops/ui-kit';
 
 // ─── Role helpers ─────────────────────────────────────────────────────────────
@@ -38,6 +46,7 @@ function RequireRole({ roles, children }: { roles: string[]; children: React.Rea
 // Vessel-scoped modules need a vessel selected. Tenant admins must pick one from
 // the vessel picker in the sidebar before these modules will work.
 function RequireVessel({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   const { selectedVesselId, vessels, isVesselLocked, setSelectedVesselId } = useVessel();
   if (selectedVesselId) return <>{children}</>;
   return (
@@ -64,10 +73,8 @@ function RequireVessel({ children }: { children: React.ReactNode }) {
         <path d="M7 9V6a5 5 0 0 1 10 0v3" />
         <line x1="12" y1="12" x2="12" y2="15" />
       </svg>
-      <p style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>No vessel selected</p>
-      <p style={{ fontSize: 13, color: '#8893A0', margin: 0 }}>
-        Choose a vessel from the sidebar to view this module.
-      </p>
+      <p style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>{t('vessel.no_vessel_selected')}</p>
+      <p style={{ fontSize: 13, color: '#8893A0', margin: 0 }}>{t('vessel.choose_vessel')}</p>
       {!isVesselLocked && vessels.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
           {vessels.map((v) => (
@@ -97,6 +104,7 @@ function RequireVessel({ children }: { children: React.ReactNode }) {
 // ─── Protected layout (needs VesselContext inside) ────────────────────────────
 
 function ProtectedContent() {
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -112,23 +120,28 @@ function ProtectedContent() {
   const moduleNav: NavItem[] = isSuperAdmin
     ? []
     : [
-        { label: 'Start', href: '/dashboard', code: 'ST' },
-        { label: 'Maintenance', href: '/components', code: 'MA' },
-        { label: 'Inventory', href: '/inventory', code: 'IN' },
-        { label: 'Purchase', href: '/purchase', code: 'PO' },
-        { label: 'Certificates', href: '/certificates', code: 'CR' },
-        { label: 'Safety', href: '/safety', code: 'SF' },
-        { label: 'QHSE', href: '/qhse', code: 'QH' },
-        { label: 'Crewing', href: '/crewing', code: 'CW' },
-        { label: 'FLGO', href: '/flgo', code: 'FL' },
+        { label: t('nav.start'), href: '/dashboard', code: 'ST' },
+        { label: t('nav.maintenance'), href: '/components', code: 'MA' },
+        { label: t('nav.inventory'), href: '/inventory', code: 'IN' },
+        { label: t('nav.purchase'), href: '/purchase', code: 'PO' },
+        { label: t('nav.certificates'), href: '/certificates', code: 'CR' },
+        { label: t('nav.safety'), href: '/safety', code: 'SF' },
+        { label: t('nav.qhse'), href: '/qhse', code: 'QH' },
+        { label: t('nav.crewing'), href: '/crewing', code: 'CW' },
+        { label: t('nav.flgo'), href: '/flgo', code: 'FL' },
+        { label: t('nav.analytics'), href: '/analytics', code: 'BI' },
+        { label: t('nav.compliance'), href: '/compliance', code: 'CP' },
       ];
 
   const adminNav: NavItem[] = [
     ...(isRole(role, VESSEL_ADMIN_ROLES)
-      ? [{ label: 'Vessels & Users', href: '/vessels', code: 'VS' }]
+      ? [
+          { label: t('nav.vessels_users'), href: '/vessels', code: 'VS' },
+          { label: t('nav.integrations'), href: '/integrations', code: 'IT' },
+        ]
       : []),
     ...(isRole(role, SUPER_ADMIN_ONLY)
-      ? [{ label: 'Companies', href: '/companies', code: 'CO' }]
+      ? [{ label: t('nav.companies'), href: '/companies', code: 'CO' }]
       : []),
   ];
 
@@ -140,13 +153,20 @@ function ProtectedContent() {
       currentPath={location.pathname}
       onNavClick={(href) => navigate(href)}
       userEmail={user.email}
-      userDisplayName={user.username ?? undefined}
+      userDisplayName={
+        user.firstName
+          ? `${user.firstName}${user.lastName ? ' ' + user.lastName : ''}`
+          : (user.username ?? undefined)
+      }
       onLogout={logout}
-      companyName={isSuperAdmin ? 'Platform Admin' : companyName}
+      onProfileClick={() => navigate('/profile')}
+      logoutLabel={t('auth.sign_out')}
+      companyName={isSuperAdmin ? t('nav.platform_admin') : companyName}
       vessels={isSuperAdmin ? [] : vessels}
       selectedVesselId={isSuperAdmin ? null : selectedVesselId}
       {...(!isSuperAdmin && { onVesselChange: setSelectedVesselId })}
       isVesselLocked={isVesselLocked}
+      sidebarFooterContent={<LanguageSwitcher />}
     >
       <Routes>
         <Route path="dashboard" element={<DashboardPage />} />
@@ -211,15 +231,25 @@ function ProtectedContent() {
           path="flgo"
           element={
             <RequireVessel>
-              <ComingSoonPage module="FLGO" phase="Phase 3 (P3-1)" />
+              <FlgoPage />
             </RequireVessel>
           }
         />
+        <Route path="analytics" element={<BiPage />} />
+        <Route path="compliance" element={<CompliancePage />} />
         <Route
           path="vessels"
           element={
             <RequireRole roles={VESSEL_ADMIN_ROLES}>
               <VesselsPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="integrations"
+          element={
+            <RequireRole roles={VESSEL_ADMIN_ROLES}>
+              <IntegrationsPage />
             </RequireRole>
           }
         />
@@ -231,6 +261,7 @@ function ProtectedContent() {
             </RequireRole>
           }
         />
+        <Route path="profile" element={<ProfilePage />} />
         <Route
           path="*"
           element={<Navigate to={isSuperAdmin ? 'companies' : 'dashboard'} replace />}
@@ -255,6 +286,8 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+      {/* OIDC callback — public route, no auth required */}
+      <Route path="/auth/callback" element={<OidcCallbackPage />} />
       <Route path="/*" element={<ProtectedLayout />} />
     </Routes>
   );

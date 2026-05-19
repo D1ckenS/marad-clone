@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, Select, Spinner } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -22,6 +23,7 @@ interface Props {
 const today = () => new Date().toISOString().split('T')[0];
 
 export function CreateJobInstanceModal({ open, jobId, componentId, onClose, onCreated }: Props) {
+  const { t } = useTranslation();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState(jobId ?? '');
@@ -93,10 +95,10 @@ export function CreateJobInstanceModal({ open, jobId, componentId, onClose, onCr
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Schedule
+            {t('maintenance.new_instance')}
           </Button>
         </>
       }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, Spinner } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export function ManageBarcodesModal({ open, partId, partName, onClose }: Props) {
+  const { t } = useTranslation();
   const [bindings, setBindings] = useState<Binding[]>([]);
   const [loading, setLoading] = useState(false);
   const [newBarcode, setNewBarcode] = useState('');
@@ -74,7 +76,7 @@ export function ManageBarcodesModal({ open, partId, partName, onClose }: Props) 
       onClose={onClose}
       footer={
         <Button variant="secondary" onClick={onClose}>
-          Close
+          {t('common.close')}
         </Button>
       }
     >

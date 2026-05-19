@@ -1,5 +1,9 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
-import { IsString } from 'class-validator';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { IsBoolean, IsEnum, IsOptional, IsString, IsUrl } from 'class-validator';
+import { SsoProvider } from '@prisma/client';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { AuthCtx } from './auth-ctx.decorator';
+import type { AuthContext } from './auth-context';
 import { OidcService } from './oidc.service';
 
 class OidcCallbackDto {
@@ -10,21 +14,55 @@ class OidcCallbackDto {
   state!: string;
 }
 
+class UpsertSsoConfigDto {
+  @IsEnum(SsoProvider)
+  provider!: SsoProvider;
+
+  @IsUrl({ require_tld: false })
+  discoveryUrl!: string;
+
+  @IsString()
+  clientId!: string;
+
+  @IsString()
+  clientSecret!: string;
+
+  @IsString()
+  redirectUri!: string;
+
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean;
+}
+
 @Controller('auth/oidc')
 export class OidcController {
   constructor(private readonly oidc: OidcService) {}
 
-  /** Begin the OIDC login flow. Returns the IDP authorization URL the
-   *  client should redirect the user to. */
+  /** Begin OIDC login. Returns the IDP authorization URL + state JWT. */
   @Get('login')
-  beginLogin() {
-    return this.oidc.beginLogin();
+  beginLogin(@Query('tenantId') tenantId: string, @Query('provider') provider?: string) {
+    const p = provider === 'GOOGLE' ? SsoProvider.GOOGLE : SsoProvider.ENTRA;
+    return this.oidc.beginLogin(tenantId, p);
   }
 
-  /** Complete the OIDC login flow. The IDP posts the auth code + state
-   *  back to this endpoint; we exchange and mint a shore JWT pair. */
+  /** Complete the OIDC flow. Exchange code+state for FleetOps JWT pair. */
   @Post('callback')
-  async callback(@Body() dto: OidcCallbackDto) {
+  callback(@Body() dto: OidcCallbackDto) {
     return this.oidc.completeLogin(dto.code, dto.state);
+  }
+
+  /** Get all SSO configs for the caller's tenant. */
+  @UseGuards(JwtAuthGuard)
+  @Get('configs')
+  getConfigs(@AuthCtx() auth: AuthContext) {
+    return this.oidc.getSsoConfigs(auth.tenantId!);
+  }
+
+  /** Upsert an SSO config for a specific provider. */
+  @UseGuards(JwtAuthGuard)
+  @Post('config')
+  upsertConfig(@AuthCtx() auth: AuthContext, @Body() dto: UpsertSsoConfigDto) {
+    return this.oidc.upsertSsoConfig(auth.tenantId!, dto);
   }
 }

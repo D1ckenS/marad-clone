@@ -79,7 +79,14 @@ Pin to these versions. When you bump, update this section in the same commit.
 | Testing          | Vitest, Playwright (e2e), flutter_test                         | `vitest 4.x`, Playwright/flutter_test latest stable                    |
 | Property testing | fast-check                                                     | `4.7.0`                                                                |
 | Script runner    | tsx                                                            | `4.21.0`                                                               |
+| Excel export     | exceljs                                                        | `4.x`                                                                  |
+| BI embed SDK     | @superset-ui/embedded-sdk                                      | `0.x (latest)`                                                         |
 | BI / dashboards  | Apache Superset (later phase)                                  | `4.x`                                                                  |
+| SMTP send        | nodemailer                                                     | `^6.9.0`                                                               |
+| IMAP receive     | imapflow                                                       | `^1.0.0`                                                               |
+| MIME parse       | mailparser                                                     | `^3.7.0`                                                               |
+| i18n core        | i18next                                                        | `^24.0.0`                                                              |
+| i18n React       | react-i18next                                                  | `^15.0.0`                                                              |
 
 **Rule:** If a package is not listed, justify the addition in the commit message and add it here.
 
@@ -353,7 +360,7 @@ P0-1 through P0-10 all merged. See PROGRESS.md for details.
 ### Phase 5 — Hardening & launch
 
 **P5-1.** SMTP-fallback sync hardened and audited.
-**P5-2.** Localization (DE / NL / EN / FIL / RU / GR / ZH).
+**P5-2.** Localization (DE / NL / EN / FIL / RU / GR / ZH / AR).
 **P5-3.** Performance: fleetview <1.5s on 50 vessels; vessel cold start <5s.
 **P5-4.** Pen test (third-party).
 **P5-5.** GA launch.

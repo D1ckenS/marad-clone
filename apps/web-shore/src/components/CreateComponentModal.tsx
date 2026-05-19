@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -14,6 +15,7 @@ interface Props {
 const EMPTY = { name: '', description: '', sfi: '', runningHours: '0' };
 
 export function CreateComponentModal({ open, parentId, parentName, onClose, onCreated }: Props) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,10 +64,10 @@ export function CreateComponentModal({ open, parentId, parentName, onClose, onCr
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Create
+            {t('common.create')}
           </Button>
         </>
       }
@@ -76,7 +78,7 @@ export function CreateComponentModal({ open, parentId, parentName, onClose, onCr
         )}
         <Input
           id="comp-name"
-          label="Name *"
+          label={`${t('common.name')} *`}
           value={form.name}
           onChange={set('name')}
           placeholder="Main Engine"
@@ -84,7 +86,7 @@ export function CreateComponentModal({ open, parentId, parentName, onClose, onCr
         />
         <TextArea
           id="comp-desc"
-          label="Description"
+          label={t('common.description')}
           rows={2}
           value={form.description}
           onChange={set('description')}
@@ -94,7 +96,7 @@ export function CreateComponentModal({ open, parentId, parentName, onClose, onCr
           <div className="flex-1">
             <Input
               id="comp-sfi"
-              label="SFI Code"
+              label={t('maintenance.sfi_code')}
               value={form.sfi}
               onChange={set('sfi')}
               placeholder="230.01"

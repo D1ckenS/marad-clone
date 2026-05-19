@@ -177,6 +177,15 @@ model Tenant {
   consumptionLogs      ConsumptionLog[]
   projects             Project[]
   projectTasks         ProjectTask[]
+  budgets              Budget[]
+  budgetLines          BudgetLine[]
+  ssoConfigs              TenantSsoConfig[]
+  techLibraryConnector    TechLibraryConnector?
+  accountingConnector     AccountingConnector?
+  ocimfInspections        OcimfInspection[]
+  classSocietyConnectors  ClassSocietyConnector[]
+  classSocietySubmissions ClassSocietySubmission[]
+  biDashboards            BiDashboard[]
 
   @@map("tenants")
 }
@@ -232,6 +241,9 @@ model Vessel {
   consumptionLogs      ConsumptionLog[]
   projects             Project[]
   projectTasks         ProjectTask[]
+  budgets                  Budget[]
+  ocimfInspections         OcimfInspection[]
+  classSocietySubmissions  ClassSocietySubmission[]
 
   @@map("vessels")
 }
@@ -247,6 +259,8 @@ model User {
   vesselId     String?   @map("vessel_id")
   email        String
   username     String?   @map("username")
+  firstName    String?   @map("first_name")
+  lastName     String?   @map("last_name")
   passwordHash String?   @map("password_hash")
   role         Role      @default(OFFICER)
   createdAt    DateTime  @default(now()) @map("created_at")
@@ -1726,6 +1740,248 @@ model ProjectTask {
 // One Outbox + one SyncRecord per (tenant, vessel) namespace. The shore runs
 // one SyncEngine per pair (ADR 0002 §9). Both tables carry tenantId + vesselId
 // so the per-engine adapter scopes its reads/writes.
+
+// ── Budget / BudgetLine ──────────────────────────────────────────────────────
+// Tenant-scoped. vesselId is optional — null means a fleet-wide budget.
+// RLS applied in migration.
+
+enum BudgetCategory {
+  MAINTENANCE
+  SPARES
+  PROVISIONS
+  PORT_DUES
+  CREW
+  INSURANCE
+  FUEL
+  OTHER
+}
+
+model Budget {
+  id        String    @id
+  tenantId  String    @map("tenant_id")
+  vesselId  String?   @map("vessel_id")
+  year      Int
+  name      String
+  currency  String    @default("EUR")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  tenant    Tenant       @relation(fields: [tenantId], references: [id])
+  vessel    Vessel?      @relation(fields: [vesselId], references: [id])
+  lines     BudgetLine[]
+
+  @@index([tenantId, year])
+  @@map("budgets")
+}
+
+model BudgetLine {
+  id             String         @id
+  tenantId       String         @map("tenant_id")
+  budgetId       String         @map("budget_id")
+  category       BudgetCategory
+  budgetedAmount Decimal        @map("budgeted_amount") @db.Decimal(12, 2)
+  currency       String         @default("EUR")
+  notes          String?
+
+  tenant  Tenant @relation(fields: [tenantId], references: [id])
+  budget  Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  @@map("budget_lines")
+}
+
+// ── SSO: Tenant SSO config ───────────────────────────────────────────────────
+// One row per (tenant, provider). clientSecret stored in plaintext (encrypt at rest in prod).
+
+enum SsoProvider {
+  ENTRA
+  GOOGLE
+}
+
+model TenantSsoConfig {
+  id            String      @id
+  tenantId      String      @map("tenant_id")
+  provider      SsoProvider @default(ENTRA)
+  discoveryUrl  String      @map("discovery_url")
+  clientId      String      @map("client_id")
+  clientSecret  String      @map("client_secret")
+  redirectUri   String      @map("redirect_uri")
+  enabled       Boolean     @default(true)
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  tenant        Tenant      @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, provider])
+  @@map("tenant_sso_configs")
+}
+
+// ── Tech Library: 2BA / Nareto connector ─────────────────────────────────────
+
+enum TechLibraryProvider {
+  TWO_BA
+  NARETO
+}
+
+model TechLibraryConnector {
+  id        String               @id
+  tenantId  String               @unique @map("tenant_id")
+  provider  TechLibraryProvider  @default(TWO_BA)
+  apiKey    String               @map("api_key")
+  endpoint  String?
+  enabled   Boolean              @default(true)
+  createdAt DateTime             @default(now()) @map("created_at")
+  updatedAt DateTime             @updatedAt @map("updated_at")
+
+  tenant    Tenant               @relation(fields: [tenantId], references: [id])
+
+  @@map("tech_library_connectors")
+}
+
+// ── OCIMF Inspections ────────────────────────────────────────────────────────
+
+enum OcimfInspectionType {
+  SIRE
+  CDI
+  TMSA
+}
+
+model OcimfInspection {
+  id              String              @id
+  tenantId        String              @map("tenant_id")
+  vesselId        String              @map("vessel_id")
+  inspectionType  OcimfInspectionType @map("inspection_type")
+  inspectionDate  String              @map("inspection_date")
+  inspector       String?
+  port            String?
+  reportNumber    String?             @map("report_number")
+  overallScore    Decimal?            @map("overall_score") @db.Decimal(4, 2)
+  observationsJson Json?              @map("observations_json")
+  hlc             String?
+  deletedAt       DateTime?           @map("deleted_at")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  tenant          Tenant              @relation(fields: [tenantId], references: [id])
+  vessel          Vessel              @relation(fields: [vesselId], references: [id])
+
+  @@index([tenantId, vesselId, inspectionDate])
+  @@map("ocimf_inspections")
+}
+
+// ── Accounting Connector ─────────────────────────────────────────────────────
+
+enum AccountingProvider {
+  EXACT
+  SAP
+  TWINFIELD
+  NETSUITE
+  CSV
+}
+
+model AccountingConnector {
+  id        String              @id
+  tenantId  String              @unique @map("tenant_id")
+  provider  AccountingProvider  @default(CSV)
+  config    Json                @default("{}")
+  enabled   Boolean             @default(true)
+  createdAt DateTime            @default(now()) @map("created_at")
+  updatedAt DateTime            @updatedAt @map("updated_at")
+
+  tenant    Tenant              @relation(fields: [tenantId], references: [id])
+
+  @@map("accounting_connectors")
+}
+
+// ── Class Society Connectors ──────────────────────────────────────────────────
+
+enum ClassSociety {
+  DNV
+  ABS
+  LR
+  RINA
+  BV
+  NK
+}
+
+enum ClassSocietyReportType {
+  PMS_EVIDENCE
+  CERTIFICATES
+  FINDINGS
+  SURVEY_STATUS
+}
+
+enum ClassSocietySubmissionStatus {
+  DRAFT
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+  ERROR
+}
+
+model ClassSocietyConnector {
+  id                  String      @id
+  tenantId            String      @map("tenant_id")
+  society             ClassSociety
+  apiKey              String?     @map("api_key")
+  apiEndpoint         String?     @map("api_endpoint")
+  vesselRegistrations Json        @map("vessel_registrations") @default("{}")
+  enabled             Boolean     @default(true)
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+
+  tenant              Tenant                  @relation(fields: [tenantId], references: [id])
+  submissions         ClassSocietySubmission[]
+
+  @@unique([tenantId, society])
+  @@map("class_society_connectors")
+}
+
+model ClassSocietySubmission {
+  id              String                        @id
+  tenantId        String                        @map("tenant_id")
+  vesselId        String                        @map("vessel_id")
+  connectorId     String                        @map("connector_id")
+  society         ClassSociety
+  reportType      ClassSocietyReportType        @map("report_type")
+  status          ClassSocietySubmissionStatus  @default(DRAFT)
+  payloadJson     Json?                         @map("payload_json")
+  submittedAt     DateTime?                     @map("submitted_at")
+  responseCode    Int?                          @map("response_code")
+  responseMessage String?                       @map("response_message")
+  createdAt       DateTime                      @default(now()) @map("created_at")
+  updatedAt       DateTime                      @updatedAt @map("updated_at")
+
+  tenant          Tenant                        @relation(fields: [tenantId], references: [id])
+  vessel          Vessel                        @relation(fields: [vesselId], references: [id])
+  connector       ClassSocietyConnector         @relation(fields: [connectorId], references: [id])
+
+  @@index([tenantId, vesselId, society])
+  @@map("class_society_submissions")
+}
+
+// ── BI Dashboards ─────────────────────────────────────────────────────────────
+// Tenant-managed registry of Superset dashboards to expose in the Analytics module.
+// The actual dashboards are created in Superset; we store their UUID + metadata here.
+
+model BiDashboard {
+  id                  String    @id
+  tenantId            String    @map("tenant_id")
+  supersetDashboardId String    @map("superset_dashboard_id")
+  title               String
+  description         String?
+  category            String?
+  sortOrder           Int       @default(0) @map("sort_order")
+  enabled             Boolean   @default(true)
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  tenant              Tenant    @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, enabled])
+  @@map("bi_dashboards")
+}
+
+// ── Outbox / SyncRecord ───────────────────────────────────────────────────────
 
 model Outbox {
   id         String    @id
