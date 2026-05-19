@@ -9,15 +9,21 @@ import { api } from '../api/client.js';
 interface CrewMember {
   id: string;
   rank: string;
-  name: string;
-  nat: string;
-  joined: string; // ISO date
-  signOff: string; // ISO date
+  // API may return either a combined `name` or separate `firstName`/`lastName`
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  nat?: string;
+  nationality?: string;
+  joined?: string; // ISO date (legacy field)
+  signOff?: string; // ISO date (legacy field)
+  signOnDate?: string; // API field
   wage: string | null;
   wageCcy: string | null;
-  mlcStatus: 'compliant' | 'edge' | 'breach';
-  certStatus: 'ok' | 'expiring_soon' | 'expired';
+  mlcStatus?: 'compliant' | 'edge' | 'breach';
+  certStatus?: 'ok' | 'expiring_soon' | 'expired';
   dob: string | null;
+  dateOfBirth?: string | null;
   experience: string | null;
   passport: string | null;
 }
@@ -72,8 +78,24 @@ const deptOf = (rank: string): 'Deck' | 'Engine' | 'Galley' => {
   return 'Galley';
 };
 
+/** Resolve display name from API shape (combined `name` or separate firstName/lastName). */
+const crewName = (c: Pick<CrewMember, 'name' | 'firstName' | 'lastName'>): string =>
+  c.name ?? ([c.firstName, c.lastName].filter(Boolean).join(' ') || '?');
+
+/** Resolve the joined date from API shape. */
+const crewJoined = (c: Pick<CrewMember, 'joined' | 'signOnDate'>): string =>
+  c.joined ?? c.signOnDate ?? '';
+
+/** Resolve nationality from API shape. */
+const crewNat = (c: Pick<CrewMember, 'nat' | 'nationality'>): string =>
+  c.nat ?? c.nationality ?? '';
+
+/** Resolve DOB from API shape. */
+const crewDob = (c: Pick<CrewMember, 'dob' | 'dateOfBirth'>): string | null =>
+  c.dob ?? c.dateOfBirth ?? null;
+
 const initials = (name: string): string =>
-  name
+  (name || '?')
     .split(' ')
     .slice(0, 2)
     .map((w) => w[0] ?? '')
@@ -238,13 +260,17 @@ function CrewDetailPane({ c, onClose }: { c: CrewMember; onClose: () => void }) 
 
   const dept = deptOf(c.rank);
   const monoFields = ['Wage', 'Passport', 'Joined', 'Sign-off', 'Date of birth'];
+  const nat = crewNat(c);
+  const dob = crewDob(c);
+  const joined = crewJoined(c);
+  const signOff = c.signOff ?? '';
   const rows: [string, string][] = [
-    ...(c.nat ? [['Nationality', c.nat] as [string, string]] : []),
-    ...(c.dob ? [['Date of birth', fmtDate(c.dob)] as [string, string]] : []),
+    ...(nat ? [['Nationality', nat] as [string, string]] : []),
+    ...(dob ? [['Date of birth', fmtDate(dob)] as [string, string]] : []),
     ...(c.experience ? [['Experience', c.experience] as [string, string]] : []),
     ...(c.passport ? [['Passport', c.passport] as [string, string]] : []),
-    ['Joined', fmtDate(c.joined)],
-    ['Sign-off', fmtDate(c.signOff)],
+    ...(joined ? [['Joined', fmtDate(joined)] as [string, string]] : []),
+    ...(signOff ? [['Sign-off', fmtDate(signOff)] as [string, string]] : []),
     ...(c.wage ? [[`Wage`, `${c.wageCcy ?? 'USD'} ${c.wage} / mo`] as [string, string]] : []),
   ];
 
@@ -263,7 +289,7 @@ function CrewDetailPane({ c, onClose }: { c: CrewMember; onClose: () => void }) 
         {/* Header */}
         <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--hairline)' }}>
           <div className="flex items-center gap-3">
-            <CrewAvatar name={c.name} size={48} mlcStatus={c.mlcStatus} />
+            <CrewAvatar name={crewName(c)} size={48} mlcStatus={c.mlcStatus ?? 'compliant'} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
                 <span className="font-mono text-[10.5px]" style={{ color: 'var(--ink-3)' }}>
@@ -275,7 +301,7 @@ function CrewDetailPane({ c, onClose }: { c: CrewMember; onClose: () => void }) 
                 className="text-[15px] font-semibold"
                 style={{ color: 'var(--ink)', letterSpacing: '-0.005em' }}
               >
-                {c.name}
+                {crewName(c)}
               </div>
               <div className="text-[11.5px]" style={{ color: 'var(--ink-3)' }}>
                 {c.rank}
@@ -329,7 +355,9 @@ function CrewDetailPane({ c, onClose }: { c: CrewMember; onClose: () => void }) 
             {t('crewing.mlc_status')}
           </div>
           <div className="flex items-center gap-2">
-            <Badge color={mlcColor(c.mlcStatus)}>{mlcLabel(c.mlcStatus)}</Badge>
+            <Badge color={mlcColor(c.mlcStatus ?? 'compliant')}>
+              {mlcLabel(c.mlcStatus ?? 'compliant')}
+            </Badge>
             <span className="text-[11px]" style={{ color: 'var(--ink-3)' }}>
               {t('crewing.mlc_see_rest_hours')}
             </span>
@@ -496,13 +524,13 @@ function CrewTab({ crew, loading }: { crew: CrewMember[]; loading: boolean }) {
                 }}
                 onClick={() => setSelected(selected === c.id ? null : c.id)}
               >
-                <CrewAvatar name={c.name} size={28} mlcStatus={c.mlcStatus} />
+                <CrewAvatar name={crewName(c)} size={28} mlcStatus={c.mlcStatus ?? 'compliant'} />
                 <div className="min-w-0">
                   <div
                     className="text-[13px] font-semibold truncate"
                     style={{ color: 'var(--ink)' }}
                   >
-                    {c.name}
+                    {crewName(c)}
                   </div>
                   <div className="text-[11.5px]" style={{ color: 'var(--ink-3)' }}>
                     {c.rank}
@@ -510,13 +538,17 @@ function CrewTab({ crew, loading }: { crew: CrewMember[]; loading: boolean }) {
                 </div>
                 <Badge color={deptColor(deptOf(c.rank))}>{deptOf(c.rank).toUpperCase()}</Badge>
                 <span className="font-mono text-[11px]" style={{ color: 'var(--ink-3)' }}>
-                  {c.nat}
+                  {crewNat(c)}
                 </span>
                 <span className="font-mono text-[11px]" style={{ color: 'var(--ink-3)' }}>
-                  {fmtDate(c.signOff)}
+                  {c.signOff ? fmtDate(c.signOff) : '—'}
                 </span>
-                <Badge color={mlcColor(c.mlcStatus)}>{mlcLabel(c.mlcStatus)}</Badge>
-                <Badge color={certColor(c.certStatus)}>{certLabel(c.certStatus)}</Badge>
+                <Badge color={mlcColor(c.mlcStatus ?? 'compliant')}>
+                  {mlcLabel(c.mlcStatus ?? 'compliant')}
+                </Badge>
+                <Badge color={certColor(c.certStatus ?? 'ok')}>
+                  {certLabel(c.certStatus ?? 'ok')}
+                </Badge>
               </div>
             ))}
         </div>
@@ -645,8 +677,8 @@ function RotationTab({ crew, loading }: { crew: CrewMember[]; loading: boolean }
                 : dept === 'Engine'
                   ? 'var(--sig-amber)'
                   : 'var(--sig-purple)';
-            const leftPct = datePct(c.joined);
-            const rightPct = datePct(c.signOff);
+            const leftPct = datePct(crewJoined(c));
+            const rightPct = datePct(c.signOff ?? new Date().toISOString());
             const widthPct = Math.max(0, rightPct - leftPct);
             return (
               <div
@@ -660,13 +692,13 @@ function RotationTab({ crew, loading }: { crew: CrewMember[]; loading: boolean }
                 }}
               >
                 <div className="px-4 flex items-center gap-2">
-                  <CrewAvatar name={c.name} size={22} mlcStatus={c.mlcStatus} />
+                  <CrewAvatar name={crewName(c)} size={22} mlcStatus={c.mlcStatus ?? 'compliant'} />
                   <div className="min-w-0 flex-1">
                     <div
                       className="text-[12px] font-semibold truncate"
                       style={{ color: 'var(--ink)' }}
                     >
-                      {c.name}
+                      {crewName(c)}
                     </div>
                     <div className="text-[10.5px]" style={{ color: 'var(--ink-3)' }}>
                       {c.rank}
@@ -717,7 +749,8 @@ function RotationTab({ crew, loading }: { crew: CrewMember[]; loading: boolean }
                       overflow: 'hidden',
                     }}
                   >
-                    {fmtDate(c.joined).slice(0, 6)} → {fmtDate(c.signOff).slice(0, 6)}
+                    {crewJoined(c) ? fmtDate(crewJoined(c)).slice(0, 6) : '?'} →{' '}
+                    {c.signOff ? fmtDate(c.signOff).slice(0, 6) : '?'}
                   </div>
                 </div>
               </div>
@@ -738,7 +771,7 @@ function RestHoursTab({ crew, loading: crewLoading }: { crew: CrewMember[]; load
 
   const sortedCrew = [...crew].sort((a, b) => {
     const t: Record<string, number> = { breach: 0, edge: 1, compliant: 2 };
-    return (t[a.mlcStatus] ?? 2) - (t[b.mlcStatus] ?? 2);
+    return (t[a.mlcStatus ?? 'compliant'] ?? 2) - (t[b.mlcStatus ?? 'compliant'] ?? 2);
   });
 
   const sel = crew.find((c) => c.id === crewId) ?? null;
@@ -790,9 +823,9 @@ function RestHoursTab({ crew, loading: crewLoading }: { crew: CrewMember[]; load
           {sortedCrew.map((c) => {
             const isActive = c.id === crewId;
             const dot =
-              c.mlcStatus === 'breach'
+              (c.mlcStatus ?? 'compliant') === 'breach'
                 ? 'var(--sig-red)'
-                : c.mlcStatus === 'edge'
+                : (c.mlcStatus ?? 'compliant') === 'edge'
                   ? 'var(--sig-amber)'
                   : 'var(--sig-green)';
             return (
@@ -806,13 +839,13 @@ function RestHoursTab({ crew, loading: crewLoading }: { crew: CrewMember[]; load
                   cursor: 'pointer',
                 }}
               >
-                <CrewAvatar name={c.name} size={24} mlcStatus={c.mlcStatus} />
+                <CrewAvatar name={crewName(c)} size={24} mlcStatus={c.mlcStatus ?? 'compliant'} />
                 <div className="flex-1 min-w-0">
                   <div
                     className="text-[12px] truncate"
                     style={{ fontWeight: isActive ? 600 : 500, color: 'var(--ink)' }}
                   >
-                    {c.name}
+                    {crewName(c)}
                   </div>
                   <div className="text-[10.5px]" style={{ color: 'var(--ink-3)' }}>
                     {c.rank}
@@ -843,14 +876,14 @@ function RestHoursTab({ crew, loading: crewLoading }: { crew: CrewMember[]; load
               className="flex items-center gap-3 px-5 py-3 flex-shrink-0"
               style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}
             >
-              <CrewAvatar name={sel.name} size={42} mlcStatus={sel.mlcStatus} />
+              <CrewAvatar name={crewName(sel)} size={42} mlcStatus={sel.mlcStatus ?? 'compliant'} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <h2
                     className="text-[17px] font-semibold m-0"
                     style={{ color: 'var(--ink)', letterSpacing: '-0.005em' }}
                   >
-                    {sel.name}
+                    {crewName(sel)}
                   </h2>
                   <span className="text-[11.5px]" style={{ color: 'var(--ink-3)' }}>
                     · {sel.rank}

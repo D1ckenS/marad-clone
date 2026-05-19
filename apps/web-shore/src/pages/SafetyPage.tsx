@@ -382,13 +382,13 @@ function PermitsTab({ permits, loading }: { permits: WorkPermit[]; loading: bool
             {[
               {
                 label: t('safety.hazards'),
-                items: sel.hazards,
+                items: sel.hazards ?? [],
                 prefix: '!',
                 prefixColor: 'var(--sig-red)',
               },
               {
                 label: t('safety.ppe_required'),
-                items: sel.ppe,
+                items: sel.ppe ?? [],
                 prefix: '✓',
                 prefixColor: 'var(--sig-green)',
               },
@@ -441,7 +441,7 @@ function PermitsTab({ permits, loading }: { permits: WorkPermit[]; loading: bool
               >
                 {t('safety.sign_offs')}
               </div>
-              {sel.coSigners.map((s, i) => (
+              {(sel.coSigners ?? []).map((s, i) => (
                 <div
                   key={i}
                   className="grid gap-3 px-4 py-2.5 items-center"
@@ -1004,7 +1004,7 @@ function JhaTab({ jhas, loading }: { jhas: JHA[]; loading: boolean }) {
               >
                 {t('safety.key_controls')}
               </div>
-              {sel.keyControls.map((c, i) => (
+              {(sel.keyControls ?? []).map((c, i) => (
                 <div
                   key={i}
                   className="flex items-center gap-3 px-4 py-2.5"
@@ -1429,7 +1429,7 @@ export function SafetyPage() {
       .catch(() => setPermits([]))
       .finally(() => setLoadP(false));
     api
-      .get<SafetyFinding[]>('/safety-findings')
+      .get<SafetyFinding[]>('/findings')
       .then(setFindings)
       .catch(() => setFindings([]))
       .finally(() => setLoadF(false));

@@ -8,6 +8,65 @@ import { api } from '../api/client.js';
 
 type CertCat = 'statutory' | 'class' | 'mlc' | 'ism' | 'isps' | 'marpol' | 'insurance' | 'flag';
 
+/** Raw shape returned by the shore /certificates endpoint. */
+interface RawCertificate {
+  id: string;
+  vesselId?: string | null;
+  number?: string | null;
+  issuedAt?: string | null;
+  expiresAt?: string | null;
+  issuedBy?: string | null;
+  notes?: string | null;
+  certificateType?: {
+    name?: string;
+    acronym?: string;
+    category?: string;
+    intervalDays?: number;
+  } | null;
+}
+
+/** Map category string to CertCat; default to 'statutory'. */
+function toCertCat(raw?: string | null): CertCat {
+  const map: Record<string, CertCat> = {
+    ISM: 'ism',
+    ISPS: 'isps',
+    MLC: 'mlc',
+    MARPOL: 'marpol',
+    CLASS: 'class',
+    INSURANCE: 'insurance',
+    FLAG: 'flag',
+  };
+  return (raw && map[raw.toUpperCase()]) || 'statutory';
+}
+
+/** Transform raw API response into the shape CertificatesPage renders. */
+function normalizeCerts(raw: RawCertificate[]): Certificate[] {
+  const now = Date.now();
+  return raw.map((r) => {
+    const expiresAt = r.expiresAt ?? null;
+    const daysLeft = expiresAt
+      ? Math.round((new Date(expiresAt).getTime() - now) / 86_400_000)
+      : 99999;
+    const status: 'green' | 'amber' | 'red' =
+      daysLeft < 0 ? 'red' : daysLeft <= 90 ? 'amber' : 'green';
+    const cycle = r.certificateType?.intervalDays ? `${r.certificateType.intervalDays} days` : '—';
+    return {
+      id: r.id,
+      category: toCertCat(r.certificateType?.category),
+      title: r.certificateType?.name ?? r.number ?? r.id.slice(-8),
+      acronym: r.certificateType?.acronym ?? r.number ?? '—',
+      authority: r.issuedBy ?? '—',
+      cycle,
+      issuedAt: r.issuedAt ? new Date(r.issuedAt).toISOString().split('T')[0]! : '—',
+      expiresAt: expiresAt ? new Date(expiresAt).toISOString().split('T')[0]! : null,
+      nextSurvey: null,
+      daysLeft,
+      status,
+      documentKey: null,
+    };
+  });
+}
+
 interface Certificate {
   id: string;
   category: CertCat;
@@ -1110,8 +1169,8 @@ export function CertificatesPage() {
 
   const fetchAll = useCallback(() => {
     api
-      .get<Certificate[]>('/certificates')
-      .then(setCerts)
+      .get<RawCertificate[]>('/certificates')
+      .then((raw) => setCerts(normalizeCerts(raw)))
       .catch(() => setCerts([]))
       .finally(() => setLoadCerts(false));
     api
