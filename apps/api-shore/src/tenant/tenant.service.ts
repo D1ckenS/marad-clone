@@ -21,7 +21,7 @@ export class TenantService {
     const passwordHash = await bcrypt.hash(dto.admin.password, SALT_ROUNDS);
 
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      return await this.prisma.withTenant(tenantId, async (tx) => {
         const tenant = await tx.tenant.create({
           data: { id: tenantId, name: dto.name, shortName: dto.shortName ?? null },
         });

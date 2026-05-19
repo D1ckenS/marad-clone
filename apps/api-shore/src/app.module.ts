@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { BudgetModule } from './budget/budget.module';
 import { FleetviewModule } from './fleetview/fleetview.module';
@@ -62,6 +63,7 @@ import { VesselModule } from './vessel/vessel.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 10 }]),
     LoggerModule.forRoot({
       pinoHttp: {
         autoLogging: true,

@@ -17,7 +17,7 @@ export class VesselService {
 
   async findById(tenantId: string, id: string) {
     const vessel = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.vessel.findUnique({ where: { id } }),
+      tx.vessel.findFirst({ where: { id, tenantId, deletedAt: null } }),
     );
     if (!vessel) throw new NotFoundException(`Vessel ${id} not found`);
     return vessel;

@@ -34,16 +34,18 @@ beforeAll(async () => {
 
   const hash = await bcrypt.hash('TestP@ss!1', 12);
   await prisma.tenant.create({ data: { id: tenantId, name: 'cert-api-shore-test' } });
-  await prisma.vessel.create({ data: { id: vesselId, tenantId, name: 'MV Cert Shore' } });
-  await prisma.user.create({
-    data: {
-      id: userId,
-      tenantId,
-      vesselId,
-      email: 'cert@shore.test',
-      passwordHash: hash,
-      role: 'CHIEF_ENGINEER',
-    },
+  await prisma.withTenant(tenantId, async (tx) => {
+    await tx.vessel.create({ data: { id: vesselId, tenantId, name: 'MV Cert Shore' } });
+    await tx.user.create({
+      data: {
+        id: userId,
+        tenantId,
+        vesselId,
+        email: 'cert@shore.test',
+        passwordHash: hash,
+        role: 'CHIEF_ENGINEER',
+      },
+    });
   });
 
   const loginRes = await request(app.getHttpServer())
@@ -53,12 +55,16 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.notification.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.certificateAttachment.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.certificate.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.certificateType.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.user.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.vessel.deleteMany({ where: { tenantId } }).catch(() => null);
+  await prisma
+    .withTenant(tenantId, async (tx) => {
+      await tx.notification.deleteMany({ where: { tenantId } });
+      await tx.certificateAttachment.deleteMany({ where: { tenantId } });
+      await tx.certificate.deleteMany({ where: { tenantId } });
+      await tx.certificateType.deleteMany({ where: { tenantId } });
+      await tx.user.deleteMany({ where: { tenantId } });
+      await tx.vessel.deleteMany({ where: { tenantId } });
+    })
+    .catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });
@@ -75,7 +81,9 @@ describe('P2-1 certificates API — shore', () => {
     expect(res.status).toBe(201);
     certTypeId = (res.body as { id: string }).id;
     expect(typeof certTypeId).toBe('string');
-    const stored = await prisma.certificateType.findUnique({ where: { id: certTypeId } });
+    const stored = await prisma.withTenant(tenantId, (tx) =>
+      tx.certificateType.findUnique({ where: { id: certTypeId } }),
+    );
     expect(stored?.alertDaysJson).toBe('[90,60,30,7]');
   });
 
@@ -150,25 +158,25 @@ describe('P2-1 certificates API — shore', () => {
       (res.body as { notificationsCreated: number }).notificationsCreated,
     ).toBeGreaterThanOrEqual(1);
 
-    const notifs = await prisma.notification.findMany({
-      where: { tenantId, type: 'CERTIFICATE_EXPIRY' },
-    });
+    const notifs = await prisma.withTenant(tenantId, (tx) =>
+      tx.notification.findMany({ where: { tenantId, type: 'CERTIFICATE_EXPIRY' } }),
+    );
     expect(notifs.length).toBeGreaterThanOrEqual(1);
     expect(notifs[0]?.refId).toContain(certId);
   });
 
   it('POST /certificates/check-expiry is idempotent (no duplicate notification)', async () => {
-    const before = await prisma.notification.count({
-      where: { tenantId, type: 'CERTIFICATE_EXPIRY' },
-    });
+    const before = await prisma.withTenant(tenantId, (tx) =>
+      tx.notification.count({ where: { tenantId, type: 'CERTIFICATE_EXPIRY' } }),
+    );
     const res = await request(app.getHttpServer())
       .post('/api/v1/certificates/check-expiry')
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(201);
     expect((res.body as { notificationsCreated: number }).notificationsCreated).toBe(0);
-    const after = await prisma.notification.count({
-      where: { tenantId, type: 'CERTIFICATE_EXPIRY' },
-    });
+    const after = await prisma.withTenant(tenantId, (tx) =>
+      tx.notification.count({ where: { tenantId, type: 'CERTIFICATE_EXPIRY' } }),
+    );
     expect(after).toBe(before);
   });
 
@@ -197,7 +205,9 @@ describe('P2-1 certificates API — shore', () => {
       .delete(`/api/v1/certificates/${certId}`)
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(204);
-    const stored = await prisma.certificate.findUnique({ where: { id: certId } });
+    const stored = await prisma.withTenant(tenantId, (tx) =>
+      tx.certificate.findUnique({ where: { id: certId } }),
+    );
     expect(stored?.deletedAt).not.toBeNull();
   });
 });

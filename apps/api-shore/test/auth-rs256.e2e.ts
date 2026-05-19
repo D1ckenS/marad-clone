@@ -29,28 +29,34 @@ beforeAll(async () => {
   prisma = moduleRef.get(PrismaService);
 
   await prisma.tenant.create({ data: { id: tenantId, name: 'rs256-test' } });
-  await prisma.vessel.create({ data: { id: vesselId, tenantId, name: 'rs256-vessel' } });
+  userId = ulid();
+  const passwordHash = await bcrypt.hash('S3cur3P@ss!', 12);
   // The user is created directly here so this test stays focused on JWT
   // mechanics rather than the HTTP-based create-user flow (covered in
   // app.e2e.ts via the bootstrap-tenant + JWT-guarded /users path).
-  userId = ulid();
-  const passwordHash = await bcrypt.hash('S3cur3P@ss!', 12);
-  await prisma.user.create({
-    data: {
-      id: userId,
-      tenantId,
-      vesselId,
-      email,
-      passwordHash,
-      role: 'CHIEF_ENGINEER',
-    },
+  await prisma.withTenant(tenantId, async (tx) => {
+    await tx.vessel.create({ data: { id: vesselId, tenantId, name: 'rs256-vessel' } });
+    await tx.user.create({
+      data: {
+        id: userId,
+        tenantId,
+        vesselId,
+        email,
+        passwordHash,
+        role: 'CHIEF_ENGINEER',
+      },
+    });
   });
 });
 
 afterAll(async () => {
-  if (userId) await prisma.user.deleteMany({ where: { id: userId } });
-  await prisma.vessel.deleteMany({ where: { tenantId } });
-  await prisma.tenant.deleteMany({ where: { id: tenantId } });
+  await prisma
+    .withTenant(tenantId, async (tx) => {
+      if (userId) await tx.user.deleteMany({ where: { id: userId } });
+      await tx.vessel.deleteMany({ where: { tenantId } });
+    })
+    .catch(() => null);
+  await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });
 

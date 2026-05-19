@@ -74,15 +74,19 @@ export class UserService {
     return user;
   }
 
-  /** Looks up a SUPER_ADMIN by email or username (no tenant). */
+  /** Looks up a SUPER_ADMIN by email or username (no tenant). Uses '' bypass to satisfy users RLS. */
   async findSuperAdminByIdentifier(identifier: string) {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        role: 'SUPER_ADMIN',
-        tenantId: null,
-        deletedAt: null,
-        OR: [{ email: identifier }, { username: identifier }],
-      },
+    const user = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = ''`);
+      await tx.$executeRawUnsafe(`SET LOCAL app.tenant_id = ''`);
+      return tx.user.findFirst({
+        where: {
+          role: 'SUPER_ADMIN',
+          tenantId: null,
+          deletedAt: null,
+          OR: [{ email: identifier }, { username: identifier }],
+        },
+      });
     });
     if (!user) throw new NotFoundException(`Super admin ${identifier} not found`);
     return user;
@@ -230,23 +234,29 @@ export class UserService {
     return updated;
   }
 
-  /** Creates a SUPER_ADMIN with no tenant. Bypasses withTenant(). */
+  /** Creates a SUPER_ADMIN with no tenant. Uses '' as tenant context to bypass RLS per policy design. */
   async createSuperAdmin(email: string, password: string, username: string) {
-    const existing = await this.prisma.user.findFirst({
-      where: { email, role: 'SUPER_ADMIN', tenantId: null },
-    });
-    if (existing) throw new ConflictException('A super admin with this email already exists');
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-    return this.prisma.user.create({
-      data: {
-        id: newId(),
-        tenantId: null,
-        email,
-        username: username ?? null,
-        passwordHash,
-        role: 'SUPER_ADMIN',
-      },
-      select: { id: true, email: true, username: true, role: true, createdAt: true },
+    return this.prisma.$transaction(async (tx) => {
+      // SET '' bypasses the RLS USING clause (which allows current_setting = ''), letting
+      // us read/write the users table without a real tenantId. This is the intended super-admin path.
+      await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = ''`);
+      await tx.$executeRawUnsafe(`SET LOCAL app.tenant_id = ''`);
+      const existing = await tx.user.findFirst({
+        where: { email, role: 'SUPER_ADMIN', tenantId: null },
+      });
+      if (existing) throw new ConflictException('A super admin with this email already exists');
+      return tx.user.create({
+        data: {
+          id: newId(),
+          tenantId: null,
+          email,
+          username: username ?? null,
+          passwordHash,
+          role: 'SUPER_ADMIN',
+        },
+        select: { id: true, email: true, username: true, role: true, createdAt: true },
+      });
     });
   }
 }

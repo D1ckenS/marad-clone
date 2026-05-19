@@ -8,50 +8,54 @@ import {
   type SyncDelta,
   type SyncRecord,
 } from '@fleetops/sync-engine';
-import { Prisma, type PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 
 /**
  * Prisma / Postgres implementation of SyncAdapter for the shore side.
  *
  * Each instance is scoped to one (tenantId, vesselId) pair — the shore
  * runs N adapters in parallel, one per active vessel session, per ADR
- * 0002 §9. Tenant scoping is applied as a WHERE clause on every read /
- * write; RLS in the migration enforces the same at DB level for
- * least-privilege roles.
+ * 0002 §9. All DB calls go through withTenant() so the RLS session
+ * variable is always set — the outbox and sync_records tables require it.
  */
 export class PrismaSyncAdapter implements SyncAdapter {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly prisma: PrismaService,
     private readonly tenantId: string,
     private readonly vesselId: string,
   ) {}
 
   async appendOutbox(entry: OutboxEntry): Promise<void> {
-    await this.prisma.outbox.create({
-      data: {
-        id: entry.id,
-        tenantId: this.tenantId,
-        vesselId: this.vesselId,
-        entityType: entry.entityType,
-        entityId: entry.entityId,
-        operation: entry.operation,
-        payload:
-          entry.payload === null
-            ? Prisma.JsonNull
-            : (entry.payload as unknown as Prisma.InputJsonValue),
-        hlc: entry.hlc,
-        nodeId: entry.nodeId,
-        sentAt: entry.sentAt === null ? null : new Date(entry.sentAt),
-      },
-    });
+    await this.prisma.withTenant(this.tenantId, (tx) =>
+      tx.outbox.create({
+        data: {
+          id: entry.id,
+          tenantId: this.tenantId,
+          vesselId: this.vesselId,
+          entityType: entry.entityType,
+          entityId: entry.entityId,
+          operation: entry.operation,
+          payload:
+            entry.payload === null
+              ? Prisma.JsonNull
+              : (entry.payload as unknown as Prisma.InputJsonValue),
+          hlc: entry.hlc,
+          nodeId: entry.nodeId,
+          sentAt: entry.sentAt === null ? null : new Date(entry.sentAt),
+        },
+      }),
+    );
   }
 
   async readPendingOutbox(limit: number): Promise<OutboxEntry[]> {
-    const rows = await this.prisma.outbox.findMany({
-      where: { tenantId: this.tenantId, vesselId: this.vesselId, sentAt: null },
-      orderBy: { createdAt: 'asc' },
-      take: limit,
-    });
+    const rows = await this.prisma.withTenant(this.tenantId, (tx) =>
+      tx.outbox.findMany({
+        where: { tenantId: this.tenantId, vesselId: this.vesselId, sentAt: null },
+        orderBy: { createdAt: 'asc' },
+        take: limit,
+      }),
+    );
     return rows.map((r) => ({
       id: r.id,
       entityType: r.entityType,
@@ -66,10 +70,12 @@ export class PrismaSyncAdapter implements SyncAdapter {
 
   async markSent(ids: string[]): Promise<void> {
     if (ids.length === 0) return;
-    await this.prisma.outbox.updateMany({
-      where: { id: { in: ids }, tenantId: this.tenantId, vesselId: this.vesselId },
-      data: { sentAt: new Date() },
-    });
+    await this.prisma.withTenant(this.tenantId, (tx) =>
+      tx.outbox.updateMany({
+        where: { id: { in: ids }, tenantId: this.tenantId, vesselId: this.vesselId },
+        data: { sentAt: new Date() },
+      }),
+    );
   }
 
   async applyRemoteDelta(delta: SyncDelta): Promise<ApplyResult> {
@@ -121,16 +127,18 @@ export class PrismaSyncAdapter implements SyncAdapter {
   }
 
   async readLocalRecord(entityType: string, entityId: string): Promise<SyncRecord | null> {
-    const row = await this.prisma.syncRecord.findUnique({
-      where: {
-        tenantId_vesselId_entityType_entityId: {
-          tenantId: this.tenantId,
-          vesselId: this.vesselId,
-          entityType,
-          entityId,
+    const row = await this.prisma.withTenant(this.tenantId, (tx) =>
+      tx.syncRecord.findUnique({
+        where: {
+          tenantId_vesselId_entityType_entityId: {
+            tenantId: this.tenantId,
+            vesselId: this.vesselId,
+            entityType,
+            entityId,
+          },
         },
-      },
-    });
+      }),
+    );
     if (row === null) return null;
     return {
       entityType: row.entityType,
@@ -142,29 +150,31 @@ export class PrismaSyncAdapter implements SyncAdapter {
   }
 
   private async upsertSyncRecord(record: SyncRecord): Promise<void> {
-    await this.prisma.syncRecord.upsert({
-      where: {
-        tenantId_vesselId_entityType_entityId: {
+    await this.prisma.withTenant(this.tenantId, (tx) =>
+      tx.syncRecord.upsert({
+        where: {
+          tenantId_vesselId_entityType_entityId: {
+            tenantId: this.tenantId,
+            vesselId: this.vesselId,
+            entityType: record.entityType,
+            entityId: record.entityId,
+          },
+        },
+        create: {
           tenantId: this.tenantId,
           vesselId: this.vesselId,
           entityType: record.entityType,
           entityId: record.entityId,
+          hlc: record.hlc,
+          deletedAt: record.deletedAt === null ? null : new Date(record.deletedAt),
+          fields: record.fields as unknown as object,
         },
-      },
-      create: {
-        tenantId: this.tenantId,
-        vesselId: this.vesselId,
-        entityType: record.entityType,
-        entityId: record.entityId,
-        hlc: record.hlc,
-        deletedAt: record.deletedAt === null ? null : new Date(record.deletedAt),
-        fields: record.fields as unknown as object,
-      },
-      update: {
-        hlc: record.hlc,
-        deletedAt: record.deletedAt === null ? null : new Date(record.deletedAt),
-        fields: record.fields as unknown as object,
-      },
-    });
+        update: {
+          hlc: record.hlc,
+          deletedAt: record.deletedAt === null ? null : new Date(record.deletedAt),
+          fields: record.fields as unknown as object,
+        },
+      }),
+    );
   }
 }

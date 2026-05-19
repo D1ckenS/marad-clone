@@ -31,16 +31,18 @@ beforeAll(async () => {
 
   const hash = await bcrypt.hash('TestP@ss!1', 12);
   await prisma.tenant.create({ data: { id: tenantId, name: 'audit-e2e-test' } });
-  await prisma.vessel.create({ data: { id: vesselId, tenantId, name: 'MV Audit Ship' } });
-  await prisma.user.create({
-    data: {
-      id: userId,
-      tenantId,
-      vesselId,
-      email: 'audit@shore.test',
-      passwordHash: hash,
-      role: 'CHIEF_ENGINEER',
-    },
+  await prisma.withTenant(tenantId, async (tx) => {
+    await tx.vessel.create({ data: { id: vesselId, tenantId, name: 'MV Audit Ship' } });
+    await tx.user.create({
+      data: {
+        id: userId,
+        tenantId,
+        vesselId,
+        email: 'audit@shore.test',
+        passwordHash: hash,
+        role: 'CHIEF_ENGINEER',
+      },
+    });
   });
 
   const loginRes = await request(app.getHttpServer())
@@ -50,13 +52,17 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.auditEvent.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.jobHistory.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.jobInstance.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.job.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.component.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.user.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.vessel.deleteMany({ where: { tenantId } }).catch(() => null);
+  await prisma
+    .withTenant(tenantId, async (tx) => {
+      await tx.auditEvent.deleteMany({ where: { tenantId } });
+      await tx.jobHistory.deleteMany({ where: { tenantId } });
+      await tx.jobInstance.deleteMany({ where: { tenantId } });
+      await tx.job.deleteMany({ where: { tenantId } });
+      await tx.component.deleteMany({ where: { tenantId } });
+      await tx.user.deleteMany({ where: { tenantId } });
+      await tx.vessel.deleteMany({ where: { tenantId } });
+    })
+    .catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });
@@ -140,17 +146,21 @@ describe('P2-5 DNV evidence pack — shore', () => {
   });
 
   it('job_histories_immutable trigger prevents UPDATE on JobHistory', async () => {
-    const jobHistories = await prisma.jobHistory.findMany({
-      where: { tenantId, vesselId },
-    });
+    const jobHistories = await prisma.withTenant(tenantId, (tx) =>
+      tx.jobHistory.findMany({ where: { tenantId, vesselId } }),
+    );
     expect(jobHistories.length).toBeGreaterThan(0);
     const histId = jobHistories[0]!.id;
 
     // Attempt raw UPDATE via Prisma — should raise due to DB trigger
     await expect(
-      prisma.$executeRaw`
-        UPDATE job_histories SET notes = 'tampered' WHERE id = ${histId}
-      `,
+      prisma.withTenant(
+        tenantId,
+        (tx) =>
+          tx.$executeRaw`
+          UPDATE job_histories SET notes = 'tampered' WHERE id = ${histId}
+        `,
+      ),
     ).rejects.toThrow();
   });
 

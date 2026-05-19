@@ -30,19 +30,21 @@ beforeAll(async () => {
 
   const hash = await bcrypt.hash('TestP@ss!1', 12);
   await prisma.tenant.create({ data: { id: tenantId, name: 'classsoc-api-test' } });
-  await prisma.vessel.create({
-    data: { id: vesselId, tenantId, name: 'MV ClassSoc Test', imoNumber: '9966001' },
-  });
-  await prisma.user.create({
-    data: {
-      id: userId,
-      tenantId,
-      vesselId,
-      email: 'classsoc@test.shore',
-      username: 'classsocuser',
-      passwordHash: hash,
-      role: 'TENANT_ADMIN',
-    },
+  await prisma.withTenant(tenantId, async (tx) => {
+    await tx.vessel.create({
+      data: { id: vesselId, tenantId, name: 'MV ClassSoc Test', imoNumber: '9966001' },
+    });
+    await tx.user.create({
+      data: {
+        id: userId,
+        tenantId,
+        vesselId,
+        email: 'classsoc@test.shore',
+        username: 'classsocuser',
+        passwordHash: hash,
+        role: 'TENANT_ADMIN',
+      },
+    });
   });
 
   const res = await request(app.getHttpServer())
@@ -52,10 +54,14 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.classSocietySubmission.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.classSocietyConnector.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.user.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.vessel.deleteMany({ where: { tenantId } }).catch(() => null);
+  await prisma
+    .withTenant(tenantId, async (tx) => {
+      await tx.classSocietySubmission.deleteMany({ where: { tenantId } });
+      await tx.classSocietyConnector.deleteMany({ where: { tenantId } });
+      await tx.user.deleteMany({ where: { tenantId } });
+      await tx.vessel.deleteMany({ where: { tenantId } });
+    })
+    .catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });
@@ -172,9 +178,9 @@ describe('Class Society Submissions', () => {
   });
 
   it('submission record has a payloadJson with expected structure', async () => {
-    const stored = await prisma.classSocietySubmission.findFirst({
-      where: { id: submissionId, tenantId },
-    });
+    const stored = await prisma.withTenant(tenantId, (tx) =>
+      tx.classSocietySubmission.findFirst({ where: { id: submissionId, tenantId } }),
+    );
     expect(stored).toBeDefined();
     expect(stored!.payloadJson).toBeDefined();
     const payload = stored!.payloadJson as Record<string, unknown>;

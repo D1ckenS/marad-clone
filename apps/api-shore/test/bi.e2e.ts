@@ -29,15 +29,17 @@ beforeAll(async () => {
 
   const hash = await bcrypt.hash('TestP@ss!1', 12);
   await prisma.tenant.create({ data: { id: tenantId, name: 'bi-api-test' } });
-  await prisma.user.create({
-    data: {
-      id: userId,
-      tenantId,
-      email: 'bi@test.shore',
-      username: 'biuser',
-      passwordHash: hash,
-      role: 'TENANT_ADMIN',
-    },
+  await prisma.withTenant(tenantId, async (tx) => {
+    await tx.user.create({
+      data: {
+        id: userId,
+        tenantId,
+        email: 'bi@test.shore',
+        username: 'biuser',
+        passwordHash: hash,
+        role: 'TENANT_ADMIN',
+      },
+    });
   });
 
   const res = await request(app.getHttpServer())
@@ -47,8 +49,12 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.biDashboard.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.user.deleteMany({ where: { tenantId } }).catch(() => null);
+  await prisma
+    .withTenant(tenantId, async (tx) => {
+      await tx.biDashboard.deleteMany({ where: { tenantId } });
+      await tx.user.deleteMany({ where: { tenantId } });
+    })
+    .catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });
