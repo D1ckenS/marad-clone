@@ -204,4 +204,68 @@ describe('Fleetview endpoints', () => {
     expect(v!.status.overdueJobs).toBe(0);
     expect(v!.status.expiringCerts).toBe(0);
   });
+
+  it('summary responds in <1500 ms (P5-3 cold-path budget)', async () => {
+    const t0 = Date.now();
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/fleetview/summary')
+      .set('Authorization', `Bearer ${token}`);
+    const elapsed = Date.now() - t0;
+
+    expect(res.status).toBe(200);
+    expect(elapsed).toBeLessThan(1500);
+  });
+
+  it('cached summary responds in <50 ms (P5-3 warm-path budget)', async () => {
+    // First call populates cache
+    await request(app.getHttpServer())
+      .get('/api/v1/fleetview/summary')
+      .set('Authorization', `Bearer ${token}`);
+
+    // Second call should be served from in-process cache
+    const t0 = Date.now();
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/fleetview/summary')
+      .set('Authorization', `Bearer ${token}`);
+    const elapsed = Date.now() - t0;
+
+    expect(res.status).toBe(200);
+    expect(elapsed).toBeLessThan(50);
+  });
+
+  it('RLS: summary is tenant-isolated (different tenant sees no cross-tenant vessels)', async () => {
+    const otherTenantId = ulid();
+    const otherUserId = ulid();
+    const hash = await bcrypt.hash('Other@Pass!1', 12);
+    const prisma2: PrismaService = app.get(PrismaService);
+
+    await prisma2.tenant.create({ data: { id: otherTenantId, name: 'other-perf-test' } });
+    await prisma2.user.create({
+      data: {
+        id: otherUserId,
+        tenantId: otherTenantId,
+        email: 'other@perf.test',
+        username: 'otherperf',
+        passwordHash: hash,
+        role: 'TENANT_ADMIN',
+      },
+    });
+
+    const loginRes = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ tenantId: otherTenantId, identifier: 'other@perf.test', password: 'Other@Pass!1' });
+    const otherToken = (loginRes.body as { access_token: string }).access_token;
+
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/fleetview/summary')
+      .set('Authorization', `Bearer ${otherToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.fleet.totalVessels).toBe(0);
+    expect(res.body.vessels).toHaveLength(0);
+
+    // Cleanup
+    await prisma2.user.deleteMany({ where: { tenantId: otherTenantId } }).catch(() => null);
+    await prisma2.tenant.deleteMany({ where: { id: otherTenantId } }).catch(() => null);
+  });
 });

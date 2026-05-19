@@ -18,6 +18,14 @@ export class DrizzleService implements OnModuleInit, OnModuleDestroy {
     // WAL mode not supported by in-memory databases
     if (url !== ':memory:') {
       this.sqlite.pragma('journal_mode = WAL');
+      // NORMAL sync is safe in WAL mode and ~2-3× faster than FULL
+      this.sqlite.pragma('synchronous = NORMAL');
+      // 64 MB page cache (negative = kibibytes)
+      this.sqlite.pragma('cache_size = -65536');
+      // 256 MB memory-mapped I/O for read-heavy workloads
+      this.sqlite.pragma('mmap_size = 268435456');
+      // Temp tables and indices in RAM
+      this.sqlite.pragma('temp_store = MEMORY');
     }
     this.sqlite.pragma('foreign_keys = ON');
     this.db = drizzle(this.sqlite, { schema });

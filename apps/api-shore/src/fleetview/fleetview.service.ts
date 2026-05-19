@@ -2,12 +2,44 @@ import { Injectable } from '@nestjs/common';
 import type { AuthContext } from '../auth/auth-context';
 import { PrismaService } from '../prisma/prisma.service';
 
+/** Summary and worklist results are cached per tenant for 30 seconds. */
+const CACHE_TTL_MS = 30_000;
+
+interface CacheEntry {
+  data: unknown;
+  expiresAt: number;
+}
+
 @Injectable()
 export class FleetviewService {
+  private readonly cache = new Map<string, CacheEntry>();
+
   constructor(private readonly prisma: PrismaService) {}
+
+  private getCached<T>(key: string): T | null {
+    const entry = this.cache.get(key);
+    if (!entry || Date.now() > entry.expiresAt) {
+      this.cache.delete(key);
+      return null;
+    }
+    return entry.data as T;
+  }
+
+  private setCached(key: string, data: unknown, ttlMs = CACHE_TTL_MS): void {
+    this.cache.set(key, { data, expiresAt: Date.now() + ttlMs });
+  }
 
   async getSummary(auth: AuthContext) {
     const tenantId = auth.tenantId!;
+    const cacheKey = `summary:${tenantId}`;
+    const cached = this.getCached<ReturnType<typeof this._fetchSummary>>(cacheKey);
+    if (cached) return cached;
+    const result = await this._fetchSummary(tenantId);
+    this.setCached(cacheKey, result);
+    return result;
+  }
+
+  private async _fetchSummary(tenantId: string) {
     const now = new Date();
     const in30d = new Date(now.getTime() + 30 * 86_400_000);
     const in7d = new Date(now.getTime() + 7 * 86_400_000);
@@ -124,6 +156,15 @@ export class FleetviewService {
 
   async getWorklist(auth: AuthContext, limit = 50) {
     const tenantId = auth.tenantId!;
+    const cacheKey = `worklist:${tenantId}:${limit}`;
+    const cached = this.getCached<ReturnType<typeof this._fetchWorklist>>(cacheKey);
+    if (cached) return cached;
+    const result = await this._fetchWorklist(tenantId, limit);
+    this.setCached(cacheKey, result);
+    return result;
+  }
+
+  private async _fetchWorklist(tenantId: string, limit: number) {
     const now = new Date();
     const in7d = new Date(now.getTime() + 7 * 86_400_000);
 
@@ -238,6 +279,15 @@ export class FleetviewService {
 
   async getBudgetActuals(auth: AuthContext, year: number) {
     const tenantId = auth.tenantId!;
+    const cacheKey = `budget-actuals:${tenantId}:${year}`;
+    const cached = this.getCached<ReturnType<typeof this._fetchBudgetActuals>>(cacheKey);
+    if (cached) return cached;
+    const result = await this._fetchBudgetActuals(tenantId, year);
+    this.setCached(cacheKey, result, 60_000);
+    return result;
+  }
+
+  private async _fetchBudgetActuals(tenantId: string, year: number) {
     const yearStart = new Date(`${year}-01-01`);
     const yearEnd = new Date(`${year}-12-31T23:59:59`);
 

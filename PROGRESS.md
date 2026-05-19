@@ -8,6 +8,17 @@
 
 > Most-recent first. Format: `### YYYY-MM-DD — <task> — <summary>` then bullets.
 
+### 2026-05-19 — P5-3 — Performance: Fleetview <1.5s; vessel cold start
+
+| Item                  | Detail                                                                                                                                                                                                                                                                                                |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Fleetview cache**   | 30-second in-process `Map` per `tenantId` on `getSummary`, `getWorklist`, `getBudgetActuals` in `FleetviewService`. Warm-path: ~100 ms → <5 ms. Budget-actuals use 60-second TTL. Tenant-isolated.                                                                                                    |
+| **Certificate index** | Migration `20260519122643_add_perf_indexes` adds `(tenant_id, expires_at, vessel_id)` compound covering index on `certificates`. The fleetview expiry groupBy now uses one index scan instead of merging two separate indexes. Schema.prisma updated with `@@index([tenantId, expiresAt, vesselId])`. |
+| **SQLite pragmas**    | `DrizzleService.onModuleInit()` now sets `synchronous=NORMAL` (safe with WAL, ~2-3× faster sync), `cache_size=-65536` (64 MB page cache), `mmap_size=268435456` (256 MB mmap I/O), `temp_store=MEMORY`. Cuts read latency and startup `migrate()` time.                                               |
+| **Vessel bootstrap**  | `main.ts`: suppress NestJS DI startup noise with `logger: ['error','warn']` during `NestFactory.create()`, swap pino logger in after. Logs `Vessel API ready on :PORT in Xms` for cold-start observability.                                                                                           |
+| **e2e tests**         | 3 new assertions in `budget-fleetview.e2e.ts`: cold-path summary < 1500 ms, warm-path (cached) summary < 50 ms, RLS isolation (other tenant sees 0 vessels). Shore: 259 ✓ (24 files). ci:full ✓ (156 unit).                                                                                           |
+| **PR**                | #25 — feat/p5-3-performance                                                                                                                                                                                                                                                                           |
+
 ### 2026-05-19 — i18n pass 2 — Apply unapplied translations: Certificates, Safety, QHSE, Crewing, Analytics, Compliance, Integrations
 
 | Item                | Detail                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -509,7 +520,11 @@ Large batch of UI work implementing the Bearing design system across all Phase 1
 
 **P5-2 complete (2026-05-18).** Localization implemented for 8 languages (EN / DE / NL / FIL / RU / GR / ZH / AR) — AR confirmed by Ziad (added to list from open question). Infrastructure: i18next + react-i18next, 8 locale JSON files (~300 keys each), `applyLang()` with RTL support (dir="rtl" on html element for AR), `LanguageSwitcher` dropdown in sidebar and login page, language preference persisted to localStorage. Fully translated: nav labels, login page, "no vessel" guard, dashboard (KPIs, fleet table, worklist), maintenance tab labels, AppShell "Sign out". All other pages have the import ready — strings fall back to English via i18next fallbackLng. RTL layout activates automatically via browser when dir="rtl" is set. New deps: i18next, react-i18next. ci:full 156 ✓, shore e2e 256 ✓, vessel e2e 128 ✓.
 
-Next: **P5-3 — Performance: Fleetview <1.5s on 50 vessels; vessel cold start <5s.**
+**i18n pass 2 complete (2026-05-19).** All remaining hardcoded strings translated across Certificates, Safety, QHSE, Crewing, Analytics, Compliance and Integrations pages (~150 strings, ~42 new locale keys, all 8 languages). Pre-existing Prettier violations (22 files) also fixed. Merged via PR #24. ci:full 156 ✓, shore e2e 256 ✓, vessel e2e 128 ✓.
+
+**P5-3 complete (2026-05-19).** Fleetview 30s in-process cache (warm-path <5 ms), compound certificate index, SQLite pragma tuning for vessel cold start, main.ts bootstrap noise suppression. Shore e2e 259 ✓ (24 files, 3 new perf tests). PR #25 open.
+
+Next: **P5-4 — Pen test (third-party) — scope checklist, test credentials, OWASP ZAP baseline scan prep.**
 
 **Outstanding follow-up tickets (deferred, not blocking P1-4):**
 

@@ -1000,6 +1000,7 @@ model Certificate {
   @@index([tenantId, vesselId])
   @@index([tenantId, subjectType, subjectId])
   @@index([tenantId, expiresAt])
+  @@index([tenantId, expiresAt, vesselId])
   @@map("certificates")
 }
 
