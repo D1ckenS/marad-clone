@@ -52,16 +52,18 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.withTenant(tenantId, async (tx) => {
-    await tx.capa.deleteMany({ where: { tenantId } });
-    await tx.finding.deleteMany({ where: { tenantId } });
-    await tx.checklistInstance.deleteMany({ where: { tenantId } });
-    await tx.checklistTemplate.deleteMany({ where: { tenantId } });
-    await tx.documentRevision.deleteMany({ where: { tenantId } });
-    await tx.qhseDocument.deleteMany({ where: { tenantId } });
-    await tx.user.deleteMany({ where: { tenantId } });
-    await tx.vessel.deleteMany({ where: { tenantId } });
-  }).catch(() => null);
+  await prisma
+    .withTenant(tenantId, async (tx) => {
+      await tx.capa.deleteMany({ where: { tenantId } });
+      await tx.finding.deleteMany({ where: { tenantId } });
+      await tx.checklistInstance.deleteMany({ where: { tenantId } });
+      await tx.checklistTemplate.deleteMany({ where: { tenantId } });
+      await tx.documentRevision.deleteMany({ where: { tenantId } });
+      await tx.qhseDocument.deleteMany({ where: { tenantId } });
+      await tx.user.deleteMany({ where: { tenantId } });
+      await tx.vessel.deleteMany({ where: { tenantId } });
+    })
+    .catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });

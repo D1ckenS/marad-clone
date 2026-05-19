@@ -28,11 +28,13 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (created.tenantId) {
-    await prisma.withTenant(created.tenantId, async (tx) => {
-      if (created.chiefUserId) await tx.user.delete({ where: { id: created.chiefUserId } });
-      if (created.adminUserId) await tx.user.delete({ where: { id: created.adminUserId } });
-      if (created.vesselId) await tx.vessel.delete({ where: { id: created.vesselId } });
-    }).catch(() => null);
+    await prisma
+      .withTenant(created.tenantId, async (tx) => {
+        if (created.chiefUserId) await tx.user.delete({ where: { id: created.chiefUserId } });
+        if (created.adminUserId) await tx.user.delete({ where: { id: created.adminUserId } });
+        if (created.vesselId) await tx.vessel.delete({ where: { id: created.vesselId } });
+      })
+      .catch(() => null);
     await prisma.tenant.delete({ where: { id: created.tenantId } }).catch(() => null);
   }
   await app.close();

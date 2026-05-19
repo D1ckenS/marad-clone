@@ -52,15 +52,17 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.withTenant(tenantId, async (tx) => {
-    await tx.auditEvent.deleteMany({ where: { tenantId } });
-    await tx.jobHistory.deleteMany({ where: { tenantId } });
-    await tx.jobInstance.deleteMany({ where: { tenantId } });
-    await tx.job.deleteMany({ where: { tenantId } });
-    await tx.component.deleteMany({ where: { tenantId } });
-    await tx.user.deleteMany({ where: { tenantId } });
-    await tx.vessel.deleteMany({ where: { tenantId } });
-  }).catch(() => null);
+  await prisma
+    .withTenant(tenantId, async (tx) => {
+      await tx.auditEvent.deleteMany({ where: { tenantId } });
+      await tx.jobHistory.deleteMany({ where: { tenantId } });
+      await tx.jobInstance.deleteMany({ where: { tenantId } });
+      await tx.job.deleteMany({ where: { tenantId } });
+      await tx.component.deleteMany({ where: { tenantId } });
+      await tx.user.deleteMany({ where: { tenantId } });
+      await tx.vessel.deleteMany({ where: { tenantId } });
+    })
+    .catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });
@@ -152,8 +154,10 @@ describe('P2-5 DNV evidence pack — shore', () => {
 
     // Attempt raw UPDATE via Prisma — should raise due to DB trigger
     await expect(
-      prisma.withTenant(tenantId, (tx) =>
-        tx.$executeRaw`
+      prisma.withTenant(
+        tenantId,
+        (tx) =>
+          tx.$executeRaw`
           UPDATE job_histories SET notes = 'tampered' WHERE id = ${histId}
         `,
       ),

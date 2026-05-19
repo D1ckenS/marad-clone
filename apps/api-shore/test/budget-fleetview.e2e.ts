@@ -54,12 +54,14 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.withTenant(tenantId, async (tx) => {
-    await tx.budgetLine.deleteMany({ where: { tenantId } });
-    await tx.budget.deleteMany({ where: { tenantId } });
-    await tx.user.deleteMany({ where: { tenantId } });
-    await tx.vessel.deleteMany({ where: { tenantId } });
-  }).catch(() => null);
+  await prisma
+    .withTenant(tenantId, async (tx) => {
+      await tx.budgetLine.deleteMany({ where: { tenantId } });
+      await tx.budget.deleteMany({ where: { tenantId } });
+      await tx.user.deleteMany({ where: { tenantId } });
+      await tx.vessel.deleteMany({ where: { tenantId } });
+    })
+    .catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });
@@ -271,9 +273,11 @@ describe('Fleetview endpoints', () => {
     expect(res.body.vessels).toHaveLength(0);
 
     // Cleanup
-    await prisma2.withTenant(otherTenantId, async (tx) => {
-      await tx.user.deleteMany({ where: { tenantId: otherTenantId } });
-    }).catch(() => null);
+    await prisma2
+      .withTenant(otherTenantId, async (tx) => {
+        await tx.user.deleteMany({ where: { tenantId: otherTenantId } });
+      })
+      .catch(() => null);
     await prisma2.tenant.deleteMany({ where: { id: otherTenantId } }).catch(() => null);
   });
 });

@@ -52,16 +52,18 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.withTenant(tenantId, async (tx) => {
-    await tx.permitApproval.deleteMany({ where: { tenantId } });
-    await tx.workPermit.deleteMany({ where: { tenantId } });
-    await tx.permitTemplate.deleteMany({ where: { tenantId } });
-    await tx.drillRecord.deleteMany({ where: { tenantId } });
-    await tx.drill.deleteMany({ where: { tenantId } });
-    await tx.drillType.deleteMany({ where: { tenantId } });
-    await tx.user.deleteMany({ where: { tenantId } });
-    await tx.vessel.deleteMany({ where: { tenantId } });
-  }).catch(() => null);
+  await prisma
+    .withTenant(tenantId, async (tx) => {
+      await tx.permitApproval.deleteMany({ where: { tenantId } });
+      await tx.workPermit.deleteMany({ where: { tenantId } });
+      await tx.permitTemplate.deleteMany({ where: { tenantId } });
+      await tx.drillRecord.deleteMany({ where: { tenantId } });
+      await tx.drill.deleteMany({ where: { tenantId } });
+      await tx.drillType.deleteMany({ where: { tenantId } });
+      await tx.user.deleteMany({ where: { tenantId } });
+      await tx.vessel.deleteMany({ where: { tenantId } });
+    })
+    .catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });

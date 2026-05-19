@@ -54,15 +54,17 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.withTenant(tenantId, async (tx) => {
-    await tx.consumptionLog.deleteMany({ where: { tenantId } });
-    await tx.bunkerDeliveryNote.deleteMany({ where: { tenantId } });
-    await tx.tankReading.deleteMany({ where: { tenantId } });
-    await tx.tank.deleteMany({ where: { tenantId } });
-    await tx.fuelProduct.deleteMany({ where: { tenantId } });
-    await tx.user.deleteMany({ where: { tenantId } });
-    await tx.vessel.deleteMany({ where: { tenantId } });
-  }).catch(() => null);
+  await prisma
+    .withTenant(tenantId, async (tx) => {
+      await tx.consumptionLog.deleteMany({ where: { tenantId } });
+      await tx.bunkerDeliveryNote.deleteMany({ where: { tenantId } });
+      await tx.tankReading.deleteMany({ where: { tenantId } });
+      await tx.tank.deleteMany({ where: { tenantId } });
+      await tx.fuelProduct.deleteMany({ where: { tenantId } });
+      await tx.user.deleteMany({ where: { tenantId } });
+      await tx.vessel.deleteMany({ where: { tenantId } });
+    })
+    .catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });

@@ -31,11 +31,13 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.withTenant(tenantId, async (tx) => {
-    await tx.outbox.deleteMany({ where: { tenantId } });
-    await tx.syncRecord.deleteMany({ where: { tenantId } });
-    await tx.vessel.deleteMany({ where: { tenantId } });
-  }).catch(() => null);
+  await prisma
+    .withTenant(tenantId, async (tx) => {
+      await tx.outbox.deleteMany({ where: { tenantId } });
+      await tx.syncRecord.deleteMany({ where: { tenantId } });
+      await tx.vessel.deleteMany({ where: { tenantId } });
+    })
+    .catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });
@@ -62,7 +64,14 @@ describe('OutboxRecorder — shore', () => {
 
     const syncRow = await prisma.withTenant(tenantId, (tx) =>
       tx.syncRecord.findUnique({
-        where: { tenantId_vesselId_entityType_entityId: { tenantId, vesselId, entityType: 'Component', entityId } },
+        where: {
+          tenantId_vesselId_entityType_entityId: {
+            tenantId,
+            vesselId,
+            entityType: 'Component',
+            entityId,
+          },
+        },
       }),
     );
     expect(syncRow).not.toBeNull();
@@ -101,7 +110,14 @@ describe('OutboxRecorder — shore', () => {
 
     const syncRow = await prisma.withTenant(tenantId, (tx) =>
       tx.syncRecord.findUnique({
-        where: { tenantId_vesselId_entityType_entityId: { tenantId, vesselId, entityType: 'Component', entityId } },
+        where: {
+          tenantId_vesselId_entityType_entityId: {
+            tenantId,
+            vesselId,
+            entityType: 'Component',
+            entityId,
+          },
+        },
       }),
     );
     const fields = syncRow!.fields as Record<string, { value: unknown; hlc: string }>;
@@ -128,7 +144,14 @@ describe('OutboxRecorder — shore', () => {
 
     const syncRow = await prisma.withTenant(tenantId, (tx) =>
       tx.syncRecord.findUnique({
-        where: { tenantId_vesselId_entityType_entityId: { tenantId, vesselId, entityType: 'Component', entityId } },
+        where: {
+          tenantId_vesselId_entityType_entityId: {
+            tenantId,
+            vesselId,
+            entityType: 'Component',
+            entityId,
+          },
+        },
       }),
     );
     expect(syncRow).toBeNull();
@@ -149,7 +172,14 @@ describe('OutboxRecorder — shore', () => {
         orderBy: { createdAt: 'asc' },
       }),
       syncRow: await tx.syncRecord.findUnique({
-        where: { tenantId_vesselId_entityType_entityId: { tenantId, vesselId, entityType: 'Component', entityId } },
+        where: {
+          tenantId_vesselId_entityType_entityId: {
+            tenantId,
+            vesselId,
+            entityType: 'Component',
+            entityId,
+          },
+        },
       }),
     }));
     expect(outboxRows).toHaveLength(2);
@@ -169,9 +199,9 @@ describe('OutboxRecorder — shore', () => {
       expect(a.clock).not.toBe(b.clock);
       expect(a.nodeId).toBe(b.nodeId); // both `${tenantId}-shore`
     } finally {
-      await prisma.withTenant(tenantId, (tx) =>
-        tx.vessel.delete({ where: { id: otherVesselId } }),
-      ).catch(() => null);
+      await prisma
+        .withTenant(tenantId, (tx) => tx.vessel.delete({ where: { id: otherVesselId } }))
+        .catch(() => null);
     }
   });
 });

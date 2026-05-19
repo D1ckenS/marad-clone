@@ -125,20 +125,22 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.withTenant(tenantId, async (tx) => {
-    await tx.requisitionLine.deleteMany({ where: { tenantId } });
-    await tx.requisition.deleteMany({ where: { tenantId } });
-    await tx.stockMovement.deleteMany({ where: { tenantId } });
-    await tx.stockLevel.deleteMany({ where: { tenantId } });
-    await tx.stockLocation.deleteMany({ where: { tenantId } });
-    await tx.part.deleteMany({ where: { tenantId } });
-    await tx.jobHistory.deleteMany({ where: { tenantId } });
-    await tx.jobInstance.deleteMany({ where: { tenantId } });
-    await tx.job.deleteMany({ where: { tenantId } });
-    await tx.component.deleteMany({ where: { tenantId } });
-    await tx.user.deleteMany({ where: { tenantId } });
-    await tx.vessel.deleteMany({ where: { tenantId } });
-  }).catch(() => null);
+  await prisma
+    .withTenant(tenantId, async (tx) => {
+      await tx.requisitionLine.deleteMany({ where: { tenantId } });
+      await tx.requisition.deleteMany({ where: { tenantId } });
+      await tx.stockMovement.deleteMany({ where: { tenantId } });
+      await tx.stockLevel.deleteMany({ where: { tenantId } });
+      await tx.stockLocation.deleteMany({ where: { tenantId } });
+      await tx.part.deleteMany({ where: { tenantId } });
+      await tx.jobHistory.deleteMany({ where: { tenantId } });
+      await tx.jobInstance.deleteMany({ where: { tenantId } });
+      await tx.job.deleteMany({ where: { tenantId } });
+      await tx.component.deleteMany({ where: { tenantId } });
+      await tx.user.deleteMany({ where: { tenantId } });
+      await tx.vessel.deleteMany({ where: { tenantId } });
+    })
+    .catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });

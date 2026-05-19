@@ -31,16 +31,18 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.withTenant(tenantId, async (tx) => {
-    await tx.runningHourReading.deleteMany({ where: { tenantId } });
-    await tx.jobHistory.deleteMany({ where: { tenantId } });
-    await tx.jobInstance.deleteMany({ where: { tenantId } });
-    await tx.job.deleteMany({ where: { tenantId } });
-    await tx.component.deleteMany({ where: { tenantId } });
-    await tx.masterComponent.deleteMany({ where: { tenantId } });
-    await tx.user.deleteMany({ where: { tenantId } });
-    await tx.vessel.deleteMany({ where: { tenantId } });
-  }).catch(() => null);
+  await prisma
+    .withTenant(tenantId, async (tx) => {
+      await tx.runningHourReading.deleteMany({ where: { tenantId } });
+      await tx.jobHistory.deleteMany({ where: { tenantId } });
+      await tx.jobInstance.deleteMany({ where: { tenantId } });
+      await tx.job.deleteMany({ where: { tenantId } });
+      await tx.component.deleteMany({ where: { tenantId } });
+      await tx.masterComponent.deleteMany({ where: { tenantId } });
+      await tx.user.deleteMany({ where: { tenantId } });
+      await tx.vessel.deleteMany({ where: { tenantId } });
+    })
+    .catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });
@@ -74,7 +76,10 @@ describe('P1-1 maintenance schema — Postgres', () => {
 
     const { child, parent } = await prisma.withTenant(tenantId, async (tx) => ({
       child: await tx.component.findUnique({ where: { id: childId }, include: { parent: true } }),
-      parent: await tx.component.findUnique({ where: { id: parentId }, include: { master: true, children: true } }),
+      parent: await tx.component.findUnique({
+        where: { id: parentId },
+        include: { master: true, children: true },
+      }),
     }));
     expect(child?.parent?.id).toBe(parentId);
     expect(child?.parent?.runningHours.toString()).toBe('1234.5');

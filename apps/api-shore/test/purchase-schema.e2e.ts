@@ -25,21 +25,23 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.withTenant(tenantId, async (tx) => {
-    await tx.goodsReceiptLine.deleteMany({ where: { tenantId } });
-    await tx.goodsReceipt.deleteMany({ where: { tenantId } });
-    await tx.pOLine.deleteMany({ where: { tenantId } });
-    await tx.purchaseOrder.deleteMany({ where: { tenantId } });
-    await tx.quoteLine.deleteMany({ where: { tenantId } });
-    await tx.quote.deleteMany({ where: { tenantId } });
-    await tx.rfq.deleteMany({ where: { tenantId } });
-    await tx.requisitionLine.deleteMany({ where: { tenantId } });
-    await tx.requisition.deleteMany({ where: { tenantId } });
-    await tx.approvalStep.deleteMany({ where: { tenantId } });
-    await tx.approvalFlow.deleteMany({ where: { tenantId } });
-    await tx.supplier.deleteMany({ where: { tenantId } });
-    await tx.vessel.deleteMany({ where: { tenantId } });
-  }).catch(() => null);
+  await prisma
+    .withTenant(tenantId, async (tx) => {
+      await tx.goodsReceiptLine.deleteMany({ where: { tenantId } });
+      await tx.goodsReceipt.deleteMany({ where: { tenantId } });
+      await tx.pOLine.deleteMany({ where: { tenantId } });
+      await tx.purchaseOrder.deleteMany({ where: { tenantId } });
+      await tx.quoteLine.deleteMany({ where: { tenantId } });
+      await tx.quote.deleteMany({ where: { tenantId } });
+      await tx.rfq.deleteMany({ where: { tenantId } });
+      await tx.requisitionLine.deleteMany({ where: { tenantId } });
+      await tx.requisition.deleteMany({ where: { tenantId } });
+      await tx.approvalStep.deleteMany({ where: { tenantId } });
+      await tx.approvalFlow.deleteMany({ where: { tenantId } });
+      await tx.supplier.deleteMany({ where: { tenantId } });
+      await tx.vessel.deleteMany({ where: { tenantId } });
+    })
+    .catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });
@@ -49,7 +51,13 @@ describe('P1-7 purchase schema — Postgres', () => {
     const supplierId = ulid();
     await prisma.withTenant(tenantId, (tx) =>
       tx.supplier.create({
-        data: { id: supplierId, tenantId, name: 'MechParts B.V.', contactEmail: 'orders@mechparts.nl', country: 'NL' },
+        data: {
+          id: supplierId,
+          tenantId,
+          name: 'MechParts B.V.',
+          contactEmail: 'orders@mechparts.nl',
+          country: 'NL',
+        },
       }),
     );
     const stored = await prisma.withTenant(tenantId, (tx) =>
@@ -64,7 +72,9 @@ describe('P1-7 purchase schema — Postgres', () => {
     const flowId = ulid();
     const stepId = ulid();
     await prisma.withTenant(tenantId, async (tx) => {
-      await tx.approvalFlow.create({ data: { id: flowId, tenantId, name: 'Standard Purchase Approval' } });
+      await tx.approvalFlow.create({
+        data: { id: flowId, tenantId, name: 'Standard Purchase Approval' },
+      });
       await tx.approvalStep.create({
         data: {
           id: stepId,
@@ -147,13 +157,23 @@ describe('P1-7 purchase schema — Postgres', () => {
     const reqId = ulid();
     await prisma.withTenant(tenantId, (tx) =>
       tx.requisition.create({
-        data: { id: reqId, tenantId, vesselId, title: 'Check-constraint test', status: 'SUBMITTED', requestedAt: new Date() },
+        data: {
+          id: reqId,
+          tenantId,
+          vesselId,
+          title: 'Check-constraint test',
+          status: 'SUBMITTED',
+          requestedAt: new Date(),
+        },
       }),
     );
 
     await expect(
       prisma.withTenant(tenantId, (tx) =>
-        tx.requisition.update({ where: { id: reqId }, data: { status: 'APPROVED', approvedByUserId: null } }),
+        tx.requisition.update({
+          where: { id: reqId },
+          data: { status: 'APPROVED', approvedByUserId: null },
+        }),
       ),
     ).rejects.toThrow(/check|constraint/i);
 
@@ -180,7 +200,10 @@ describe('P1-7 purchase schema — Postgres', () => {
 
     await expect(
       prisma.withTenant(tenantId, (tx) =>
-        tx.purchaseOrder.update({ where: { id: poId }, data: { status: 'SENT', supplierId: null } }),
+        tx.purchaseOrder.update({
+          where: { id: poId },
+          data: { status: 'SENT', supplierId: null },
+        }),
       ),
     ).rejects.toThrow(/check|constraint/i);
   });
@@ -196,7 +219,9 @@ describe('P1-7 purchase schema — Postgres', () => {
 
     await prisma.withTenant(tenantId, async (tx) => {
       await tx.supplier.create({ data: { id: supplierId, tenantId, name: 'Alpha Parts' } });
-      await tx.rfq.create({ data: { id: rfqId, tenantId, vesselId, title: 'RFQ-001', status: 'SENT' } });
+      await tx.rfq.create({
+        data: { id: rfqId, tenantId, vesselId, title: 'RFQ-001', status: 'SENT' },
+      });
       await tx.quote.create({
         data: {
           id: quoteId,
@@ -236,7 +261,9 @@ describe('P1-7 purchase schema — Postgres', () => {
         },
       });
       // Partial receipt: 8 of 10 ordered
-      await tx.goodsReceipt.create({ data: { id: receiptId, tenantId, vesselId, poId, receivedAt: new Date() } });
+      await tx.goodsReceipt.create({
+        data: { id: receiptId, tenantId, vesselId, poId, receivedAt: new Date() },
+      });
       await tx.goodsReceiptLine.create({
         data: {
           id: receiptLineId,

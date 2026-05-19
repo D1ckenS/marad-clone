@@ -25,15 +25,17 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.withTenant(tenantId, async (tx) => {
-    await tx.barcodeBinding.deleteMany({ where: { tenantId } });
-    await tx.stockMovement.deleteMany({ where: { tenantId } });
-    await tx.stockLevel.deleteMany({ where: { tenantId } });
-    await tx.stockLocation.deleteMany({ where: { tenantId } });
-    await tx.part.deleteMany({ where: { tenantId } });
-    await tx.partCategory.deleteMany({ where: { tenantId } });
-    await tx.vessel.deleteMany({ where: { tenantId } });
-  }).catch(() => null);
+  await prisma
+    .withTenant(tenantId, async (tx) => {
+      await tx.barcodeBinding.deleteMany({ where: { tenantId } });
+      await tx.stockMovement.deleteMany({ where: { tenantId } });
+      await tx.stockLevel.deleteMany({ where: { tenantId } });
+      await tx.stockLocation.deleteMany({ where: { tenantId } });
+      await tx.part.deleteMany({ where: { tenantId } });
+      await tx.partCategory.deleteMany({ where: { tenantId } });
+      await tx.vessel.deleteMany({ where: { tenantId } });
+    })
+    .catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });
@@ -181,8 +183,10 @@ describe('P1-5 inventory schema — Postgres', () => {
       }
     });
 
-    const result = await prisma.withTenant(tenantId, (tx) =>
-      tx.$queryRaw<{ rob: string }[]>`
+    const result = await prisma.withTenant(
+      tenantId,
+      (tx) =>
+        tx.$queryRaw<{ rob: string }[]>`
         SELECT SUM(quantity)::text AS rob
         FROM stock_movements
         WHERE tenant_id = ${tenantId}

@@ -26,11 +26,13 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.withTenant(tenantId, async (tx) => {
-    await tx.outbox.deleteMany({ where: { tenantId } });
-    await tx.syncRecord.deleteMany({ where: { tenantId } });
-    await tx.vessel.deleteMany({ where: { tenantId } });
-  }).catch(() => null);
+  await prisma
+    .withTenant(tenantId, async (tx) => {
+      await tx.outbox.deleteMany({ where: { tenantId } });
+      await tx.syncRecord.deleteMany({ where: { tenantId } });
+      await tx.vessel.deleteMany({ where: { tenantId } });
+    })
+    .catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });
@@ -147,10 +149,12 @@ describe('PrismaSyncAdapter — e2e against Postgres', () => {
       const b = new PrismaSyncAdapter(prisma, tenantId, otherVesselId);
       expect(await b.readLocalRecord('Component', 'C-ISO')).toBeNull();
     } finally {
-      await prisma.withTenant(tenantId, async (tx) => {
-        await tx.syncRecord.deleteMany({ where: { tenantId, vesselId: otherVesselId } });
-        await tx.vessel.delete({ where: { id: otherVesselId } });
-      }).catch(() => null);
+      await prisma
+        .withTenant(tenantId, async (tx) => {
+          await tx.syncRecord.deleteMany({ where: { tenantId, vesselId: otherVesselId } });
+          await tx.vessel.delete({ where: { id: otherVesselId } });
+        })
+        .catch(() => null);
     }
   });
 });

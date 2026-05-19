@@ -100,18 +100,20 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.withTenant(tenantId, async (tx) => {
-    await tx.outbox.deleteMany({ where: { tenantId } });
-    await tx.syncRecord.deleteMany({ where: { tenantId } });
-    await tx.runningHourReading.deleteMany({ where: { tenantId } });
-    await tx.jobHistory.deleteMany({ where: { tenantId } });
-    await tx.jobInstance.deleteMany({ where: { tenantId } });
-    await tx.job.deleteMany({ where: { tenantId } });
-    await tx.component.deleteMany({ where: { tenantId } });
-    await tx.masterComponent.deleteMany({ where: { tenantId } });
-    await tx.user.deleteMany({ where: { tenantId } });
-    await tx.vessel.deleteMany({ where: { tenantId } });
-  }).catch(() => null);
+  await prisma
+    .withTenant(tenantId, async (tx) => {
+      await tx.outbox.deleteMany({ where: { tenantId } });
+      await tx.syncRecord.deleteMany({ where: { tenantId } });
+      await tx.runningHourReading.deleteMany({ where: { tenantId } });
+      await tx.jobHistory.deleteMany({ where: { tenantId } });
+      await tx.jobInstance.deleteMany({ where: { tenantId } });
+      await tx.job.deleteMany({ where: { tenantId } });
+      await tx.component.deleteMany({ where: { tenantId } });
+      await tx.masterComponent.deleteMany({ where: { tenantId } });
+      await tx.user.deleteMany({ where: { tenantId } });
+      await tx.vessel.deleteMany({ where: { tenantId } });
+    })
+    .catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });
@@ -147,7 +149,9 @@ describe('P1-2b — maintenance CRUD on shore (vessel-bound writes)', () => {
     componentId = res.body.id as string;
 
     const outboxRow = await prisma.withTenant(tenantId, (tx) =>
-      tx.outbox.findFirst({ where: { tenantId, vesselId, entityType: 'Component', entityId: componentId } }),
+      tx.outbox.findFirst({
+        where: { tenantId, vesselId, entityType: 'Component', entityId: componentId },
+      }),
     );
     expect(outboxRow).not.toBeNull();
     expect(outboxRow?.operation).toBe('upsert');
@@ -308,7 +312,9 @@ describe('P1-2b — maintenance CRUD on shore (vessel-bound writes)', () => {
 
     // Outbox carries both upserts (JobHistory + JobInstance status change).
     const historyOutbox = await prisma.withTenant(tenantId, (tx) =>
-      tx.outbox.findFirst({ where: { tenantId, entityType: 'JobHistory', entityId: res.body.id as string } }),
+      tx.outbox.findFirst({
+        where: { tenantId, entityType: 'JobHistory', entityId: res.body.id as string },
+      }),
     );
     expect(historyOutbox?.operation).toBe('upsert');
   });
@@ -419,7 +425,13 @@ describe('P1-2b — maintenance CRUD on shore (vessel-bound writes)', () => {
 
     const deleteRow = await prisma.withTenant(tenantId, (tx) =>
       tx.outbox.findFirst({
-        where: { tenantId, vesselId, entityType: 'Component', entityId: componentId, operation: 'delete' },
+        where: {
+          tenantId,
+          vesselId,
+          entityType: 'Component',
+          entityId: componentId,
+          operation: 'delete',
+        },
       }),
     );
     expect(deleteRow).not.toBeNull();

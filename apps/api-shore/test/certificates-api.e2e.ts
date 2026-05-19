@@ -55,14 +55,16 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.withTenant(tenantId, async (tx) => {
-    await tx.notification.deleteMany({ where: { tenantId } });
-    await tx.certificateAttachment.deleteMany({ where: { tenantId } });
-    await tx.certificate.deleteMany({ where: { tenantId } });
-    await tx.certificateType.deleteMany({ where: { tenantId } });
-    await tx.user.deleteMany({ where: { tenantId } });
-    await tx.vessel.deleteMany({ where: { tenantId } });
-  }).catch(() => null);
+  await prisma
+    .withTenant(tenantId, async (tx) => {
+      await tx.notification.deleteMany({ where: { tenantId } });
+      await tx.certificateAttachment.deleteMany({ where: { tenantId } });
+      await tx.certificate.deleteMany({ where: { tenantId } });
+      await tx.certificateType.deleteMany({ where: { tenantId } });
+      await tx.user.deleteMany({ where: { tenantId } });
+      await tx.vessel.deleteMany({ where: { tenantId } });
+    })
+    .catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });

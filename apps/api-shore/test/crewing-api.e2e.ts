@@ -57,14 +57,16 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.withTenant(tenantId, async (tx) => {
-    await tx.crewCertificate.deleteMany({ where: { tenantId } });
-    await tx.restHourEntry.deleteMany({ where: { tenantId } });
-    await tx.rotation.deleteMany({ where: { tenantId } });
-    await tx.crewMember.deleteMany({ where: { tenantId } });
-    await tx.user.deleteMany({ where: { tenantId } });
-    await tx.vessel.deleteMany({ where: { tenantId } });
-  }).catch(() => null);
+  await prisma
+    .withTenant(tenantId, async (tx) => {
+      await tx.crewCertificate.deleteMany({ where: { tenantId } });
+      await tx.restHourEntry.deleteMany({ where: { tenantId } });
+      await tx.rotation.deleteMany({ where: { tenantId } });
+      await tx.crewMember.deleteMany({ where: { tenantId } });
+      await tx.user.deleteMany({ where: { tenantId } });
+      await tx.vessel.deleteMany({ where: { tenantId } });
+    })
+    .catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });
