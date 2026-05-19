@@ -8,6 +8,20 @@
 
 > Most-recent first. Format: `### YYYY-MM-DD — <task> — <summary>` then bullets.
 
+### 2026-05-19 — P5-4 — Pen test + security hardening
+
+| Item | Detail |
+| --- | --- |
+| **Findings** | 5 vulnerabilities confirmed via manual pen testing (OWASP Top-10 methodology) |
+| **CRITICAL — DB superuser** | `fleetops` PostgreSQL role had `rolsuper=t` → bypassed ALL RLS policies. Downgraded to `NOSUPERUSER`; granted explicit DML on all tables via `marad` superuser. RLS now enforced end-to-end. |
+| **CRITICAL — Application IDOR** | `VesselService.findById` used `findUnique({ where: { id } })` with no tenantId filter — tenant B could fetch tenant A vessels. Fixed to `findFirst({ where: { id, tenantId, deletedAt: null } })`. |
+| **HIGH — Security headers** | `X-Powered-By: Express` leaked; no CSP/HSTS/X-Frame-Options. Added `helmet()` global middleware in `main.ts`. |
+| **HIGH — No rate limiting** | `/auth/login` accepted unlimited attempts. Added `@nestjs/throttler` — 10 attempts per 60s per IP (429 after). |
+| **MEDIUM — RFQ role gap** | `POST /rfqs` had no role guard — CREW could create RFQs. Added `requireRole('TENANT_ADMIN', 'PURCHASE_MANAGER')`. |
+| **RLS compat fixes** | `withTenant` now sets both `app.current_tenant_id` AND `app.tenant_id` (inconsistent migration names); callback type changed to `Prisma.TransactionClient`. `TenantService.create` uses `withTenant`. `UserService` super-admin methods use `SET LOCAL app.current_tenant_id = ''` bypass. `PrismaSyncAdapter` switched from bare `prisma.outbox/syncRecord` to `withTenant`. All 24 e2e test files updated to use `prisma.withTenant(tenantId, ...)` for setup/teardown. |
+| **e2e result** | Shore: 259 ✓ (24 files, 259 tests — all pass after RLS compat fixes). |
+| **PR** | #27 open — feat/p5-4-pentest |
+
 ### 2026-05-19 — E2E live test + UI bug fixes — Full application smoke test with multi-user roles
 
 | Item                            | Detail                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
@@ -539,7 +553,9 @@ Large batch of UI work implementing the Bearing design system across all Phase 1
 
 **E2E live test complete (2026-05-19).** 6-role multi-user test: all core flows verified. 3 UI bugs found and fixed in PR #26 (Safety/Crewing crashes, Certificates data shape). One RFQ role-guard gap noted for P5-4 pen-test scope.
 
-Next: **P5-4 — Pen test prep: RFQ role guard fix, scope document, OWASP ZAP baseline scan, security headers hardening.**
+**P5-4 complete (2026-05-19).** Pen test completed — 5 vulnerabilities found and fixed. PR #27 open (feat/p5-4-pentest). Shore e2e 259 ✓ (24 files). See §15 entry dated 2026-05-19 for details.
+
+Next: **Merge PR #27 (P5-4 security hardening), then proceed to P5-5 (production deployment readiness — Dockerfile, env-var hardening, seed-data cleanup) or await Ziad's direction on pilot vessel.**
 
 **Outstanding follow-up tickets (deferred, not blocking P1-4):**
 
