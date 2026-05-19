@@ -36,16 +36,18 @@ beforeAll(async () => {
 
   const hash = await bcrypt.hash('TestP@ss!1', 12);
   await prisma.tenant.create({ data: { id: tenantId, name: 'crewing-api-shore-test' } });
-  await prisma.vessel.create({ data: { id: vesselId, tenantId, name: 'MV Crewing Shore' } });
-  await prisma.user.create({
-    data: {
-      id: userId,
-      tenantId,
-      vesselId,
-      email: 'crew@shore.test',
-      passwordHash: hash,
-      role: 'OFFICER',
-    },
+  await prisma.withTenant(tenantId, async (tx) => {
+    await tx.vessel.create({ data: { id: vesselId, tenantId, name: 'MV Crewing Shore' } });
+    await tx.user.create({
+      data: {
+        id: userId,
+        tenantId,
+        vesselId,
+        email: 'crew@shore.test',
+        passwordHash: hash,
+        role: 'OFFICER',
+      },
+    });
   });
 
   const loginRes = await request(app.getHttpServer())
@@ -55,12 +57,16 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.crewCertificate.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.restHourEntry.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.rotation.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.crewMember.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.user.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.vessel.deleteMany({ where: { tenantId } }).catch(() => null);
+  await prisma
+    .withTenant(tenantId, async (tx) => {
+      await tx.crewCertificate.deleteMany({ where: { tenantId } });
+      await tx.restHourEntry.deleteMany({ where: { tenantId } });
+      await tx.rotation.deleteMany({ where: { tenantId } });
+      await tx.crewMember.deleteMany({ where: { tenantId } });
+      await tx.user.deleteMany({ where: { tenantId } });
+      await tx.vessel.deleteMany({ where: { tenantId } });
+    })
+    .catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });

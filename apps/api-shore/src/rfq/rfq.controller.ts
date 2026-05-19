@@ -13,6 +13,7 @@ import {
 import { AuthCtx } from '../auth/auth-ctx.decorator';
 import type { AuthContext } from '../auth/auth-context';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { requireRole } from '../auth/role.guard';
 import { CreateRfqDto } from './dto/create-rfq.dto';
 import { UpdateRfqDto } from './dto/update-rfq.dto';
 import { RfqService } from './rfq.service';
@@ -23,6 +24,7 @@ export class RfqController {
   constructor(private readonly svc: RfqService) {}
 
   @Post()
+  @UseGuards(requireRole('TENANT_ADMIN', 'PURCHASE_MANAGER'))
   create(@AuthCtx() auth: AuthContext, @Body() dto: CreateRfqDto) {
     return this.svc.create(auth, dto);
   }

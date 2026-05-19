@@ -54,35 +54,37 @@ beforeAll(async () => {
   prisma = moduleRef.get(PrismaService);
 
   await prisma.tenant.create({ data: { id: tenantId, name: 'maintenance-api-test' } });
-  await prisma.vessel.create({ data: { id: vesselId, tenantId, name: 'MV Crud' } });
   const passwordHash = await bcrypt.hash('TestP@ss!1', 12);
-  await prisma.user.create({
-    data: {
-      id: adminId,
-      tenantId,
-      email: 'admin@crud.test',
-      passwordHash,
-      role: 'TENANT_ADMIN',
-    },
-  });
-  await prisma.user.create({
-    data: {
-      id: chiefId,
-      tenantId,
-      vesselId,
-      email: 'chief@crud.test',
-      passwordHash,
-      role: 'CHIEF_ENGINEER',
-    },
-  });
-  await prisma.user.create({
-    data: {
-      id: tenantWideAdminId,
-      tenantId,
-      email: 'pm@crud.test',
-      passwordHash,
-      role: 'PURCHASE_MANAGER',
-    },
+  await prisma.withTenant(tenantId, async (tx) => {
+    await tx.vessel.create({ data: { id: vesselId, tenantId, name: 'MV Crud' } });
+    await tx.user.create({
+      data: {
+        id: adminId,
+        tenantId,
+        email: 'admin@crud.test',
+        passwordHash,
+        role: 'TENANT_ADMIN',
+      },
+    });
+    await tx.user.create({
+      data: {
+        id: chiefId,
+        tenantId,
+        vesselId,
+        email: 'chief@crud.test',
+        passwordHash,
+        role: 'CHIEF_ENGINEER',
+      },
+    });
+    await tx.user.create({
+      data: {
+        id: tenantWideAdminId,
+        tenantId,
+        email: 'pm@crud.test',
+        passwordHash,
+        role: 'PURCHASE_MANAGER',
+      },
+    });
   });
 
   // Login chief (vessel-bound) and tenant-wide admin (no vesselId) to get JWTs.
@@ -98,16 +100,20 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.outbox.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.syncRecord.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.runningHourReading.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.jobHistory.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.jobInstance.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.job.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.component.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.masterComponent.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.user.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.vessel.deleteMany({ where: { tenantId } }).catch(() => null);
+  await prisma
+    .withTenant(tenantId, async (tx) => {
+      await tx.outbox.deleteMany({ where: { tenantId } });
+      await tx.syncRecord.deleteMany({ where: { tenantId } });
+      await tx.runningHourReading.deleteMany({ where: { tenantId } });
+      await tx.jobHistory.deleteMany({ where: { tenantId } });
+      await tx.jobInstance.deleteMany({ where: { tenantId } });
+      await tx.job.deleteMany({ where: { tenantId } });
+      await tx.component.deleteMany({ where: { tenantId } });
+      await tx.masterComponent.deleteMany({ where: { tenantId } });
+      await tx.user.deleteMany({ where: { tenantId } });
+      await tx.vessel.deleteMany({ where: { tenantId } });
+    })
+    .catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });
@@ -142,9 +148,11 @@ describe('P1-2b — maintenance CRUD on shore (vessel-bound writes)', () => {
     expect(typeof res.body.hlc).toBe('string');
     componentId = res.body.id as string;
 
-    const outboxRow = await prisma.outbox.findFirst({
-      where: { tenantId, vesselId, entityType: 'Component', entityId: componentId },
-    });
+    const outboxRow = await prisma.withTenant(tenantId, (tx) =>
+      tx.outbox.findFirst({
+        where: { tenantId, vesselId, entityType: 'Component', entityId: componentId },
+      }),
+    );
     expect(outboxRow).not.toBeNull();
     expect(outboxRow?.operation).toBe('upsert');
     expect(outboxRow?.hlc).toBe(res.body.hlc);
@@ -163,9 +171,9 @@ describe('P1-2b — maintenance CRUD on shore (vessel-bound writes)', () => {
   });
 
   it('PATCH /components/:id — partial update bumps HLC of changed field only', async () => {
-    const beforeOutbox = await prisma.outbox.count({
-      where: { tenantId, entityType: 'Component', entityId: componentId },
-    });
+    const beforeOutbox = await prisma.withTenant(tenantId, (tx) =>
+      tx.outbox.count({ where: { tenantId, entityType: 'Component', entityId: componentId } }),
+    );
     const res = await api()
       .patch(`/api/v1/components/${componentId}`)
       .set('Authorization', auth())
@@ -173,9 +181,9 @@ describe('P1-2b — maintenance CRUD on shore (vessel-bound writes)', () => {
       .expect(200);
     expect(res.body.description).toBe('Updated description');
 
-    const afterOutbox = await prisma.outbox.count({
-      where: { tenantId, entityType: 'Component', entityId: componentId },
-    });
+    const afterOutbox = await prisma.withTenant(tenantId, (tx) =>
+      tx.outbox.count({ where: { tenantId, entityType: 'Component', entityId: componentId } }),
+    );
     expect(afterOutbox).toBe(beforeOutbox + 1);
   });
 
@@ -303,9 +311,11 @@ describe('P1-2b — maintenance CRUD on shore (vessel-bound writes)', () => {
     expect(inst.body.status).toBe('DONE');
 
     // Outbox carries both upserts (JobHistory + JobInstance status change).
-    const historyOutbox = await prisma.outbox.findFirst({
-      where: { tenantId, entityType: 'JobHistory', entityId: res.body.id as string },
-    });
+    const historyOutbox = await prisma.withTenant(tenantId, (tx) =>
+      tx.outbox.findFirst({
+        where: { tenantId, entityType: 'JobHistory', entityId: res.body.id as string },
+      }),
+    );
     expect(historyOutbox?.operation).toBe('upsert');
   });
 
@@ -331,12 +341,14 @@ describe('P1-2b — maintenance CRUD on shore (vessel-bound writes)', () => {
   });
 
   it('JobHistory immutability trigger blocks direct UPDATE of business columns', async () => {
-    const row = await prisma.jobHistory.findFirst({
-      where: { tenantId, jobInstanceId: instanceId },
-    });
+    const row = await prisma.withTenant(tenantId, (tx) =>
+      tx.jobHistory.findFirst({ where: { tenantId, jobInstanceId: instanceId } }),
+    );
     expect(row).not.toBeNull();
     await expect(
-      prisma.jobHistory.update({ where: { id: row!.id }, data: { notes: 'rewritten' } }),
+      prisma.withTenant(tenantId, (tx) =>
+        tx.jobHistory.update({ where: { id: row!.id }, data: { notes: 'rewritten' } }),
+      ),
     ).rejects.toThrow(/immutable/);
   });
 
@@ -411,15 +423,17 @@ describe('P1-2b — maintenance CRUD on shore (vessel-bound writes)', () => {
       .set('Authorization', auth())
       .expect(204);
 
-    const deleteRow = await prisma.outbox.findFirst({
-      where: {
-        tenantId,
-        vesselId,
-        entityType: 'Component',
-        entityId: componentId,
-        operation: 'delete',
-      },
-    });
+    const deleteRow = await prisma.withTenant(tenantId, (tx) =>
+      tx.outbox.findFirst({
+        where: {
+          tenantId,
+          vesselId,
+          entityType: 'Component',
+          entityId: componentId,
+          operation: 'delete',
+        },
+      }),
+    );
     expect(deleteRow).not.toBeNull();
 
     // GET should now 404 because deletedAt is set.
