@@ -30,19 +30,21 @@ beforeAll(async () => {
 
   const hash = await bcrypt.hash('TestP@ss!1', 12);
   await prisma.tenant.create({ data: { id: tenantId, name: 'integrations-api-test' } });
-  await prisma.vessel.create({
-    data: { id: vesselId, tenantId, name: 'MV Integrations Test', imoNumber: '9977001' },
-  });
-  await prisma.user.create({
-    data: {
-      id: userId,
-      tenantId,
-      vesselId,
-      email: 'integrations@test.shore',
-      username: 'integruser',
-      passwordHash: hash,
-      role: 'TENANT_ADMIN',
-    },
+  await prisma.withTenant(tenantId, async (tx) => {
+    await tx.vessel.create({
+      data: { id: vesselId, tenantId, name: 'MV Integrations Test', imoNumber: '9977001' },
+    });
+    await tx.user.create({
+      data: {
+        id: userId,
+        tenantId,
+        vesselId,
+        email: 'integrations@test.shore',
+        username: 'integruser',
+        passwordHash: hash,
+        role: 'TENANT_ADMIN',
+      },
+    });
   });
 
   const res = await request(app.getHttpServer())
@@ -52,12 +54,14 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.ocimfInspection.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.techLibraryConnector.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.accountingConnector.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.tenantSsoConfig.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.user.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.vessel.deleteMany({ where: { tenantId } }).catch(() => null);
+  await prisma.withTenant(tenantId, async (tx) => {
+    await tx.ocimfInspection.deleteMany({ where: { tenantId } });
+    await tx.techLibraryConnector.deleteMany({ where: { tenantId } });
+    await tx.accountingConnector.deleteMany({ where: { tenantId } });
+    await tx.tenantSsoConfig.deleteMany({ where: { tenantId } });
+    await tx.user.deleteMany({ where: { tenantId } });
+    await tx.vessel.deleteMany({ where: { tenantId } });
+  }).catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });

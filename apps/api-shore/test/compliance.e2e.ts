@@ -30,19 +30,21 @@ beforeAll(async () => {
 
   const hash = await bcrypt.hash('TestP@ss!1', 12);
   await prisma.tenant.create({ data: { id: tenantId, name: 'compliance-api-test' } });
-  await prisma.vessel.create({
-    data: { id: vesselId, tenantId, name: 'MV Compliance Test', imoNumber: '9955001' },
-  });
-  await prisma.user.create({
-    data: {
-      id: userId,
-      tenantId,
-      vesselId,
-      email: 'compliance@test.shore',
-      username: 'complianceuser',
-      passwordHash: hash,
-      role: 'TENANT_ADMIN',
-    },
+  await prisma.withTenant(tenantId, async (tx) => {
+    await tx.vessel.create({
+      data: { id: vesselId, tenantId, name: 'MV Compliance Test', imoNumber: '9955001' },
+    });
+    await tx.user.create({
+      data: {
+        id: userId,
+        tenantId,
+        vesselId,
+        email: 'compliance@test.shore',
+        username: 'complianceuser',
+        passwordHash: hash,
+        role: 'TENANT_ADMIN',
+      },
+    });
   });
 
   const res = await request(app.getHttpServer())
@@ -52,8 +54,10 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.user.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.vessel.deleteMany({ where: { tenantId } }).catch(() => null);
+  await prisma.withTenant(tenantId, async (tx) => {
+    await tx.user.deleteMany({ where: { tenantId } });
+    await tx.vessel.deleteMany({ where: { tenantId } });
+  }).catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });

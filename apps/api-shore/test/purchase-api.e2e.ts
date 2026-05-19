@@ -30,18 +30,19 @@ beforeAll(async () => {
   prisma = moduleRef.get(PrismaService);
 
   await prisma.tenant.create({ data: { id: tenantId, name: 'purchase-api-test' } });
-  await prisma.vessel.create({ data: { id: vesselId, tenantId, name: 'MV Purchase API' } });
-
   const hash = await bcrypt.hash('TestP@ss!1', 12);
-  await prisma.user.create({
-    data: {
-      id: ulid(),
-      tenantId,
-      vesselId,
-      email: 'pm@purchase-api-test.com',
-      passwordHash: hash,
-      role: 'PURCHASE_MANAGER',
-    },
+  await prisma.withTenant(tenantId, async (tx) => {
+    await tx.vessel.create({ data: { id: vesselId, tenantId, name: 'MV Purchase API' } });
+    await tx.user.create({
+      data: {
+        id: ulid(),
+        tenantId,
+        vesselId,
+        email: 'pm@purchase-api-test.com',
+        passwordHash: hash,
+        role: 'PURCHASE_MANAGER',
+      },
+    });
   });
 
   const pmRes = await request(app.getHttpServer())

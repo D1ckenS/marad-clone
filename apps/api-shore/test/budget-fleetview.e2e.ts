@@ -30,19 +30,21 @@ beforeAll(async () => {
 
   const hash = await bcrypt.hash('TestP@ss!1', 12);
   await prisma.tenant.create({ data: { id: tenantId, name: 'budget-api-test' } });
-  await prisma.vessel.create({
-    data: { id: vesselId, tenantId, name: 'MV Fleetview Test', imoNumber: '9988001' },
-  });
-  await prisma.user.create({
-    data: {
-      id: userId,
-      tenantId,
-      vesselId,
-      email: 'budget@test.shore',
-      username: 'budguser',
-      passwordHash: hash,
-      role: 'TENANT_ADMIN',
-    },
+  await prisma.withTenant(tenantId, async (tx) => {
+    await tx.vessel.create({
+      data: { id: vesselId, tenantId, name: 'MV Fleetview Test', imoNumber: '9988001' },
+    });
+    await tx.user.create({
+      data: {
+        id: userId,
+        tenantId,
+        vesselId,
+        email: 'budget@test.shore',
+        username: 'budguser',
+        passwordHash: hash,
+        role: 'TENANT_ADMIN',
+      },
+    });
   });
 
   const res = await request(app.getHttpServer())
@@ -52,10 +54,12 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.budgetLine.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.budget.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.user.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.vessel.deleteMany({ where: { tenantId } }).catch(() => null);
+  await prisma.withTenant(tenantId, async (tx) => {
+    await tx.budgetLine.deleteMany({ where: { tenantId } });
+    await tx.budget.deleteMany({ where: { tenantId } });
+    await tx.user.deleteMany({ where: { tenantId } });
+    await tx.vessel.deleteMany({ where: { tenantId } });
+  }).catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });
@@ -240,15 +244,17 @@ describe('Fleetview endpoints', () => {
     const prisma2: PrismaService = app.get(PrismaService);
 
     await prisma2.tenant.create({ data: { id: otherTenantId, name: 'other-perf-test' } });
-    await prisma2.user.create({
-      data: {
-        id: otherUserId,
-        tenantId: otherTenantId,
-        email: 'other@perf.test',
-        username: 'otherperf',
-        passwordHash: hash,
-        role: 'TENANT_ADMIN',
-      },
+    await prisma2.withTenant(otherTenantId, async (tx) => {
+      await tx.user.create({
+        data: {
+          id: otherUserId,
+          tenantId: otherTenantId,
+          email: 'other@perf.test',
+          username: 'otherperf',
+          passwordHash: hash,
+          role: 'TENANT_ADMIN',
+        },
+      });
     });
 
     const loginRes = await request(app.getHttpServer())
@@ -265,7 +271,9 @@ describe('Fleetview endpoints', () => {
     expect(res.body.vessels).toHaveLength(0);
 
     // Cleanup
-    await prisma2.user.deleteMany({ where: { tenantId: otherTenantId } }).catch(() => null);
+    await prisma2.withTenant(otherTenantId, async (tx) => {
+      await tx.user.deleteMany({ where: { tenantId: otherTenantId } });
+    }).catch(() => null);
     await prisma2.tenant.deleteMany({ where: { id: otherTenantId } }).catch(() => null);
   });
 });

@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 
@@ -25,12 +25,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
    */
   async withTenant<T>(
     tenantId: string | null,
-    fn: (
-      tx: Omit<
-        PrismaClient,
-        '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
-      >,
-    ) => Promise<T>,
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
   ): Promise<T> {
     // SUPER_ADMIN has no tenantId — they must not reach tenant-scoped endpoints.
     if (!tenantId) {
@@ -41,7 +36,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       throw new Error(`withTenant: invalid tenantId format: ${tenantId}`);
     }
     return this.$transaction(async (tx) => {
+      // Both names needed — migrations used app.tenant_id and app.current_tenant_id inconsistently.
       await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = '${tenantId}'`);
+      await tx.$executeRawUnsafe(`SET LOCAL app.tenant_id = '${tenantId}'`);
       return fn(tx);
     });
   }

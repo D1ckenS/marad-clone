@@ -34,39 +34,41 @@ beforeAll(async () => {
 
   const hash = await bcrypt.hash('TestP@ss!1', 12);
   await prisma.tenant.create({ data: { id: tenantId, name: 'multistep-approval-test' } });
-  await prisma.vessel.create({
-    data: { id: vesselId, tenantId, name: 'MV Approval', imoNumber: '9999002' },
-  });
-  await prisma.user.createMany({
-    data: [
-      {
-        id: adminId,
-        tenantId,
-        vesselId,
-        email: 'admin@msa.test',
-        username: 'msa-admin',
-        passwordHash: hash,
-        role: 'TENANT_ADMIN',
-      },
-      {
-        id: masterId,
-        tenantId,
-        vesselId,
-        email: 'master@msa.test',
-        username: 'msa-master',
-        passwordHash: hash,
-        role: 'MASTER',
-      },
-      {
-        id: pmId,
-        tenantId,
-        vesselId,
-        email: 'pm@msa.test',
-        username: 'msa-pm',
-        passwordHash: hash,
-        role: 'PURCHASE_MANAGER',
-      },
-    ],
+  await prisma.withTenant(tenantId, async (tx) => {
+    await tx.vessel.create({
+      data: { id: vesselId, tenantId, name: 'MV Approval', imoNumber: '9999002' },
+    });
+    await tx.user.createMany({
+      data: [
+        {
+          id: adminId,
+          tenantId,
+          vesselId,
+          email: 'admin@msa.test',
+          username: 'msa-admin',
+          passwordHash: hash,
+          role: 'TENANT_ADMIN',
+        },
+        {
+          id: masterId,
+          tenantId,
+          vesselId,
+          email: 'master@msa.test',
+          username: 'msa-master',
+          passwordHash: hash,
+          role: 'MASTER',
+        },
+        {
+          id: pmId,
+          tenantId,
+          vesselId,
+          email: 'pm@msa.test',
+          username: 'msa-pm',
+          passwordHash: hash,
+          role: 'PURCHASE_MANAGER',
+        },
+      ],
+    });
   });
 
   const login = async (identifier: string) => {
@@ -82,12 +84,14 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.requisitionLine.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.requisition.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.approvalStep.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.approvalFlow.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.user.deleteMany({ where: { tenantId } }).catch(() => null);
-  await prisma.vessel.deleteMany({ where: { tenantId } }).catch(() => null);
+  await prisma.withTenant(tenantId, async (tx) => {
+    await tx.requisitionLine.deleteMany({ where: { tenantId } });
+    await tx.requisition.deleteMany({ where: { tenantId } });
+    await tx.approvalStep.deleteMany({ where: { tenantId } });
+    await tx.approvalFlow.deleteMany({ where: { tenantId } });
+    await tx.user.deleteMany({ where: { tenantId } });
+    await tx.vessel.deleteMany({ where: { tenantId } });
+  }).catch(() => null);
   await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => null);
   await app.close();
 });
