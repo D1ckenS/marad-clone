@@ -25,6 +25,8 @@ extraResources:
 win:
   target: nsis
   requestedExecutionLevel: asInvoker
+  forceCodeSigning: false
+  signDlls: false
 
 nsis:
   oneClick: false

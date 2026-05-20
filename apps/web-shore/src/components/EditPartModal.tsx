@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
+import type { Category } from './CreatePartModal.js';
 
 export interface PartItem {
   id: string;
@@ -9,21 +10,24 @@ export interface PartItem {
   partNumber: string | null;
   unit: string;
   description?: string | null;
+  categoryId?: string | null;
 }
 
 interface Props {
   open: boolean;
   part: PartItem | null;
+  categories: Category[];
   onClose: () => void;
   onSaved: () => void;
 }
 
-export function EditPartModal({ open, part, onClose, onSaved }: Props) {
+export function EditPartModal({ open, part, categories, onClose, onSaved }: Props) {
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [partNumber, setPartNumber] = useState('');
   const [unit, setUnit] = useState('');
   const [description, setDescription] = useState('');
+  const [categoryId, setCategoryId] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +37,7 @@ export function EditPartModal({ open, part, onClose, onSaved }: Props) {
     setPartNumber(part.partNumber ?? '');
     setUnit(part.unit);
     setDescription(part.description ?? '');
+    setCategoryId(part.categoryId ?? '');
     setError(null);
   }, [part]);
 
@@ -55,6 +60,7 @@ export function EditPartModal({ open, part, onClose, onSaved }: Props) {
         partNumber: partNumber.trim() || undefined,
         unit: unit.trim() || undefined,
         description: description.trim() || undefined,
+        categoryId: categoryId || null,
       });
       onSaved();
     } catch (e: unknown) {
@@ -109,6 +115,31 @@ export function EditPartModal({ open, part, onClose, onSaved }: Props) {
               placeholder="pcs / L / kg"
             />
           </div>
+        </div>
+        <div>
+          <label className="text-[11.5px] font-medium mb-1 block" style={{ color: 'var(--ink-2)' }}>
+            Category <span style={{ color: 'var(--ink-3)' }}>(optional)</span>
+          </label>
+          <select
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            style={{
+              width: '100%',
+              height: 34,
+              padding: '0 8px',
+              fontSize: 13,
+              border: '1px solid var(--border)',
+              borderRadius: 6,
+              background: 'var(--surface)',
+              color: 'var(--ink)',
+              fontFamily: 'inherit',
+            }}
+          >
+            <option value="">— No category —</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
         </div>
         <TextArea
           id="ep-desc"

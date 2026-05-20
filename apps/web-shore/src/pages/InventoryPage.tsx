@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
-import { CreatePartModal } from '../components/CreatePartModal.js';
+import { CreatePartModal, type Category } from '../components/CreatePartModal.js';
 import { EditPartModal, type PartItem } from '../components/EditPartModal.js';
 import { AddStockLevelModal } from '../components/AddStockLevelModal.js';
 import { PostStockMovementModal } from '../components/PostStockMovementModal.js';
@@ -25,6 +25,8 @@ interface Part {
   name: string;
   unit: string;
   description?: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
   stockLevels: StockLevel[];
 }
 interface Location {
@@ -78,6 +80,52 @@ function worstStatus(levels: StockLevel[]): StockLevel['status'] {
     if (levels.some((l) => l.status === s)) return s;
   }
   return 'green';
+}
+
+// ── Rail checkbox ─────────────────────────────────────────────────────────
+function RailCheckbox({
+  label,
+  checked,
+  onChange,
+  count,
+  italic = false,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: () => void;
+  count: number;
+  italic?: boolean;
+}) {
+  return (
+    <label
+      style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '5px 8px', borderRadius: 5, cursor: 'pointer', height: 28,
+        background: checked ? T.surfaceSunk : 'transparent',
+      }}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        style={{ accentColor: T.navy, width: 13, height: 13, flexShrink: 0, cursor: 'pointer' }}
+      />
+      <span
+        style={{
+          flex: 1, fontSize: 12.5,
+          color: checked ? T.ink : italic ? T.ink3 : T.ink2,
+          fontWeight: checked ? 600 : 400,
+          fontStyle: italic ? 'italic' : undefined,
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        }}
+      >
+        {label}
+      </span>
+      <span style={{ fontFamily: '"Geist Mono",monospace', fontSize: 10.5, color: T.ink3 }}>
+        {count}
+      </span>
+    </label>
+  );
 }
 
 // ── Status dot ────────────────────────────────────────────────────────────
@@ -215,12 +263,14 @@ function StockBar({
 function DetailPane({
   part,
   onClose,
+  onEdit,
   onMovement,
   onStockConfig,
   onBarcodes,
 }: {
   part: Part | null;
   onClose: () => void;
+  onEdit: (part: Part) => void;
   onMovement: (id: string, name: string) => void;
   onStockConfig: (id: string, name: string) => void;
   onBarcodes: (id: string, name: string) => void;
@@ -513,6 +563,9 @@ function DetailPane({
         <Button size="sm" variant="secondary" onClick={() => onBarcodes(part.id, part.name)}>
           {t('inventory.manage_barcodes')}
         </Button>
+        <Button size="sm" variant="secondary" onClick={() => onEdit(part)}>
+          Edit Part
+        </Button>
       </div>
     </aside>
   );
@@ -540,6 +593,172 @@ const FILTER_KEYS = [
   { id: 'purple' as StatusFilter, labelKey: 'inventory.filter_zero' },
 ];
 
+// ── Add Category modal ────────────────────────────────────────────────────
+function AddCategoryModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [name, setName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  const submit = async () => {
+    if (!name.trim()) { setErr('Name is required'); return; }
+    setSaving(true);
+    try {
+      await api.post<unknown>('/part-categories', { name: name.trim() });
+      onCreated();
+      onClose();
+    } catch {
+      setErr('Failed to create category');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 50,
+        background: 'rgba(10,31,51,.35)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: T.surface, borderRadius: 10, width: 320, padding: 20,
+          boxShadow: '0 16px 48px rgba(10,31,51,.18)',
+          border: `1px solid ${T.border}`,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p style={{ margin: '0 0 14px', fontSize: 13.5, fontWeight: 600, color: T.ink }}>
+          Add Category
+        </p>
+        <input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
+          placeholder="e.g. Lubricants"
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            height: 34, padding: '0 10px', fontSize: 13,
+            border: `1px solid ${T.border}`, borderRadius: 6,
+            outline: 'none', fontFamily: 'inherit', color: T.ink,
+          }}
+        />
+        {err && <p style={{ margin: '6px 0 0', fontSize: 11.5, color: T.red }}>{err}</p>}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14 }}>
+          <button
+            onClick={onClose}
+            style={{
+              height: 30, padding: '0 14px', fontSize: 12.5, borderRadius: 5,
+              border: `1px solid ${T.border}`, background: T.surface,
+              color: T.ink2, cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={submit}
+            disabled={saving}
+            style={{
+              height: 30, padding: '0 14px', fontSize: 12.5, borderRadius: 5,
+              border: 'none', background: T.navy,
+              color: '#fff', cursor: saving ? 'not-allowed' : 'pointer',
+              fontFamily: 'inherit', opacity: saving ? 0.7 : 1,
+            }}
+          >
+            {saving ? 'Saving…' : 'Create'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Add Location modal ────────────────────────────────────────────────────
+function AddLocationModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [name, setName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  const submit = async () => {
+    if (!name.trim()) { setErr('Name is required'); return; }
+    setSaving(true);
+    try {
+      await api.post<unknown>('/stock-locations', { name: name.trim() });
+      onCreated();
+      onClose();
+    } catch {
+      setErr('Failed to create location');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 50,
+        background: 'rgba(10,31,51,.35)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: T.surface, borderRadius: 10, width: 320, padding: 20,
+          boxShadow: '0 16px 48px rgba(10,31,51,.18)',
+          border: `1px solid ${T.border}`,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p style={{ margin: '0 0 14px', fontSize: 13.5, fontWeight: 600, color: T.ink }}>
+          Add Location
+        </p>
+        <input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
+          placeholder="e.g. Engine Room Store"
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            height: 34, padding: '0 10px', fontSize: 13,
+            border: `1px solid ${T.border}`, borderRadius: 6,
+            outline: 'none', fontFamily: 'inherit', color: T.ink,
+          }}
+        />
+        {err && <p style={{ margin: '6px 0 0', fontSize: 11.5, color: T.red }}>{err}</p>}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14 }}>
+          <button
+            onClick={onClose}
+            style={{
+              height: 30, padding: '0 14px', fontSize: 12.5, borderRadius: 5,
+              border: `1px solid ${T.border}`, background: T.surface,
+              color: T.ink2, cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={submit}
+            disabled={saving}
+            style={{
+              height: 30, padding: '0 14px', fontSize: 12.5, borderRadius: 5,
+              border: 'none', background: T.navy,
+              color: '#fff', cursor: saving ? 'not-allowed' : 'pointer',
+              fontFamily: 'inherit', opacity: saving ? 0.7 : 1,
+            }}
+          >
+            {saving ? 'Saving…' : 'Create'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────
 type ActiveModal =
   | { kind: 'none' }
@@ -552,14 +771,18 @@ export function InventoryPage() {
   const { t } = useTranslation();
   const [parts, setParts] = useState<Part[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [search, setSearch] = useState('');
-  const [activeLoc, setActiveLoc] = useState('all');
+  const [activeLocs, setActiveLocs] = useState<Set<string>>(new Set());
+  const [activeCats, setActiveCats] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Part | null>(null);
   const [visibleCols, setVisibleCols] = useState<ColKey[]>(COLUMNS.map((c) => c.key));
   const [colPickerOpen, setColPickerOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [addLocOpen, setAddLocOpen] = useState(false);
+  const [addCatOpen, setAddCatOpen] = useState(false);
   const [modal, setModal] = useState<ActiveModal>({ kind: 'none' });
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -568,10 +791,12 @@ export function InventoryPage() {
     Promise.all([
       api.get<Part[]>('/parts/inventory-summary'),
       api.get<Location[]>('/stock-locations'),
+      api.get<Category[]>('/part-categories'),
     ])
-      .then(([p, l]) => {
+      .then(([p, l, c]) => {
         setParts(p);
         setLocations(l);
+        setCategories(c);
       })
       .catch(() => undefined)
       .finally(() => setLoading(false));
@@ -593,7 +818,13 @@ export function InventoryPage() {
 
   const visible = parts.filter((p) => {
     if (filter !== 'all' && worstStatus(p.stockLevels) !== filter) return false;
-    if (activeLoc !== 'all' && !p.stockLevels.some((l) => l.locationId === activeLoc)) return false;
+    if (activeLocs.size > 0 && !p.stockLevels.some((l) => activeLocs.has(l.locationId))) return false;
+    if (activeCats.size > 0) {
+      const matchesCat = activeCats.has('__none__') && !p.categoryId
+        ? true
+        : p.categoryId !== null && activeCats.has(p.categoryId);
+      if (!matchesCat) return false;
+    }
     if (search) {
       const q = search.toLowerCase();
       if (!p.name.toLowerCase().includes(q) && !(p.partNumber ?? '').toLowerCase().includes(q))
@@ -728,9 +959,10 @@ export function InventoryPage() {
           flexDirection: 'column',
         }}
       >
-        <div style={{ padding: '12px 12px 6px' }}>
+        <div style={{ padding: '12px 12px 6px', display: 'flex', alignItems: 'center' }}>
           <span
             style={{
+              flex: 1,
               fontSize: 10.5,
               fontWeight: 500,
               letterSpacing: '0.08em',
@@ -740,6 +972,16 @@ export function InventoryPage() {
           >
             {t('inventory.locations')}
           </span>
+          <button
+            onClick={() => setAddLocOpen(true)}
+            title="Add location"
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: T.ink3, fontSize: 18, lineHeight: 1, padding: '0 2px',
+            }}
+          >
+            +
+          </button>
         </div>
         <div
           style={{
@@ -751,45 +993,95 @@ export function InventoryPage() {
             gap: 1,
           }}
         >
-          {[
-            { id: 'all', name: t('inventory.locations'), count: parts.length },
-            ...locations.map((l) => ({ id: l.id, name: l.name, count: countByLoc.get(l.id) ?? 0 })),
-          ].map((l) => (
-            <button
-              key={l.id}
-              onClick={() => setActiveLoc(l.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '5px 8px',
-                background: activeLoc === l.id ? T.surface2 : 'transparent',
-                border: 'none',
-                borderRadius: 5,
-                cursor: 'pointer',
-                textAlign: 'left',
-                color: activeLoc === l.id ? T.ink : T.ink2,
-                fontSize: 12.5,
-                fontWeight: activeLoc === l.id ? 600 : 400,
-                height: 28,
-              }}
-            >
-              <span
-                style={{
-                  flex: 1,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
-                {l.name}
-              </span>
-              <span style={{ fontFamily: '"Geist Mono",monospace', fontSize: 10.5, color: T.ink3 }}>
-                {l.count}
-              </span>
-            </button>
-          ))}
+          {/* All Locations — clears filter */}
+          <RailCheckbox
+            label="All Locations"
+            checked={activeLocs.size === 0}
+            onChange={() => setActiveLocs(new Set())}
+            count={parts.length}
+          />
+          {locations.map((l) => {
+            const checked = activeLocs.has(l.id);
+            const toggle = () => setActiveLocs((prev) => {
+              const next = new Set(prev);
+              checked ? next.delete(l.id) : next.add(l.id);
+              return next;
+            });
+            return (
+              <RailCheckbox
+                key={l.id}
+                label={l.name}
+                checked={checked}
+                onChange={toggle}
+                count={countByLoc.get(l.id) ?? 0}
+              />
+            );
+          })}
         </div>
+        {/* Categories section */}
+        <div style={{ borderTop: `1px solid ${T.hairline}`, padding: '8px 6px 4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', padding: '0 6px 4px' }}>
+            <span style={{ flex: 1, fontSize: 10.5, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.ink3 }}>
+              Categories
+            </span>
+            <button
+              onClick={() => setAddCatOpen(true)}
+              title="Add category"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.ink3, fontSize: 18, lineHeight: 1, padding: '0 2px' }}
+            >
+              +
+            </button>
+          </div>
+          {/* Categories relevant to current location selection */}
+          {(() => {
+            const locParts = activeLocs.size === 0 ? parts : parts.filter((p) => p.stockLevels.some((l) => activeLocs.has(l.locationId)));
+            const catIdsInLoc = new Set(locParts.map((p) => p.categoryId).filter(Boolean));
+            const visibleCats = categories.filter((c) => catIdsInLoc.has(c.id));
+            const uncategorisedCount = locParts.filter((p) => !p.categoryId).length;
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {/* All Categories — clears filter */}
+                <RailCheckbox
+                  label="All"
+                  checked={activeCats.size === 0}
+                  onChange={() => setActiveCats(new Set())}
+                  count={locParts.length}
+                />
+                {visibleCats.map((c) => {
+                  const checked = activeCats.has(c.id);
+                  const count = locParts.filter((p) => p.categoryId === c.id).length;
+                  const toggle = () => setActiveCats((prev) => {
+                    const next = new Set(prev);
+                    checked ? next.delete(c.id) : next.add(c.id);
+                    return next;
+                  });
+                  return (
+                    <RailCheckbox
+                      key={c.id}
+                      label={c.name}
+                      checked={checked}
+                      onChange={toggle}
+                      count={count}
+                    />
+                  );
+                })}
+                {uncategorisedCount > 0 && (() => {
+                  const checked = activeCats.has('__none__');
+                  return (
+                    <RailCheckbox
+                      label="Uncategorised"
+                      checked={checked}
+                      onChange={() => setActiveCats((prev) => { const next = new Set(prev); checked ? next.delete('__none__') : next.add('__none__'); return next; })}
+                      count={uncategorisedCount}
+                      italic
+                    />
+                  );
+                })()}
+              </div>
+            );
+          })()}
+        </div>
+
         <div
           style={{
             padding: '10px 12px',
@@ -1088,6 +1380,7 @@ export function InventoryPage() {
       <DetailPane
         part={selected}
         onClose={() => setSelected(null)}
+        onEdit={(p) => setModal({ kind: 'editPart', part: p })}
         onMovement={(id, name) => setModal({ kind: 'movement', partId: id, partName: name })}
         onStockConfig={(id, name) => setModal({ kind: 'stockLevel', partId: id, partName: name })}
         onBarcodes={(id, name) => setModal({ kind: 'barcodes', partId: id, partName: name })}
@@ -1096,6 +1389,7 @@ export function InventoryPage() {
       {/* ── Modals ─────────────────────────────────────────────────── */}
       <CreatePartModal
         open={createOpen}
+        categories={categories}
         onClose={() => setCreateOpen(false)}
         onCreated={(id, name) => {
           setCreateOpen(false);
@@ -1106,6 +1400,7 @@ export function InventoryPage() {
       <EditPartModal
         open={modal.kind === 'editPart'}
         part={modal.kind === 'editPart' ? modal.part : null}
+        categories={categories}
         onClose={closeModal}
         onSaved={() => {
           closeModal();
@@ -1138,6 +1433,12 @@ export function InventoryPage() {
         partName={modal.kind === 'barcodes' ? modal.partName : ''}
         onClose={closeModal}
       />
+      {addLocOpen && (
+        <AddLocationModal onClose={() => setAddLocOpen(false)} onCreated={load} />
+      )}
+      {addCatOpen && (
+        <AddCategoryModal onClose={() => setAddCatOpen(false)} onCreated={load} />
+      )}
     </div>
   );
 }

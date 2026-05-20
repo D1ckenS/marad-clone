@@ -28,7 +28,8 @@ export class WorkPermitService {
     const vesselId = dto.vesselId ?? requireVesselId(auth);
     const id = newId();
     const nowIso = new Date().toISOString();
-    return this.drizzle.db.transaction((tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return this.drizzle.db.transaction((tx: any) => {
       const fields = {
         vesselId,
         permitType: dto.permitType,
@@ -104,7 +105,8 @@ export class WorkPermitService {
     if (dto.gasTestJson !== undefined) fields['gasTestJson'] = dto.gasTestJson;
     if (dto.hazardsJson !== undefined) fields['hazardsJson'] = dto.hazardsJson;
 
-    return this.drizzle.db.transaction((tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return this.drizzle.db.transaction((tx: any) => {
       const { hlc } = this.recorder.recordUpsert(
         tx,
         { tenantId: auth.tenantId, vesselId: existing.vesselId },
@@ -124,7 +126,8 @@ export class WorkPermitService {
 
   softDelete(auth: AuthContext, id: string) {
     const existing = this.findOne(auth, id);
-    this.drizzle.db.transaction((tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    this.drizzle.db.transaction((tx: any) => {
       this.recorder.recordDelete(
         tx,
         { tenantId: auth.tenantId, vesselId: existing.vesselId },
@@ -148,7 +151,8 @@ export class WorkPermitService {
     const permit = this.findOne(auth, id);
     if (permit.status !== from)
       throw new BadRequestException(`Cannot transition from ${permit.status} to ${to}`);
-    return this.drizzle.db.transaction((tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return this.drizzle.db.transaction((tx: any) => {
       const fields = { status: to, ...extra };
       const { hlc } = this.recorder.recordUpsert(
         tx,
@@ -201,7 +205,8 @@ export class WorkPermitService {
     if (permit.status === 'CLOSED' || permit.status === 'CANCELLED') {
       throw new BadRequestException(`Cannot cancel permit in status ${permit.status}`);
     }
-    return this.drizzle.db.transaction((tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return this.drizzle.db.transaction((tx: any) => {
       const fields = { status: 'CANCELLED' };
       const { hlc } = this.recorder.recordUpsert(
         tx,
@@ -224,7 +229,8 @@ export class WorkPermitService {
     const permit = this.findOne(auth, permitId);
     const id = newId();
     const nowIso = new Date().toISOString();
-    return this.drizzle.db.transaction((tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return this.drizzle.db.transaction((tx: any) => {
       const fields = {
         vesselId: permit.vesselId,
         permitId,
