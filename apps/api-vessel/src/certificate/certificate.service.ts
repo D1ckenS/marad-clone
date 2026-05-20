@@ -37,7 +37,7 @@ export class CertificateService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -46,7 +46,7 @@ export class CertificateService {
         .insert(certificates)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           certificateTypeId: dto.certificateTypeId,
           subjectType: dto.subjectType,
@@ -70,7 +70,7 @@ export class CertificateService {
     auth: AuthContext,
     query: { subjectType?: string; subjectId?: string; vesselId?: string },
   ) {
-    const filters = [eq(certificates.tenantId, auth.tenantId), isNull(certificates.deletedAt)];
+    const filters = [eq(certificates.tenantId, auth.tenantId!), isNull(certificates.deletedAt)];
     if (query.vesselId) filters.push(eq(certificates.vesselId, query.vesselId));
     if (query.subjectType) {
       filters.push(
@@ -93,7 +93,7 @@ export class CertificateService {
       .where(
         and(
           eq(certificates.id, id),
-          eq(certificates.tenantId, auth.tenantId),
+          eq(certificates.tenantId, auth.tenantId!),
           isNull(certificates.deletedAt),
         ),
       )
@@ -116,7 +116,7 @@ export class CertificateService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -135,7 +135,7 @@ export class CertificateService {
     const existing = this.findOne(auth, id);
     const vesselId = existing.vesselId ?? requireVesselId(auth);
     this.drizzle.db.transaction((tx) => {
-      this.recorder.recordDelete(tx, { tenantId: auth.tenantId, vesselId }, ENTITY_TYPE, id);
+      this.recorder.recordDelete(tx, { tenantId: auth.tenantId!, vesselId }, ENTITY_TYPE, id);
       tx.update(certificates)
         .set({ deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
         .where(eq(certificates.id, id))
@@ -147,7 +147,7 @@ export class CertificateService {
     return this.drizzle.db
       .select()
       .from(certificateTypes)
-      .where(and(eq(certificateTypes.tenantId, auth.tenantId), isNull(certificateTypes.deletedAt)))
+      .where(and(eq(certificateTypes.tenantId, auth.tenantId!), isNull(certificateTypes.deletedAt)))
       .all();
   }
 }

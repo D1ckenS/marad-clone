@@ -34,7 +34,7 @@ export class JobInstanceService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -43,7 +43,7 @@ export class JobInstanceService {
         .insert(jobInstances)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           jobId: dto.jobId,
           componentId: dto.componentId,
@@ -66,7 +66,7 @@ export class JobInstanceService {
       .from(jobInstances)
       .where(
         and(
-          eq(jobInstances.tenantId, auth.tenantId),
+          eq(jobInstances.tenantId, auth.tenantId!),
           eq(jobInstances.vesselId, vesselId),
           isNull(jobInstances.deletedAt),
         ),
@@ -83,7 +83,7 @@ export class JobInstanceService {
       .where(
         and(
           eq(jobInstances.id, id),
-          eq(jobInstances.tenantId, auth.tenantId),
+          eq(jobInstances.tenantId, auth.tenantId!),
           eq(jobInstances.vesselId, vesselId),
           isNull(jobInstances.deletedAt),
         ),
@@ -106,7 +106,7 @@ export class JobInstanceService {
     return this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -134,7 +134,7 @@ export class JobInstanceService {
     this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordDelete(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
       );

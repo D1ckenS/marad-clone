@@ -25,7 +25,7 @@ export class StockLocationService {
       const fields = { name: dto.name, description: dto.description ?? null, vesselId };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -34,7 +34,7 @@ export class StockLocationService {
         .insert(stockLocations)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           name: dto.name,
           description: dto.description ?? null,
@@ -53,7 +53,7 @@ export class StockLocationService {
       .from(stockLocations)
       .where(
         and(
-          eq(stockLocations.tenantId, auth.tenantId),
+          eq(stockLocations.tenantId, auth.tenantId!),
           eq(stockLocations.vesselId, vesselId),
           isNull(stockLocations.deletedAt),
         ),
@@ -70,7 +70,7 @@ export class StockLocationService {
       .where(
         and(
           eq(stockLocations.id, id),
-          eq(stockLocations.tenantId, auth.tenantId),
+          eq(stockLocations.tenantId, auth.tenantId!),
           eq(stockLocations.vesselId, vesselId),
           isNull(stockLocations.deletedAt),
         ),
@@ -89,7 +89,7 @@ export class StockLocationService {
     return this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -115,7 +115,7 @@ export class StockLocationService {
     this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordDelete(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
       );

@@ -20,7 +20,7 @@ export class PermitTemplateService {
       .insert(permitTemplates)
       .values({
         id,
-        tenantId: auth.tenantId,
+        tenantId: auth.tenantId!,
         permitType: dto.permitType,
         name: dto.name,
         checklistItemsJson: dto.checklistItemsJson ?? null,
@@ -34,7 +34,7 @@ export class PermitTemplateService {
 
   findAll(auth: AuthContext, permitType?: string) {
     const filters = [
-      eq(permitTemplates.tenantId, auth.tenantId),
+      eq(permitTemplates.tenantId, auth.tenantId!),
       isNull(permitTemplates.deletedAt),
     ];
     if (permitType) filters.push(eq(permitTemplates.permitType, permitType as never));
@@ -52,7 +52,7 @@ export class PermitTemplateService {
       .where(
         and(
           eq(permitTemplates.id, id),
-          eq(permitTemplates.tenantId, auth.tenantId),
+          eq(permitTemplates.tenantId, auth.tenantId!),
           isNull(permitTemplates.deletedAt),
         ),
       )

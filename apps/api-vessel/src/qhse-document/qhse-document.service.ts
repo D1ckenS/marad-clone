@@ -21,7 +21,7 @@ export class QhseDocumentService {
       .insert(qhseDocuments)
       .values({
         id,
-        tenantId: auth.tenantId,
+        tenantId: auth.tenantId!,
         title: dto.title,
         category: dto.category ?? null,
         description: dto.description ?? null,
@@ -38,7 +38,7 @@ export class QhseDocumentService {
     return this.drizzle.db
       .select()
       .from(qhseDocuments)
-      .where(and(eq(qhseDocuments.tenantId, auth.tenantId), isNull(qhseDocuments.deletedAt)))
+      .where(and(eq(qhseDocuments.tenantId, auth.tenantId!), isNull(qhseDocuments.deletedAt)))
       .orderBy(qhseDocuments.title)
       .all();
   }
@@ -50,7 +50,7 @@ export class QhseDocumentService {
       .where(
         and(
           eq(qhseDocuments.id, id),
-          eq(qhseDocuments.tenantId, auth.tenantId),
+          eq(qhseDocuments.tenantId, auth.tenantId!),
           isNull(qhseDocuments.deletedAt),
         ),
       )
@@ -99,7 +99,7 @@ export class QhseDocumentService {
         .insert(documentRevisions)
         .values({
           id: revisionId,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           documentId,
           revisionNumber: maxRevision + 1,
           s3Key: dto.s3Key,
@@ -128,7 +128,7 @@ export class QhseDocumentService {
       .where(
         and(
           eq(documentRevisions.documentId, documentId),
-          eq(documentRevisions.tenantId, auth.tenantId),
+          eq(documentRevisions.tenantId, auth.tenantId!),
           isNull(documentRevisions.deletedAt),
         ),
       )
@@ -143,7 +143,7 @@ export class QhseDocumentService {
       .where(
         and(
           eq(documentRevisions.id, revisionId),
-          eq(documentRevisions.tenantId, auth.tenantId),
+          eq(documentRevisions.tenantId, auth.tenantId!),
           isNull(documentRevisions.deletedAt),
         ),
       )

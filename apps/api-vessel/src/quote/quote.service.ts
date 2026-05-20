@@ -31,7 +31,7 @@ export class QuoteService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -40,7 +40,7 @@ export class QuoteService {
         .insert(quotes)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           rfqId: dto.rfqId,
           supplierId: dto.supplierId,
@@ -64,7 +64,7 @@ export class QuoteService {
       .from(quotes)
       .where(
         and(
-          eq(quotes.tenantId, auth.tenantId),
+          eq(quotes.tenantId, auth.tenantId!),
           eq(quotes.vesselId, vesselId),
           isNull(quotes.deletedAt),
           ...(rfqId ? [eq(quotes.rfqId, rfqId)] : []),
@@ -90,7 +90,7 @@ export class QuoteService {
       .where(
         and(
           eq(quotes.id, id),
-          eq(quotes.tenantId, auth.tenantId),
+          eq(quotes.tenantId, auth.tenantId!),
           eq(quotes.vesselId, vesselId),
           isNull(quotes.deletedAt),
         ),
@@ -120,7 +120,7 @@ export class QuoteService {
       const fields = { vesselId, quoteId, description: dto.description, quantity: dto.quantity };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         LINE_ENTITY_TYPE,
         id,
         fields,
@@ -129,7 +129,7 @@ export class QuoteService {
         .insert(quoteLines)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           quoteId,
           partId: dto.partId ?? null,

@@ -17,7 +17,7 @@ export class ApprovalFlowService {
       .insert(approvalFlows)
       .values({
         id: newId(),
-        tenantId: auth.tenantId,
+        tenantId: auth.tenantId!,
         name: dto.name,
         description: dto.description ?? null,
         isActive: dto.isActive ?? true,
@@ -31,7 +31,7 @@ export class ApprovalFlowService {
     const flows = this.drizzle.db
       .select()
       .from(approvalFlows)
-      .where(and(eq(approvalFlows.tenantId, auth.tenantId), isNull(approvalFlows.deletedAt)))
+      .where(and(eq(approvalFlows.tenantId, auth.tenantId!), isNull(approvalFlows.deletedAt)))
       .orderBy(approvalFlows.name)
       .all();
     return flows.map((f) => ({
@@ -52,7 +52,7 @@ export class ApprovalFlowService {
       .where(
         and(
           eq(approvalFlows.id, id),
-          eq(approvalFlows.tenantId, auth.tenantId),
+          eq(approvalFlows.tenantId, auth.tenantId!),
           isNull(approvalFlows.deletedAt),
         ),
       )
@@ -98,7 +98,7 @@ export class ApprovalFlowService {
       .insert(approvalSteps)
       .values({
         id: newId(),
-        tenantId: auth.tenantId,
+        tenantId: auth.tenantId!,
         flowId,
         stepOrder: dto.stepOrder,
         approverRole: dto.approverRole as Role,

@@ -1,5 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, or, sql } from 'drizzle-orm';
 import * as bcrypt from 'bcrypt';
 import { newId } from '@fleetops/domain';
 import { DrizzleService } from '../db/drizzle.service';
@@ -50,5 +50,27 @@ export class UserService {
       .get();
     if (!user) throw new NotFoundException(`User ${email} not found`);
     return user;
+  }
+
+  /**
+   * Find a user by username OR email across all tenants in the vessel DB.
+   * Vessel installs are single-tenant in practice; this lets the login
+   * endpoint accept just `identifier+password` like shore does. The
+   * identifier matches either `username` (preferred) or `email`.
+   */
+  findByIdentifier(identifier: string) {
+    const row = this.drizzle.db
+      .select()
+      .from(users)
+      .where(or(eq(users.username, identifier), eq(users.email, identifier)))
+      .get();
+    if (!row) throw new NotFoundException(`User ${identifier} not found`);
+    return row;
+  }
+
+  /** Total user count across all tenants. Used by the first-launch setup check. */
+  countAll(): number {
+    const row = this.drizzle.db.select({ n: sql<number>`COUNT(*)` }).from(users).get();
+    return row?.n ?? 0;
   }
 }

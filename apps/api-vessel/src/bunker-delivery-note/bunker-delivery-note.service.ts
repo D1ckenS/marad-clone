@@ -38,7 +38,7 @@ export class BunkerDeliveryNoteService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY,
         id,
         fields,
@@ -47,7 +47,7 @@ export class BunkerDeliveryNoteService {
         .insert(bunkerDeliveryNotes)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           ...fields,
           createdAt: nowIso,
           updatedAt: nowIso,
@@ -61,7 +61,7 @@ export class BunkerDeliveryNoteService {
 
   findAll(auth: AuthContext, query: { vesselId?: string; from?: string; to?: string }) {
     const filters = [
-      eq(bunkerDeliveryNotes.tenantId, auth.tenantId),
+      eq(bunkerDeliveryNotes.tenantId, auth.tenantId!),
       isNull(bunkerDeliveryNotes.deletedAt),
     ];
     if (query.vesselId) filters.push(eq(bunkerDeliveryNotes.vesselId, query.vesselId));
@@ -82,7 +82,7 @@ export class BunkerDeliveryNoteService {
       .where(
         and(
           eq(bunkerDeliveryNotes.id, id),
-          eq(bunkerDeliveryNotes.tenantId, auth.tenantId),
+          eq(bunkerDeliveryNotes.tenantId, auth.tenantId!),
           isNull(bunkerDeliveryNotes.deletedAt),
         ),
       )
@@ -103,7 +103,7 @@ export class BunkerDeliveryNoteService {
     return this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         ENTITY,
         id,
         fields,
@@ -123,7 +123,7 @@ export class BunkerDeliveryNoteService {
     this.drizzle.db.transaction((tx) => {
       this.recorder.recordDelete(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         ENTITY,
         id,
       );

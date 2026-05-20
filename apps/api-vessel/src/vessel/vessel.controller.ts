@@ -15,16 +15,16 @@ export class VesselController {
 
   @Post()
   create(@AuthCtx() auth: AuthContext, @Body() dto: CreateVesselDto) {
-    return this.vessels.create(auth.tenantId, dto);
+    return this.vessels.create(auth.tenantId!, dto);
   }
 
   @Get()
   findAll(@AuthCtx() auth: AuthContext) {
-    return this.vessels.findByTenant(auth.tenantId);
+    return this.vessels.findByTenant(auth.tenantId!);
   }
 
   @Get(':id')
   findOne(@AuthCtx() auth: AuthContext, @Param('id') id: string) {
-    return this.vessels.findById(auth.tenantId, id);
+    return this.vessels.findById(auth.tenantId!, id);
   }
 }

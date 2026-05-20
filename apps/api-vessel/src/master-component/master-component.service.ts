@@ -20,7 +20,7 @@ export class MasterComponentService {
     return this.drizzle.db
       .select()
       .from(masterComponents)
-      .where(and(eq(masterComponents.tenantId, auth.tenantId), isNull(masterComponents.deletedAt)))
+      .where(and(eq(masterComponents.tenantId, auth.tenantId!), isNull(masterComponents.deletedAt)))
       .orderBy(masterComponents.name)
       .all();
   }
@@ -32,7 +32,7 @@ export class MasterComponentService {
       .where(
         and(
           eq(masterComponents.id, id),
-          eq(masterComponents.tenantId, auth.tenantId),
+          eq(masterComponents.tenantId, auth.tenantId!),
           isNull(masterComponents.deletedAt),
         ),
       )

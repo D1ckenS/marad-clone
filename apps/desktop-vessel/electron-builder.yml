@@ -10,17 +10,21 @@ files:
   - dist/**
   - package.json
 
-# Bundle the api-vessel server and the built React SPA into the package's
-# extraResources directory so they are accessible at process.resourcesPath
-# at runtime.
+# Bundle the api-vessel deploy snapshot (built by scripts/prepare-bundle.mjs)
+# and the built React SPA into extraResources so they live at
+# process.resourcesPath/<name>/ at runtime.
 extraResources:
-  - from: '../api-vessel/dist'
-    to: api-vessel/dist
+  - from: 'api-vessel-bundle'
+    to: 'api-vessel'
     filter:
-      - '**/*.js'
-      - '**/*.json'
+      - '**/*'
   - from: '../web-shore/dist'
     to: renderer
+
+# Native binaries (better-sqlite3) must be unpacked from app.asar so they can
+# be loaded as .node files at runtime.
+asarUnpack:
+  - '**/node_modules/better-sqlite3/**'
 
 win:
   target: nsis

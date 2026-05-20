@@ -124,6 +124,10 @@ export function FlgoPage() {
 
   return (
     <div style={{ maxWidth: 1080, margin: '0 auto' }}>
+      <div style={{ marginBottom: 18 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--ink)' }}>{t('flgo.title')}</h1>
+        <p style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 4 }}>{t('flgo.subtitle')}</p>
+      </div>
       {/* Sub-header */}
       <div
         style={{

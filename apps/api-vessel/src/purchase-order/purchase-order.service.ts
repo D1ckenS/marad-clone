@@ -27,7 +27,7 @@ export class PurchaseOrderService {
       const fields = { vesselId, title: dto.title, status: 'DRAFT' as const };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -36,7 +36,7 @@ export class PurchaseOrderService {
         .insert(purchaseOrders)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           title: dto.title,
           notes: dto.notes ?? null,
@@ -64,7 +64,7 @@ export class PurchaseOrderService {
       .from(purchaseOrders)
       .where(
         and(
-          eq(purchaseOrders.tenantId, auth.tenantId),
+          eq(purchaseOrders.tenantId, auth.tenantId!),
           eq(purchaseOrders.vesselId, vesselId),
           isNull(purchaseOrders.deletedAt),
           ...(status ? [eq(purchaseOrders.status, status as never)] : []),
@@ -90,7 +90,7 @@ export class PurchaseOrderService {
       .where(
         and(
           eq(purchaseOrders.id, id),
-          eq(purchaseOrders.tenantId, auth.tenantId),
+          eq(purchaseOrders.tenantId, auth.tenantId!),
           eq(purchaseOrders.vesselId, vesselId),
           isNull(purchaseOrders.deletedAt),
         ),
@@ -152,7 +152,7 @@ export class PurchaseOrderService {
       .insert(poLines)
       .values({
         id: newId(),
-        tenantId: auth.tenantId,
+        tenantId: auth.tenantId!,
         vesselId,
         poId,
         partId: dto.partId ?? null,
@@ -203,7 +203,7 @@ export class PurchaseOrderService {
       tx.insert(goodsReceipts)
         .values({
           id: receiptId,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           poId: id,
           receivedByUserId: auth.userId,
@@ -219,7 +219,7 @@ export class PurchaseOrderService {
           .insert(goodsReceiptLines)
           .values({
             id: newId(),
-            tenantId: auth.tenantId,
+            tenantId: auth.tenantId!,
             vesselId,
             receiptId,
             poLineId: l.poLineId,
@@ -240,7 +240,7 @@ export class PurchaseOrderService {
         .select()
         .from(goodsReceiptLines)
         .where(
-          and(eq(goodsReceiptLines.tenantId, auth.tenantId), isNull(goodsReceiptLines.deletedAt)),
+          and(eq(goodsReceiptLines.tenantId, auth.tenantId!), isNull(goodsReceiptLines.deletedAt)),
         )
         .all()
         .filter((rl) => po.lines.some((pl) => pl.id === rl.poLineId));

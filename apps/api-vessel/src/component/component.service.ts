@@ -35,7 +35,7 @@ export class ComponentService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -44,7 +44,7 @@ export class ComponentService {
         .insert(components)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           name: dto.name,
           description: dto.description ?? null,
@@ -67,7 +67,7 @@ export class ComponentService {
       .from(components)
       .where(
         and(
-          eq(components.tenantId, auth.tenantId),
+          eq(components.tenantId, auth.tenantId!),
           eq(components.vesselId, vesselId),
           isNull(components.deletedAt),
         ),
@@ -84,7 +84,7 @@ export class ComponentService {
       .where(
         and(
           eq(components.id, id),
-          eq(components.tenantId, auth.tenantId),
+          eq(components.tenantId, auth.tenantId!),
           eq(components.vesselId, vesselId),
           isNull(components.deletedAt),
         ),
@@ -108,7 +108,7 @@ export class ComponentService {
     return this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -138,7 +138,7 @@ export class ComponentService {
     this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordDelete(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
       );

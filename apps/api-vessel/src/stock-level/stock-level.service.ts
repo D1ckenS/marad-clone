@@ -27,7 +27,7 @@ export class StockLevelService {
         .from(stockLevels)
         .where(
           and(
-            eq(stockLevels.tenantId, auth.tenantId),
+            eq(stockLevels.tenantId, auth.tenantId!),
             eq(stockLevels.vesselId, vesselId),
             eq(stockLevels.partId, dto.partId),
             eq(stockLevels.locationId, dto.locationId),
@@ -47,7 +47,7 @@ export class StockLevelService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -56,7 +56,7 @@ export class StockLevelService {
         .insert(stockLevels)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           partId: dto.partId,
           locationId: dto.locationId,
@@ -92,7 +92,7 @@ export class StockLevelService {
       .innerJoin(stockLocations, eq(stockLevels.locationId, stockLocations.id))
       .where(
         and(
-          eq(stockLevels.tenantId, auth.tenantId),
+          eq(stockLevels.tenantId, auth.tenantId!),
           eq(stockLevels.vesselId, vesselId),
           isNull(stockLevels.deletedAt),
         ),
@@ -108,7 +108,7 @@ export class StockLevelService {
       .where(
         and(
           eq(stockLevels.id, id),
-          eq(stockLevels.tenantId, auth.tenantId),
+          eq(stockLevels.tenantId, auth.tenantId!),
           eq(stockLevels.vesselId, vesselId),
           isNull(stockLevels.deletedAt),
         ),
@@ -128,7 +128,7 @@ export class StockLevelService {
     return this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -155,7 +155,7 @@ export class StockLevelService {
     this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordDelete(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
       );

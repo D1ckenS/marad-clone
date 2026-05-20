@@ -32,7 +32,7 @@ export class DrillService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         DRILL_ENTITY,
         id,
         { vesselId, ...syncFields },
@@ -41,7 +41,7 @@ export class DrillService {
         .insert(drills)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           ...syncFields,
           createdAt: nowIso,
@@ -55,7 +55,7 @@ export class DrillService {
   }
 
   findAll(auth: AuthContext, query: { status?: string; vesselId?: string }) {
-    const filters = [eq(drills.tenantId, auth.tenantId), isNull(drills.deletedAt)];
+    const filters = [eq(drills.tenantId, auth.tenantId!), isNull(drills.deletedAt)];
     if (query.vesselId) filters.push(eq(drills.vesselId, query.vesselId));
     if (query.status) filters.push(eq(drills.status, query.status as never));
     return this.drizzle.db
@@ -70,7 +70,7 @@ export class DrillService {
     const row = this.drizzle.db
       .select()
       .from(drills)
-      .where(and(eq(drills.id, id), eq(drills.tenantId, auth.tenantId), isNull(drills.deletedAt)))
+      .where(and(eq(drills.id, id), eq(drills.tenantId, auth.tenantId!), isNull(drills.deletedAt)))
       .get();
     if (!row) throw new NotFoundException(`Drill ${id} not found`);
     return row;
@@ -90,7 +90,7 @@ export class DrillService {
     return this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         DRILL_ENTITY,
         id,
         fields,
@@ -110,7 +110,7 @@ export class DrillService {
     this.drizzle.db.transaction((tx) => {
       this.recorder.recordDelete(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         DRILL_ENTITY,
         id,
       );
@@ -136,7 +136,7 @@ export class DrillService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId: drill.vesselId },
+        { tenantId: auth.tenantId!, vesselId: drill.vesselId },
         DRILL_RECORD_ENTITY,
         id,
         fields,
@@ -145,7 +145,7 @@ export class DrillService {
         .insert(drillRecords)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           ...fields,
           createdAt: nowIso,
           updatedAt: nowIso,

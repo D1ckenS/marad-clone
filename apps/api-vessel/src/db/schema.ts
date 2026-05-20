@@ -50,10 +50,11 @@ export const users = sqliteTable(
   'users',
   {
     id: text('id').primaryKey(),
-    tenantId: text('tenant_id')
-      .notNull()
-      .references(() => tenants.id),
+    // Nullable so platform SUPER_ADMIN rows can exist without a tenant
+    // (matches the shore design — see CLAUDE.md §18).
+    tenantId: text('tenant_id').references(() => tenants.id),
     vesselId: text('vessel_id').references(() => vessels.id),
+    username: text('username'),
     email: text('email').notNull(),
     passwordHash: text('password_hash'),
     role: text('role', { enum: ROLES }).notNull().default('OFFICER'),
