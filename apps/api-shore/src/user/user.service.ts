@@ -111,9 +111,10 @@ export class UserService {
       });
     });
     if (users.length === 0) throw new NotFoundException(`User ${identifier} not found`);
-    if (users.length > 1) throw new UnprocessableEntityException(
-      'This username exists in multiple organisations — please log in with your Organisation ID.',
-    );
+    if (users.length > 1)
+      throw new UnprocessableEntityException(
+        'This username exists in multiple organisations — please log in with your Organisation ID.',
+      );
     return users[0]!;
   }
 

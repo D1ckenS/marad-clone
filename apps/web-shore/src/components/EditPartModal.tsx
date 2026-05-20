@@ -137,7 +137,9 @@ export function EditPartModal({ open, part, categories, onClose, onSaved }: Prop
           >
             <option value="">— No category —</option>
             {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
             ))}
           </select>
         </div>
