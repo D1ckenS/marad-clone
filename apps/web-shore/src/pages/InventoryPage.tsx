@@ -1004,7 +1004,7 @@ export function InventoryPage() {
             const checked = activeLocs.has(l.id);
             const toggle = () => setActiveLocs((prev) => {
               const next = new Set(prev);
-              checked ? next.delete(l.id) : next.add(l.id);
+              if (checked) next.delete(l.id); else next.add(l.id);
               return next;
             });
             return (
@@ -1052,7 +1052,7 @@ export function InventoryPage() {
                   const count = locParts.filter((p) => p.categoryId === c.id).length;
                   const toggle = () => setActiveCats((prev) => {
                     const next = new Set(prev);
-                    checked ? next.delete(c.id) : next.add(c.id);
+                    if (checked) next.delete(c.id); else next.add(c.id);
                     return next;
                   });
                   return (
@@ -1071,7 +1071,7 @@ export function InventoryPage() {
                     <RailCheckbox
                       label="Uncategorised"
                       checked={checked}
-                      onChange={() => setActiveCats((prev) => { const next = new Set(prev); checked ? next.delete('__none__') : next.add('__none__'); return next; })}
+                      onChange={() => setActiveCats((prev) => { const next = new Set(prev); if (checked) next.delete('__none__'); else next.add('__none__'); return next; })}
                       count={uncategorisedCount}
                       italic
                     />
