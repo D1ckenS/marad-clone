@@ -99,8 +99,13 @@ function RailCheckbox({
   return (
     <label
       style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        padding: '5px 8px', borderRadius: 5, cursor: 'pointer', height: 28,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '5px 8px',
+        borderRadius: 5,
+        cursor: 'pointer',
+        height: 28,
         background: checked ? T.surfaceSunk : 'transparent',
       }}
     >
@@ -112,11 +117,14 @@ function RailCheckbox({
       />
       <span
         style={{
-          flex: 1, fontSize: 12.5,
+          flex: 1,
+          fontSize: 12.5,
           color: checked ? T.ink : italic ? T.ink3 : T.ink2,
           fontWeight: checked ? 600 : 400,
           fontStyle: italic ? 'italic' : undefined,
-          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
         }}
       >
         {label}
@@ -600,7 +608,10 @@ function AddCategoryModal({ onClose, onCreated }: { onClose: () => void; onCreat
   const [err, setErr] = useState('');
 
   const submit = async () => {
-    if (!name.trim()) { setErr('Name is required'); return; }
+    if (!name.trim()) {
+      setErr('Name is required');
+      return;
+    }
     setSaving(true);
     try {
       await api.post<unknown>('/part-categories', { name: name.trim() });
@@ -616,15 +627,22 @@ function AddCategoryModal({ onClose, onCreated }: { onClose: () => void; onCreat
   return (
     <div
       style={{
-        position: 'fixed', inset: 0, zIndex: 50,
+        position: 'fixed',
+        inset: 0,
+        zIndex: 50,
         background: 'rgba(10,31,51,.35)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
       onClick={onClose}
     >
       <div
         style={{
-          background: T.surface, borderRadius: 10, width: 320, padding: 20,
+          background: T.surface,
+          borderRadius: 10,
+          width: 320,
+          padding: 20,
           boxShadow: '0 16px 48px rgba(10,31,51,.18)',
           border: `1px solid ${T.border}`,
         }}
@@ -640,10 +658,16 @@ function AddCategoryModal({ onClose, onCreated }: { onClose: () => void; onCreat
           onKeyDown={(e) => e.key === 'Enter' && submit()}
           placeholder="e.g. Lubricants"
           style={{
-            width: '100%', boxSizing: 'border-box',
-            height: 34, padding: '0 10px', fontSize: 13,
-            border: `1px solid ${T.border}`, borderRadius: 6,
-            outline: 'none', fontFamily: 'inherit', color: T.ink,
+            width: '100%',
+            boxSizing: 'border-box',
+            height: 34,
+            padding: '0 10px',
+            fontSize: 13,
+            border: `1px solid ${T.border}`,
+            borderRadius: 6,
+            outline: 'none',
+            fontFamily: 'inherit',
+            color: T.ink,
           }}
         />
         {err && <p style={{ margin: '6px 0 0', fontSize: 11.5, color: T.red }}>{err}</p>}
@@ -651,9 +675,15 @@ function AddCategoryModal({ onClose, onCreated }: { onClose: () => void; onCreat
           <button
             onClick={onClose}
             style={{
-              height: 30, padding: '0 14px', fontSize: 12.5, borderRadius: 5,
-              border: `1px solid ${T.border}`, background: T.surface,
-              color: T.ink2, cursor: 'pointer', fontFamily: 'inherit',
+              height: 30,
+              padding: '0 14px',
+              fontSize: 12.5,
+              borderRadius: 5,
+              border: `1px solid ${T.border}`,
+              background: T.surface,
+              color: T.ink2,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
             }}
           >
             Cancel
@@ -662,10 +692,16 @@ function AddCategoryModal({ onClose, onCreated }: { onClose: () => void; onCreat
             onClick={submit}
             disabled={saving}
             style={{
-              height: 30, padding: '0 14px', fontSize: 12.5, borderRadius: 5,
-              border: 'none', background: T.navy,
-              color: '#fff', cursor: saving ? 'not-allowed' : 'pointer',
-              fontFamily: 'inherit', opacity: saving ? 0.7 : 1,
+              height: 30,
+              padding: '0 14px',
+              fontSize: 12.5,
+              borderRadius: 5,
+              border: 'none',
+              background: T.navy,
+              color: '#fff',
+              cursor: saving ? 'not-allowed' : 'pointer',
+              fontFamily: 'inherit',
+              opacity: saving ? 0.7 : 1,
             }}
           >
             {saving ? 'Saving…' : 'Create'}
@@ -683,7 +719,10 @@ function AddLocationModal({ onClose, onCreated }: { onClose: () => void; onCreat
   const [err, setErr] = useState('');
 
   const submit = async () => {
-    if (!name.trim()) { setErr('Name is required'); return; }
+    if (!name.trim()) {
+      setErr('Name is required');
+      return;
+    }
     setSaving(true);
     try {
       await api.post<unknown>('/stock-locations', { name: name.trim() });
@@ -699,15 +738,22 @@ function AddLocationModal({ onClose, onCreated }: { onClose: () => void; onCreat
   return (
     <div
       style={{
-        position: 'fixed', inset: 0, zIndex: 50,
+        position: 'fixed',
+        inset: 0,
+        zIndex: 50,
         background: 'rgba(10,31,51,.35)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
       onClick={onClose}
     >
       <div
         style={{
-          background: T.surface, borderRadius: 10, width: 320, padding: 20,
+          background: T.surface,
+          borderRadius: 10,
+          width: 320,
+          padding: 20,
           boxShadow: '0 16px 48px rgba(10,31,51,.18)',
           border: `1px solid ${T.border}`,
         }}
@@ -723,10 +769,16 @@ function AddLocationModal({ onClose, onCreated }: { onClose: () => void; onCreat
           onKeyDown={(e) => e.key === 'Enter' && submit()}
           placeholder="e.g. Engine Room Store"
           style={{
-            width: '100%', boxSizing: 'border-box',
-            height: 34, padding: '0 10px', fontSize: 13,
-            border: `1px solid ${T.border}`, borderRadius: 6,
-            outline: 'none', fontFamily: 'inherit', color: T.ink,
+            width: '100%',
+            boxSizing: 'border-box',
+            height: 34,
+            padding: '0 10px',
+            fontSize: 13,
+            border: `1px solid ${T.border}`,
+            borderRadius: 6,
+            outline: 'none',
+            fontFamily: 'inherit',
+            color: T.ink,
           }}
         />
         {err && <p style={{ margin: '6px 0 0', fontSize: 11.5, color: T.red }}>{err}</p>}
@@ -734,9 +786,15 @@ function AddLocationModal({ onClose, onCreated }: { onClose: () => void; onCreat
           <button
             onClick={onClose}
             style={{
-              height: 30, padding: '0 14px', fontSize: 12.5, borderRadius: 5,
-              border: `1px solid ${T.border}`, background: T.surface,
-              color: T.ink2, cursor: 'pointer', fontFamily: 'inherit',
+              height: 30,
+              padding: '0 14px',
+              fontSize: 12.5,
+              borderRadius: 5,
+              border: `1px solid ${T.border}`,
+              background: T.surface,
+              color: T.ink2,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
             }}
           >
             Cancel
@@ -745,10 +803,16 @@ function AddLocationModal({ onClose, onCreated }: { onClose: () => void; onCreat
             onClick={submit}
             disabled={saving}
             style={{
-              height: 30, padding: '0 14px', fontSize: 12.5, borderRadius: 5,
-              border: 'none', background: T.navy,
-              color: '#fff', cursor: saving ? 'not-allowed' : 'pointer',
-              fontFamily: 'inherit', opacity: saving ? 0.7 : 1,
+              height: 30,
+              padding: '0 14px',
+              fontSize: 12.5,
+              borderRadius: 5,
+              border: 'none',
+              background: T.navy,
+              color: '#fff',
+              cursor: saving ? 'not-allowed' : 'pointer',
+              fontFamily: 'inherit',
+              opacity: saving ? 0.7 : 1,
             }}
           >
             {saving ? 'Saving…' : 'Create'}
@@ -818,11 +882,13 @@ export function InventoryPage() {
 
   const visible = parts.filter((p) => {
     if (filter !== 'all' && worstStatus(p.stockLevels) !== filter) return false;
-    if (activeLocs.size > 0 && !p.stockLevels.some((l) => activeLocs.has(l.locationId))) return false;
+    if (activeLocs.size > 0 && !p.stockLevels.some((l) => activeLocs.has(l.locationId)))
+      return false;
     if (activeCats.size > 0) {
-      const matchesCat = activeCats.has('__none__') && !p.categoryId
-        ? true
-        : p.categoryId !== null && activeCats.has(p.categoryId);
+      const matchesCat =
+        activeCats.has('__none__') && !p.categoryId
+          ? true
+          : p.categoryId !== null && activeCats.has(p.categoryId);
       if (!matchesCat) return false;
     }
     if (search) {
@@ -976,8 +1042,13 @@ export function InventoryPage() {
             onClick={() => setAddLocOpen(true)}
             title="Add location"
             style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: T.ink3, fontSize: 18, lineHeight: 1, padding: '0 2px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: T.ink3,
+              fontSize: 18,
+              lineHeight: 1,
+              padding: '0 2px',
             }}
           >
             +
@@ -1002,11 +1073,13 @@ export function InventoryPage() {
           />
           {locations.map((l) => {
             const checked = activeLocs.has(l.id);
-            const toggle = () => setActiveLocs((prev) => {
-              const next = new Set(prev);
-              if (checked) next.delete(l.id); else next.add(l.id);
-              return next;
-            });
+            const toggle = () =>
+              setActiveLocs((prev) => {
+                const next = new Set(prev);
+                if (checked) next.delete(l.id);
+                else next.add(l.id);
+                return next;
+              });
             return (
               <RailCheckbox
                 key={l.id}
@@ -1021,20 +1094,40 @@ export function InventoryPage() {
         {/* Categories section */}
         <div style={{ borderTop: `1px solid ${T.hairline}`, padding: '8px 6px 4px' }}>
           <div style={{ display: 'flex', alignItems: 'center', padding: '0 6px 4px' }}>
-            <span style={{ flex: 1, fontSize: 10.5, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.ink3 }}>
+            <span
+              style={{
+                flex: 1,
+                fontSize: 10.5,
+                fontWeight: 500,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                color: T.ink3,
+              }}
+            >
               Categories
             </span>
             <button
               onClick={() => setAddCatOpen(true)}
               title="Add category"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.ink3, fontSize: 18, lineHeight: 1, padding: '0 2px' }}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: T.ink3,
+                fontSize: 18,
+                lineHeight: 1,
+                padding: '0 2px',
+              }}
             >
               +
             </button>
           </div>
           {/* Categories relevant to current location selection */}
           {(() => {
-            const locParts = activeLocs.size === 0 ? parts : parts.filter((p) => p.stockLevels.some((l) => activeLocs.has(l.locationId)));
+            const locParts =
+              activeLocs.size === 0
+                ? parts
+                : parts.filter((p) => p.stockLevels.some((l) => activeLocs.has(l.locationId)));
             const catIdsInLoc = new Set(locParts.map((p) => p.categoryId).filter(Boolean));
             const visibleCats = categories.filter((c) => catIdsInLoc.has(c.id));
             const uncategorisedCount = locParts.filter((p) => !p.categoryId).length;
@@ -1050,11 +1143,13 @@ export function InventoryPage() {
                 {visibleCats.map((c) => {
                   const checked = activeCats.has(c.id);
                   const count = locParts.filter((p) => p.categoryId === c.id).length;
-                  const toggle = () => setActiveCats((prev) => {
-                    const next = new Set(prev);
-                    if (checked) next.delete(c.id); else next.add(c.id);
-                    return next;
-                  });
+                  const toggle = () =>
+                    setActiveCats((prev) => {
+                      const next = new Set(prev);
+                      if (checked) next.delete(c.id);
+                      else next.add(c.id);
+                      return next;
+                    });
                   return (
                     <RailCheckbox
                       key={c.id}
@@ -1065,18 +1160,26 @@ export function InventoryPage() {
                     />
                   );
                 })}
-                {uncategorisedCount > 0 && (() => {
-                  const checked = activeCats.has('__none__');
-                  return (
-                    <RailCheckbox
-                      label="Uncategorised"
-                      checked={checked}
-                      onChange={() => setActiveCats((prev) => { const next = new Set(prev); if (checked) next.delete('__none__'); else next.add('__none__'); return next; })}
-                      count={uncategorisedCount}
-                      italic
-                    />
-                  );
-                })()}
+                {uncategorisedCount > 0 &&
+                  (() => {
+                    const checked = activeCats.has('__none__');
+                    return (
+                      <RailCheckbox
+                        label="Uncategorised"
+                        checked={checked}
+                        onChange={() =>
+                          setActiveCats((prev) => {
+                            const next = new Set(prev);
+                            if (checked) next.delete('__none__');
+                            else next.add('__none__');
+                            return next;
+                          })
+                        }
+                        count={uncategorisedCount}
+                        italic
+                      />
+                    );
+                  })()}
               </div>
             );
           })()}
@@ -1433,12 +1536,8 @@ export function InventoryPage() {
         partName={modal.kind === 'barcodes' ? modal.partName : ''}
         onClose={closeModal}
       />
-      {addLocOpen && (
-        <AddLocationModal onClose={() => setAddLocOpen(false)} onCreated={load} />
-      )}
-      {addCatOpen && (
-        <AddCategoryModal onClose={() => setAddCatOpen(false)} onCreated={load} />
-      )}
+      {addLocOpen && <AddLocationModal onClose={() => setAddLocOpen(false)} onCreated={load} />}
+      {addCatOpen && <AddCategoryModal onClose={() => setAddCatOpen(false)} onCreated={load} />}
     </div>
   );
 }

@@ -24,7 +24,8 @@ export function CreatePartModal({ open, categories, onClose, onCreated }: Props)
   const [error, setError] = useState<string | null>(null);
 
   const set =
-    (field: keyof typeof EMPTY) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    (field: keyof typeof EMPTY) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       setForm((f) => ({ ...f, [field]: e.target.value }));
 
   const handleClose = () => {
@@ -126,7 +127,9 @@ export function CreatePartModal({ open, categories, onClose, onCreated }: Props)
           >
             <option value="">— No category —</option>
             {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
             ))}
           </select>
         </div>

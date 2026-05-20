@@ -55,7 +55,9 @@ app.on('ready', () => {
       const rendererDir = path.join(process.resourcesPath, 'renderer');
       const serverPort = await createRendererServer(rendererDir, SHORE_API_PORT);
       rendererUrl = `http://127.0.0.1:${serverPort}`;
-      process.stdout.write(`[desktop] renderer on :${serverPort} → api-shore on :${SHORE_API_PORT}\n`);
+      process.stdout.write(
+        `[desktop] renderer on :${serverPort} → api-shore on :${SHORE_API_PORT}\n`,
+      );
     }
 
     createWindow();

@@ -385,7 +385,8 @@ export function CompaniesPage() {
           <div
             className="grid gap-4 px-4 py-2 text-[10.5px] font-semibold uppercase tracking-widest"
             style={{
-              gridTemplateColumns: 'minmax(160px, 1fr) minmax(200px, 1.5fr) 110px 90px 90px 110px 150px',
+              gridTemplateColumns:
+                'minmax(160px, 1fr) minmax(200px, 1.5fr) 110px 90px 90px 110px 150px',
               background: 'var(--surface-sunk)',
               color: 'var(--ink-3)',
               borderBottom: '1px solid var(--hairline)',
@@ -411,7 +412,8 @@ export function CompaniesPage() {
               key={c.id}
               className="grid gap-4 px-4 py-3 items-center"
               style={{
-                gridTemplateColumns: 'minmax(160px, 1fr) minmax(200px, 1.5fr) 110px 90px 90px 110px 150px',
+                gridTemplateColumns:
+                  'minmax(160px, 1fr) minmax(200px, 1.5fr) 110px 90px 90px 110px 150px',
                 borderTop: i === 0 ? 'none' : '1px solid var(--hairline)',
               }}
             >
@@ -423,7 +425,10 @@ export function CompaniesPage() {
                   {c.name}
                 </div>
               </div>
-              <div className="min-w-0 font-mono text-[11px] truncate" style={{ color: 'var(--ink-3)' }}>
+              <div
+                className="min-w-0 font-mono text-[11px] truncate"
+                style={{ color: 'var(--ink-3)' }}
+              >
                 {c.id}
               </div>
               <div className="min-w-0">
