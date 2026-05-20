@@ -16,7 +16,6 @@ export function LoginPage() {
   const navigate = useNavigate();
 
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
-  const [tenantId, setTenantId] = useState('');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -28,8 +27,7 @@ export function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const body = isPlatformAdmin ? { identifier, password } : { tenantId, identifier, password };
-      const res = await api.post<LoginResult>('/auth/login', body);
+      const res = await api.post<LoginResult>('/auth/login', { identifier, password });
       login(res.access_token);
       navigate(isPlatformAdmin ? '/companies' : '/dashboard');
     } catch (err) {
@@ -40,15 +38,15 @@ export function LoginPage() {
   }
 
   async function handleSsoLogin(provider: 'ENTRA' | 'GOOGLE') {
-    if (!tenantId.trim()) {
-      setError(t('auth.sso_needs_org_id'));
+    if (!identifier.trim()) {
+      setError(t('auth.username_or_email') + ' is required for SSO');
       return;
     }
     setError(null);
     setSsoLoading(provider === 'GOOGLE' ? 'google' : 'microsoft');
     try {
       const res = await api.get<{ authorizationUrl: string; state: string }>(
-        `/auth/oidc/login?tenantId=${encodeURIComponent(tenantId)}&provider=${provider}`,
+        `/auth/oidc/login?identifier=${encodeURIComponent(identifier)}&provider=${provider}`,
       );
       window.location.href = res.authorizationUrl;
     } catch (err) {
@@ -67,17 +65,6 @@ export function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-lg p-6 space-y-4">
-          {!isPlatformAdmin && (
-            <Input
-              id="tenantId"
-              label={t('auth.organisation_id')}
-              placeholder="tenant-id"
-              value={tenantId}
-              onChange={(e) => setTenantId(e.target.value)}
-              required
-              autoFocus
-            />
-          )}
           <Input
             id="identifier"
             label={t('auth.username_or_email')}
@@ -85,7 +72,7 @@ export function LoginPage() {
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
             required
-            autoFocus={isPlatformAdmin}
+            autoFocus
           />
           <Input
             id="password"

@@ -12,6 +12,7 @@ keys/
 
 # Build outputs
 dist/
+dist-types/
 build/
 out/
 .turbo/

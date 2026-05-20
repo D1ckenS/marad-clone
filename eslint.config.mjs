@@ -8,7 +8,9 @@ export default tseslint.config(
     ignores: [
       '**/node_modules/**',
       '**/dist/**',
+      '**/dist-types/**',
       '**/build/**',
+      '**/release/**',
       '**/.turbo/**',
       '**/coverage/**',
       '**/*.min.js',

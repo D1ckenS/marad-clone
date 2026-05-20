@@ -1,15 +1,15 @@
 import { app, BrowserWindow, shell } from 'electron';
 import path from 'node:path';
-import type { ChildProcess } from 'node:child_process';
-import { spawnApiVessel } from './child';
 import { createRendererServer } from './server';
 
 const isDev = !app.isPackaged;
 const VITE_DEV_URL = process.env['VITE_DEV_SERVER_URL'] ?? 'http://localhost:5342';
-const VESSEL_PORT = Number(process.env['VESSEL_PORT'] ?? 3001);
+
+// In packaged (shore-desktop) mode the app wraps the shore web UI and
+// proxies API calls to api-shore. Override with SHORE_PORT env var if needed.
+const SHORE_API_PORT = Number(process.env['SHORE_PORT'] ?? 3000);
 
 let mainWindow: BrowserWindow | null = null;
-let apiVesselProcess: ChildProcess | null = null;
 let rendererUrl = '';
 
 function createWindow(): void {
@@ -48,24 +48,16 @@ function createWindow(): void {
 app.on('ready', () => {
   void (async () => {
     if (isDev) {
-      // Assumes api-vessel and web-shore Vite dev server are already running
-      // (start them with: pnpm run dev:vessel in a separate terminal).
+      // Dev mode: load Vite dev server (which already proxies /api/* to api-shore).
       rendererUrl = VITE_DEV_URL;
     } else {
-      apiVesselProcess = spawnApiVessel(VESSEL_PORT);
-
-      // Allow api-vessel 1.5 s to bind its port before opening the window.
-      await new Promise<void>((resolve) => {
-        const t = setTimeout(resolve, 1500);
-        // Don't hold the event loop open just for this timer.
-        if (typeof (t as NodeJS.Timeout).unref === 'function') {
-          (t as NodeJS.Timeout).unref();
-        }
-      });
-
+      // Packaged mode: serve the bundled web-shore SPA and proxy /api/* to api-shore.
       const rendererDir = path.join(process.resourcesPath, 'renderer');
-      const serverPort = await createRendererServer(rendererDir, VESSEL_PORT);
+      const serverPort = await createRendererServer(rendererDir, SHORE_API_PORT);
       rendererUrl = `http://127.0.0.1:${serverPort}`;
+      process.stdout.write(
+        `[desktop] renderer on :${serverPort} → api-shore on :${SHORE_API_PORT}\n`,
+      );
     }
 
     createWindow();
@@ -77,13 +69,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
-  // macOS: re-open window when clicking the dock icon.
   if (!mainWindow && rendererUrl) createWindow();
 });
 
-app.on('before-quit', () => {
-  // SIGTERM triggers NestJS graceful shutdown on the child process.
-  if (apiVesselProcess && !apiVesselProcess.killed) {
-    apiVesselProcess.kill('SIGTERM');
-  }
-});
+// Reserved for future vessel-onboard mode that spawns api-vessel as a child process.
