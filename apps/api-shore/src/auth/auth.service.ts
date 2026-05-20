@@ -37,13 +37,20 @@ export class AuthService {
     let user;
     try {
       if (!tenantId) {
-        // No tenantId → SUPER_ADMIN login by email or username
-        user = await this.users.findSuperAdminByIdentifier(identifier);
-        if (user.role !== 'SUPER_ADMIN') throw new Error('Not a super admin');
+        // Try super-admin first, then auto-resolve tenant from identifier.
+        try {
+          user = await this.users.findSuperAdminByIdentifier(identifier);
+          if (user.role !== 'SUPER_ADMIN') throw new Error('not a super admin');
+        } catch {
+          user = await this.users.findByIdentifierGlobal(identifier);
+        }
       } else {
         user = await this.users.findByIdentifier(tenantId, identifier);
       }
-    } catch {
+    } catch (err) {
+      // Surface the ambiguous-identifier message as-is; hide everything else.
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.includes('multiple organisations')) throw err;
       throw new UnauthorizedException('Invalid credentials');
     }
 

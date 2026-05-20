@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
   UnauthorizedException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
@@ -90,6 +91,30 @@ export class UserService {
     });
     if (!user) throw new NotFoundException(`Super admin ${identifier} not found`);
     return user;
+  }
+
+  /**
+   * Finds a tenant user by email or username across ALL tenants without requiring
+   * the caller to know the tenantId upfront. Uses the '' RLS bypass.
+   * Throws if no match or if the identifier is ambiguous (exists in >1 tenant).
+   */
+  async findByIdentifierGlobal(identifier: string) {
+    const users = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = ''`);
+      await tx.$executeRawUnsafe(`SET LOCAL app.tenant_id = ''`);
+      return tx.user.findMany({
+        where: {
+          tenantId: { not: null },
+          deletedAt: null,
+          OR: [{ email: identifier }, { username: identifier }],
+        },
+      });
+    });
+    if (users.length === 0) throw new NotFoundException(`User ${identifier} not found`);
+    if (users.length > 1) throw new UnprocessableEntityException(
+      'This username exists in multiple organisations — please log in with your Organisation ID.',
+    );
+    return users[0]!;
   }
 
   findAll(tenantId: string) {

@@ -2,7 +2,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": false,
-    "rootDir": "./src"
+    "skipLibCheck": true
   },
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.e2e.ts", "test/**/*"]
 }

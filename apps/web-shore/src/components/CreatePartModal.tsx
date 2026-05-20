@@ -3,22 +3,28 @@ import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
+export interface Category {
+  id: string;
+  name: string;
+}
+
 interface Props {
   open: boolean;
+  categories: Category[];
   onClose: () => void;
   onCreated: (partId: string, partName: string) => void;
 }
 
-const EMPTY = { name: '', partNumber: '', unit: 'pcs', description: '' };
+const EMPTY = { name: '', partNumber: '', unit: 'pcs', description: '', categoryId: '' };
 
-export function CreatePartModal({ open, onClose, onCreated }: Props) {
+export function CreatePartModal({ open, categories, onClose, onCreated }: Props) {
   const { t } = useTranslation();
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const set =
-    (field: keyof typeof EMPTY) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    (field: keyof typeof EMPTY) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       setForm((f) => ({ ...f, [field]: e.target.value }));
 
   const handleClose = () => {
@@ -40,6 +46,7 @@ export function CreatePartModal({ open, onClose, onCreated }: Props) {
         partNumber: form.partNumber.trim() || undefined,
         unit: form.unit.trim() || 'pcs',
         description: form.description.trim() || undefined,
+        categoryId: form.categoryId || undefined,
       });
       setForm(EMPTY);
       onCreated(created.id, form.name.trim());
@@ -97,6 +104,31 @@ export function CreatePartModal({ open, onClose, onCreated }: Props) {
               placeholder="pcs / L / kg"
             />
           </div>
+        </div>
+        <div>
+          <label className="text-[11.5px] font-medium mb-1 block" style={{ color: 'var(--ink-2)' }}>
+            Category <span style={{ color: 'var(--ink-3)' }}>(optional)</span>
+          </label>
+          <select
+            value={form.categoryId}
+            onChange={set('categoryId')}
+            style={{
+              width: '100%',
+              height: 34,
+              padding: '0 8px',
+              fontSize: 13,
+              border: '1px solid var(--border)',
+              borderRadius: 6,
+              background: 'var(--surface)',
+              color: 'var(--ink)',
+              fontFamily: 'inherit',
+            }}
+          >
+            <option value="">— No category —</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
         </div>
         <TextArea
           id="part-desc"
