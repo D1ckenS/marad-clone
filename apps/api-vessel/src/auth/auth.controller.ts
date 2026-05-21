@@ -1,5 +1,6 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { BootstrapAdminDto } from './dto/bootstrap-admin.dto';
 import { LoginDto } from './dto/login.dto';
 import { VerifyShoreTokenDto } from './dto/verify-shore-token.dto';
 
@@ -13,7 +14,27 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   login(@Body() dto: LoginDto) {
-    return this.auth.login(dto.tenantId, dto.email, dto.password);
+    return this.auth.login(dto.identifier, dto.password, dto.tenantId);
+  }
+
+  /**
+   * First-launch provisioning. Creates the initial tenant/vessel/admin row
+   * when the vessel SQLite is empty. Gated by the VESSEL_BOOTSTRAP_KEY env
+   * var configured at install time.
+   */
+  @Post('bootstrap-vessel-admin')
+  @HttpCode(HttpStatus.CREATED)
+  bootstrap(@Body() dto: BootstrapAdminDto) {
+    return this.auth.bootstrapAdmin(dto);
+  }
+
+  /**
+   * Public probe used by the SPA to decide whether to render the
+   * first-launch setup wizard vs the normal login form.
+   */
+  @Get('setup-status')
+  setupStatus() {
+    return this.auth.getSetupStatus();
   }
 
   /**

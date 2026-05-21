@@ -35,7 +35,7 @@ export class CrewMemberService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY,
         id,
         fields,
@@ -44,7 +44,7 @@ export class CrewMemberService {
         .insert(crewMembers)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           ...fields,
           createdAt: nowIso,
           updatedAt: nowIso,
@@ -57,7 +57,7 @@ export class CrewMemberService {
   }
 
   findAll(auth: AuthContext, query: { vesselId?: string; status?: string }) {
-    const filters = [eq(crewMembers.tenantId, auth.tenantId), isNull(crewMembers.deletedAt)];
+    const filters = [eq(crewMembers.tenantId, auth.tenantId!), isNull(crewMembers.deletedAt)];
     if (query.vesselId) filters.push(eq(crewMembers.vesselId, query.vesselId));
     if (query.status) filters.push(eq(crewMembers.status, query.status as never));
     return this.drizzle.db
@@ -75,7 +75,7 @@ export class CrewMemberService {
       .where(
         and(
           eq(crewMembers.id, id),
-          eq(crewMembers.tenantId, auth.tenantId),
+          eq(crewMembers.tenantId, auth.tenantId!),
           isNull(crewMembers.deletedAt),
         ),
       )
@@ -99,7 +99,7 @@ export class CrewMemberService {
     return this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         ENTITY,
         id,
         fields,
@@ -119,7 +119,7 @@ export class CrewMemberService {
     this.drizzle.db.transaction((tx) => {
       this.recorder.recordDelete(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         ENTITY,
         id,
       );

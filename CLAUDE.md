@@ -98,6 +98,43 @@ Or delete individual companies by ID via the API:
 
 ---
 
+## 18b. Vessel Desktop Provisioning (offline-first)
+
+The desktop installer at `apps/desktop-vessel/release/FleetOps Setup 0.0.0.exe` spawns the bundled api-vessel on a random local port and stores its SQLite at `%APPDATA%\@fleetops\desktop-vessel\vessel.db`. A fresh install has **zero users** — login won't work until the vessel is provisioned.
+
+### Two provisioning paths
+
+**A. First-launch wizard (single admin).** Set `VESSEL_BOOTSTRAP_KEY=<secret>` in the laptop's environment (System Properties → Environment Variables → User) before first launch. The SPA's `/auth/setup-status` endpoint will return `needsBootstrap: true` and the UI auto-routes to `/setup`. The operator enters the bootstrap key, tenant ID, tenant name, vessel name/IMO, admin email + password. Submitting creates the first TENANT_ADMIN and signs in.
+
+The endpoint refuses if (a) `VESSEL_BOOTSTRAP_KEY` is unset, (b) the key doesn't match, or (c) any user already exists in the vessel DB. After the first admin is created, all further users must be added via the normal admin UI.
+
+**B. Dockside bulk seed (recommended for multi-user pilots).** Run from a laptop that can reach the shore API (still in port, shore Wi-Fi):
+
+```powershell
+node scripts/seed-vessel-from-shore.mjs `
+  --shore http://shore.local:3000 `
+  --shore-admin Ziad --shore-password REDACTED `
+  --tenant 01KQWX2HPGZBJJR9Z8W53SQJM4 `
+  --vessel 01KRTJPG2MZK2HZ78AT6KXEP0Y `
+  --temp-password ChangeMe2026! `
+  --vessel-db "$env:APPDATA\@fleetops\desktop-vessel\vessel.db" `
+  --migrations apps/desktop-vessel/api-vessel-bundle/drizzle
+```
+
+This pulls all users for the tenant from shore over HTTP, hashes a shared temporary password with bcrypt at the same cost as api-vessel (12 rounds), and upserts them into the vessel SQLite. Run migrations first if the DB is brand new. Hand the temporary password to the crew physically and have each user change it after first login.
+
+### Verifying
+
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1:<renderer-port>/api/v1/auth/setup-status"
+# { userCount: 0, needsBootstrap: true, bootstrapEnabled: true }  →  show /setup
+# { userCount: N, needsBootstrap: false, bootstrapEnabled: true } →  show /login
+```
+
+The renderer port is logged on Electron stdout: `[desktop] renderer on :<port>`.
+
+---
+
 ## 19. Companion Document
 
 `MARAD-equivalent-build-plan.docx` (same folder) is the stakeholder-facing version. It is informational and not maintained alongside code. **This `CLAUDE.md` (+ companion files) is the source of truth for execution.**

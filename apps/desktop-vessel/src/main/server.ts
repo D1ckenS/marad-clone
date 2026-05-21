@@ -1,4 +1,5 @@
 import http from 'node:http';
+import https from 'node:https';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { AddressInfo } from 'node:net';
@@ -17,37 +18,47 @@ const MIME: Record<string, string> = {
   map: 'application/json',
 };
 
+export interface ApiTarget {
+  protocol: 'http:' | 'https:';
+  hostname: string;
+  port: number;
+  basePath?: string;
+}
+
 /**
  * Binds a local HTTP server on a random port that:
- *   - proxies /api/* requests to the api-vessel child on `apiPort`
+ *   - proxies /api/* requests to the configured API target
  *   - serves built SPA files from `staticDir` with SPA index fallback
  *
  * Returns the bound port so the BrowserWindow can load from it.
  */
-export function createRendererServer(staticDir: string, apiPort: number): Promise<number> {
+export function createRendererServer(staticDir: string, api: ApiTarget): Promise<number> {
+  const httpModule = api.protocol === 'https:' ? https : http;
+
   const server = http.createServer((req, res) => {
     const url = req.url ?? '/';
 
     if (url.startsWith('/api/')) {
+      const proxyPath = (api.basePath ?? '') + url;
       const proxyOpts: http.RequestOptions = {
-        hostname: '127.0.0.1',
-        port: apiPort,
-        path: url,
-        headers: { ...req.headers, host: `127.0.0.1:${apiPort}` },
+        hostname: api.hostname,
+        port: api.port,
+        path: proxyPath,
+        headers: { ...req.headers, host: `${api.hostname}:${api.port}` },
       };
       if (req.method !== undefined) {
         proxyOpts.method = req.method;
       }
 
-      const proxyReq = http.request(proxyOpts, (proxyRes) => {
+      const proxyReq = httpModule.request(proxyOpts, (proxyRes) => {
         res.writeHead(proxyRes.statusCode ?? 502, proxyRes.headers);
         proxyRes.pipe(res, { end: true });
       });
 
-      proxyReq.on('error', () => {
+      proxyReq.on('error', (err) => {
         if (!res.headersSent) {
-          res.writeHead(502);
-          res.end('api-vessel unavailable');
+          res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ error: 'api_unavailable', detail: err.message }));
         }
       });
 
@@ -84,4 +95,23 @@ export function createRendererServer(staticDir: string, apiPort: number): Promis
     });
     server.once('error', reject);
   });
+}
+
+/**
+ * Parses a SHORE_URL like `http://192.168.1.5:3000` or `https://api.foo.com`
+ * into an ApiTarget. Throws on malformed input.
+ */
+export function parseShoreUrl(raw: string): ApiTarget {
+  const u = new URL(raw);
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') {
+    throw new Error(`SHORE_URL must be http(s), got ${u.protocol}`);
+  }
+  const port = u.port ? Number(u.port) : u.protocol === 'https:' ? 443 : 80;
+  const basePath = u.pathname.replace(/\/$/, '');
+  return {
+    protocol: u.protocol,
+    hostname: u.hostname,
+    port,
+    ...(basePath ? { basePath } : {}),
+  };
 }

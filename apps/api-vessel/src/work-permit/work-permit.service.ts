@@ -43,7 +43,7 @@ export class WorkPermitService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         WP_ENTITY,
         id,
         fields,
@@ -52,7 +52,7 @@ export class WorkPermitService {
         .insert(workPermits)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           ...fields,
           createdAt: nowIso,
           updatedAt: nowIso,
@@ -65,7 +65,7 @@ export class WorkPermitService {
   }
 
   findAll(auth: AuthContext, query: { status?: string; vesselId?: string; permitType?: string }) {
-    const filters = [eq(workPermits.tenantId, auth.tenantId), isNull(workPermits.deletedAt)];
+    const filters = [eq(workPermits.tenantId, auth.tenantId!), isNull(workPermits.deletedAt)];
     if (query.vesselId) filters.push(eq(workPermits.vesselId, query.vesselId));
     if (query.status) filters.push(eq(workPermits.status, query.status as never));
     if (query.permitType) filters.push(eq(workPermits.permitType, query.permitType as never));
@@ -84,7 +84,7 @@ export class WorkPermitService {
       .where(
         and(
           eq(workPermits.id, id),
-          eq(workPermits.tenantId, auth.tenantId),
+          eq(workPermits.tenantId, auth.tenantId!),
           isNull(workPermits.deletedAt),
         ),
       )
@@ -109,7 +109,7 @@ export class WorkPermitService {
     return this.drizzle.db.transaction((tx: any) => {
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         WP_ENTITY,
         id,
         fields,
@@ -130,7 +130,7 @@ export class WorkPermitService {
     this.drizzle.db.transaction((tx: any) => {
       this.recorder.recordDelete(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         WP_ENTITY,
         id,
       );
@@ -156,7 +156,7 @@ export class WorkPermitService {
       const fields = { status: to, ...extra };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId: permit.vesselId },
+        { tenantId: auth.tenantId!, vesselId: permit.vesselId },
         WP_ENTITY,
         id,
         fields,
@@ -210,7 +210,7 @@ export class WorkPermitService {
       const fields = { status: 'CANCELLED' };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId: permit.vesselId },
+        { tenantId: auth.tenantId!, vesselId: permit.vesselId },
         WP_ENTITY,
         id,
         fields,
@@ -241,7 +241,7 @@ export class WorkPermitService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId: permit.vesselId },
+        { tenantId: auth.tenantId!, vesselId: permit.vesselId },
         WPA_ENTITY,
         id,
         fields,
@@ -250,7 +250,7 @@ export class WorkPermitService {
         .insert(permitApprovals)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           ...fields,
           createdAt: nowIso,
           updatedAt: nowIso,
@@ -270,7 +270,7 @@ export class WorkPermitService {
       .where(
         and(
           eq(permitApprovals.permitId, permitId),
-          eq(permitApprovals.tenantId, auth.tenantId),
+          eq(permitApprovals.tenantId, auth.tenantId!),
           isNull(permitApprovals.deletedAt),
         ),
       )

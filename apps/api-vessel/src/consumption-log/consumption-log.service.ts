@@ -37,7 +37,7 @@ export class ConsumptionLogService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY,
         id,
         fields,
@@ -46,7 +46,7 @@ export class ConsumptionLogService {
         .insert(consumptionLogs)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           ...fields,
           createdAt: nowIso,
           updatedAt: nowIso,
@@ -63,7 +63,7 @@ export class ConsumptionLogService {
     query: { vesselId?: string; from?: string; to?: string; consumerType?: string },
   ) {
     const filters = [
-      eq(consumptionLogs.tenantId, auth.tenantId),
+      eq(consumptionLogs.tenantId, auth.tenantId!),
       isNull(consumptionLogs.deletedAt),
     ];
     if (query.vesselId) filters.push(eq(consumptionLogs.vesselId, query.vesselId));
@@ -86,7 +86,7 @@ export class ConsumptionLogService {
       .where(
         and(
           eq(consumptionLogs.id, id),
-          eq(consumptionLogs.tenantId, auth.tenantId),
+          eq(consumptionLogs.tenantId, auth.tenantId!),
           isNull(consumptionLogs.deletedAt),
         ),
       )
@@ -104,7 +104,7 @@ export class ConsumptionLogService {
     return this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         ENTITY,
         id,
         fields,
@@ -124,7 +124,7 @@ export class ConsumptionLogService {
     this.drizzle.db.transaction((tx) => {
       this.recorder.recordDelete(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         ENTITY,
         id,
       );

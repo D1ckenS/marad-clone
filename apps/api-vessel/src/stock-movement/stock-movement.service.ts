@@ -40,7 +40,7 @@ export class StockMovementService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -49,7 +49,7 @@ export class StockMovementService {
         .insert(stockMovements)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           partId: dto.partId,
           locationId: dto.locationId,
@@ -74,7 +74,7 @@ export class StockMovementService {
       .from(stockMovements)
       .where(
         and(
-          eq(stockMovements.tenantId, auth.tenantId),
+          eq(stockMovements.tenantId, auth.tenantId!),
           eq(stockMovements.vesselId, vesselId),
           isNull(stockMovements.deletedAt),
           ...(partId ? [eq(stockMovements.partId, partId)] : []),
@@ -96,7 +96,7 @@ export class StockMovementService {
       .from(stockMovements)
       .where(
         and(
-          eq(stockMovements.tenantId, auth.tenantId),
+          eq(stockMovements.tenantId, auth.tenantId!),
           eq(stockMovements.vesselId, vesselId),
           isNull(stockMovements.deletedAt),
         ),

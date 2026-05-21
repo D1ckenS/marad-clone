@@ -77,6 +77,7 @@ export function EditSupplierModal({ supplier, onClose, onSaved }: Props) {
       open
       title={t('common.edit')}
       onClose={onClose}
+      onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={saving}>

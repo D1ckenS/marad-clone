@@ -43,7 +43,7 @@ export class ChecklistInstanceService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY,
         id,
         fields,
@@ -52,7 +52,7 @@ export class ChecklistInstanceService {
         .insert(checklistInstances)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           ...fields,
           createdAt: nowIso,
           updatedAt: nowIso,
@@ -66,7 +66,7 @@ export class ChecklistInstanceService {
 
   findAll(auth: AuthContext, query: { vesselId?: string; status?: string }) {
     const filters = [
-      eq(checklistInstances.tenantId, auth.tenantId),
+      eq(checklistInstances.tenantId, auth.tenantId!),
       isNull(checklistInstances.deletedAt),
     ];
     if (query.vesselId) filters.push(eq(checklistInstances.vesselId, query.vesselId));
@@ -86,7 +86,7 @@ export class ChecklistInstanceService {
       .where(
         and(
           eq(checklistInstances.id, id),
-          eq(checklistInstances.tenantId, auth.tenantId),
+          eq(checklistInstances.tenantId, auth.tenantId!),
           isNull(checklistInstances.deletedAt),
         ),
       )
@@ -104,7 +104,7 @@ export class ChecklistInstanceService {
     return this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         ENTITY,
         id,
         fields,
@@ -124,7 +124,7 @@ export class ChecklistInstanceService {
     this.drizzle.db.transaction((tx) => {
       this.recorder.recordDelete(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         ENTITY,
         id,
       );
@@ -155,7 +155,7 @@ export class ChecklistInstanceService {
     return this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId: instance.vesselId },
+        { tenantId: auth.tenantId!, vesselId: instance.vesselId },
         ENTITY,
         id,
         { responsesJson: updatedJson },
@@ -177,7 +177,7 @@ export class ChecklistInstanceService {
     return this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId: instance.vesselId },
+        { tenantId: auth.tenantId!, vesselId: instance.vesselId },
         ENTITY,
         id,
         { status: 'COMPLETED', completedAt: nowIso },

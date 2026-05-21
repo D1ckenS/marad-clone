@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AppShell } from '@fleetops/ui-kit';
@@ -5,7 +6,9 @@ import { useAuth } from './context/useAuth.js';
 import { LanguageSwitcher } from './components/LanguageSwitcher.js';
 import { VesselProvider } from './context/VesselContext.js';
 import { useVessel } from './context/useVessel.js';
+import { api } from './api/client.js';
 import { LoginPage } from './pages/LoginPage.js';
+import { SetupVesselPage } from './pages/SetupVesselPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { ComponentsPage } from './pages/ComponentsPage.js';
 import { InventoryPage } from './pages/InventoryPage.js';
@@ -281,11 +284,74 @@ function ProtectedLayout() {
   );
 }
 
+/**
+ * Probes the backend's `/auth/setup-status` endpoint once on app boot. If the
+ * vessel SQLite is empty (`needsBootstrap`), we route the user to /setup; the
+ * normal LoginPage is unreachable in that state because there are no users to
+ * authenticate against.
+ *
+ * Shore deployments never satisfy `needsBootstrap` (there's always at least
+ * the super-admin), so this is a no-op for shore. It only kicks in on a fresh
+ * vessel install.
+ */
+function useSetupStatus() {
+  const [needsBootstrap, setNeedsBootstrap] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get<{ needsBootstrap?: boolean }>('/auth/setup-status')
+      .then((s) => {
+        if (!cancelled) setNeedsBootstrap(Boolean(s.needsBootstrap));
+      })
+      .catch(() => {
+        // Endpoint missing (shore API) or unreachable → assume normal login flow.
+        if (!cancelled) setNeedsBootstrap(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return needsBootstrap;
+}
+
 export function App() {
   const { user } = useAuth();
+  const needsBootstrap = useSetupStatus();
+
+  if (needsBootstrap === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-slate-400 text-sm">
+        Loading…
+      </div>
+    );
+  }
+
   return (
     <Routes>
-      <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+      <Route
+        path="/setup"
+        element={
+          user ? (
+            <Navigate to="/dashboard" replace />
+          ) : needsBootstrap ? (
+            <SetupVesselPage />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route
+        path="/login"
+        element={
+          user ? (
+            <Navigate to="/dashboard" replace />
+          ) : needsBootstrap ? (
+            <Navigate to="/setup" replace />
+          ) : (
+            <LoginPage />
+          )
+        }
+      />
       {/* OIDC callback — public route, no auth required */}
       <Route path="/auth/callback" element={<OidcCallbackPage />} />
       <Route path="/*" element={<ProtectedLayout />} />

@@ -67,6 +67,7 @@ export function EditComponentModal({ open, component, onClose, onSaved }: Props)
       open={open}
       title={t('common.edit')}
       onClose={handleClose}
+      onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>

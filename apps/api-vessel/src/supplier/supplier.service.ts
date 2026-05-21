@@ -16,7 +16,7 @@ export class SupplierService {
       .insert(suppliers)
       .values({
         id: newId(),
-        tenantId: auth.tenantId,
+        tenantId: auth.tenantId!,
         name: dto.name,
         contactName: dto.contactName ?? null,
         contactEmail: dto.contactEmail ?? null,
@@ -35,7 +35,7 @@ export class SupplierService {
     return this.drizzle.db
       .select()
       .from(suppliers)
-      .where(and(eq(suppliers.tenantId, auth.tenantId), isNull(suppliers.deletedAt)))
+      .where(and(eq(suppliers.tenantId, auth.tenantId!), isNull(suppliers.deletedAt)))
       .orderBy(suppliers.name)
       .all();
   }
@@ -47,7 +47,7 @@ export class SupplierService {
       .where(
         and(
           eq(suppliers.id, id),
-          eq(suppliers.tenantId, auth.tenantId),
+          eq(suppliers.tenantId, auth.tenantId!),
           isNull(suppliers.deletedAt),
         ),
       )

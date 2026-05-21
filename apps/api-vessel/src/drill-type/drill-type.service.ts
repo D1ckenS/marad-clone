@@ -17,7 +17,7 @@ export class DrillTypeService {
       .insert(drillTypes)
       .values({
         id,
-        tenantId: auth.tenantId,
+        tenantId: auth.tenantId!,
         name: dto.name,
         description: dto.description ?? null,
         createdAt: nowIso,
@@ -32,7 +32,7 @@ export class DrillTypeService {
     return this.drizzle.db
       .select()
       .from(drillTypes)
-      .where(and(eq(drillTypes.tenantId, auth.tenantId), isNull(drillTypes.deletedAt)))
+      .where(and(eq(drillTypes.tenantId, auth.tenantId!), isNull(drillTypes.deletedAt)))
       .all();
   }
 
@@ -43,7 +43,7 @@ export class DrillTypeService {
       .where(
         and(
           eq(drillTypes.id, id),
-          eq(drillTypes.tenantId, auth.tenantId),
+          eq(drillTypes.tenantId, auth.tenantId!),
           isNull(drillTypes.deletedAt),
         ),
       )

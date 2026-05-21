@@ -4,6 +4,119 @@ import { useSearchParams } from 'react-router-dom';
 import { Badge, type BadgeColor, Spinner } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
+const fmtPermitDate = (s: string | null | undefined): string => {
+  if (!s) return '—';
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return s;
+  return d.toLocaleString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+// API row shape (subset) — different field names than the UI's WorkPermit interface
+interface RawWorkPermit {
+  id: string;
+  permitType?: string;
+  status?: string;
+  title?: string | null;
+  location?: string | null;
+  validFrom?: string | null;
+  validUntil?: string | null;
+  hazardsJson?: string[] | null;
+}
+
+const PERMIT_KIND_MAP: Record<string, PermitKind> = {
+  HOT_WORK: 'hot',
+  ENCLOSED_SPACE: 'enc',
+  ALOFT: 'aloft',
+  OVERSIDE: 'overside',
+  ELECTRICAL: 'elec',
+  COLD_WORK: 'cold',
+  BUNKER: 'bunker',
+  LIFTING: 'crane',
+};
+
+const PERMIT_STATUS_MAP: Record<string, PermitStatus> = {
+  REQUESTED: 'awaiting',
+  APPROVED: 'awaiting',
+  ACTIVE: 'active',
+  CLOSED: 'closed',
+  CANCELLED: 'closed',
+};
+
+interface RawFinding {
+  id: string;
+  kind?: string;
+  status?: string;
+  title?: string;
+  description?: string | null;
+  raisedAt?: string;
+  raisedByUserId?: string | null;
+  severity?: string | null;
+  capas?: { id: string; status?: string }[];
+}
+
+const FINDING_KIND_MAP: Record<string, FindingKind> = {
+  OBSERVATION: 'observation',
+  NEAR_MISS: 'near-miss',
+  NON_CONFORMITY: 'NC',
+  HAZARD: 'hazard',
+};
+
+const FINDING_STATUS_MAP: Record<string, CapaStage> = {
+  OPEN: 'investigation',
+  UNDER_REVIEW: 'action',
+  CLOSED: 'closed',
+};
+
+function normalizeFinding(raw: RawFinding): SafetyFinding {
+  const kind = FINDING_KIND_MAP[raw.kind ?? ''] ?? 'observation';
+  const status = FINDING_STATUS_MAP[raw.status ?? ''] ?? 'investigation';
+  const sev: 'High' | 'Med' | 'Low' =
+    raw.severity === 'High' ? 'High' : raw.severity === 'Low' ? 'Low' : 'Med';
+  const capaRef = raw.capas && raw.capas.length > 0 ? `CAPA-${raw.capas[0]!.id.slice(-4)}` : null;
+  return {
+    id: raw.id,
+    kind,
+    severity: sev,
+    title: raw.title ?? '—',
+    where: '—',
+    raisedBy: raw.raisedByUserId ?? '—',
+    raisedAt: raw.raisedAt ?? '',
+    detail: raw.description ?? '',
+    capaRef,
+    status,
+  };
+}
+
+function normalizePermit(raw: RawWorkPermit): WorkPermit {
+  const kind = PERMIT_KIND_MAP[raw.permitType ?? ''] ?? 'hot';
+  const status = PERMIT_STATUS_MAP[raw.status ?? ''] ?? 'awaiting';
+  return {
+    id: raw.id,
+    kind,
+    status,
+    title: raw.title ?? '—',
+    location: raw.location ?? '—',
+    supervisor: '—',
+    supervisorRank: '',
+    issuedBy: '',
+    validFrom: raw.validFrom ?? '',
+    validTo: raw.validUntil ?? '',
+    countdown: '',
+    hazards: Array.isArray(raw.hazardsJson) ? raw.hazardsJson : [],
+    ppe: [],
+    isolations: [],
+    standby: '',
+    gasChecks: null,
+    coSigners: [],
+  };
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type PermitKind = 'hot' | 'enc' | 'aloft' | 'overside' | 'elec' | 'cold' | 'bunker' | 'crane';
@@ -307,8 +420,8 @@ function PermitsTab({ permits, loading }: { permits: WorkPermit[]; loading: bool
             }}
           >
             {[
-              [t('safety.valid_from'), sel.validFrom],
-              [t('safety.valid_to'), sel.validTo],
+              [t('safety.valid_from'), fmtPermitDate(sel.validFrom)],
+              [t('safety.valid_to'), fmtPermitDate(sel.validTo)],
               [
                 sel.status === 'active' ? t('safety.time_remaining') : t('common.status'),
                 sel.countdown,
@@ -586,7 +699,7 @@ function FindingsTab({ findings, loading }: { findings: SafetyFinding[]; loading
         {[
           { label: t('safety.open_findings'), value: open, sub: t('safety.last_30_days') },
           {
-            label: t('safety.ncs_raised'),
+            label: t('safety.near_miss'),
             value: nearMisses,
             sub: 'LTI rate 0.00',
             accent: nearMisses > 0 ? 'var(--sig-amber)' : undefined,
@@ -692,7 +805,7 @@ function FindingsTab({ findings, loading }: { findings: SafetyFinding[]; loading
                   {f.id}
                 </span>
                 <span className="font-mono text-[11px]" style={{ color: 'var(--ink-3)' }}>
-                  {f.raisedAt.split(' ').slice(0, 2).join(' ')}
+                  {fmtPermitDate(f.raisedAt).split(',')[0]}
                 </span>
                 <Badge color={findingMeta[f.kind]?.color ?? 'slate'}>
                   {findingMeta[f.kind] ? t(findingMeta[f.kind]!.labelKey) : f.kind}
@@ -1424,13 +1537,13 @@ export function SafetyPage() {
 
   const fetchAll = useCallback(() => {
     api
-      .get<WorkPermit[]>('/work-permits')
-      .then(setPermits)
+      .get<RawWorkPermit[]>('/work-permits')
+      .then((raw) => setPermits(raw.map(normalizePermit)))
       .catch(() => setPermits([]))
       .finally(() => setLoadP(false));
     api
-      .get<SafetyFinding[]>('/findings')
-      .then(setFindings)
+      .get<RawFinding[]>('/findings')
+      .then((raw) => setFindings(raw.map(normalizeFinding)))
       .catch(() => setFindings([]))
       .finally(() => setLoadF(false));
     api

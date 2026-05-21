@@ -92,6 +92,7 @@ export function CreateJobInstanceModal({ open, jobId, componentId, onClose, onCr
       open={open}
       title="Schedule Job Instance"
       onClose={handleClose}
+      onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>

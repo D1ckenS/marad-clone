@@ -27,7 +27,7 @@ export class StockLevelService {
         .from(stockLevels)
         .where(
           and(
-            eq(stockLevels.tenantId, auth.tenantId),
+            eq(stockLevels.tenantId, auth.tenantId!),
             eq(stockLevels.vesselId, vesselId),
             eq(stockLevels.partId, dto.partId),
             eq(stockLevels.locationId, dto.locationId),
@@ -47,7 +47,7 @@ export class StockLevelService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -56,7 +56,7 @@ export class StockLevelService {
         .insert(stockLevels)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           partId: dto.partId,
           locationId: dto.locationId,
@@ -92,7 +92,7 @@ export class StockLevelService {
       .innerJoin(stockLocations, eq(stockLevels.locationId, stockLocations.id))
       .where(
         and(
-          eq(stockLevels.tenantId, auth.tenantId),
+          eq(stockLevels.tenantId, auth.tenantId!),
           eq(stockLevels.vesselId, vesselId),
           isNull(stockLevels.deletedAt),
         ),
@@ -108,7 +108,7 @@ export class StockLevelService {
       .where(
         and(
           eq(stockLevels.id, id),
-          eq(stockLevels.tenantId, auth.tenantId),
+          eq(stockLevels.tenantId, auth.tenantId!),
           eq(stockLevels.vesselId, vesselId),
           isNull(stockLevels.deletedAt),
         ),
@@ -120,15 +120,33 @@ export class StockLevelService {
 
   update(auth: AuthContext, id: string, dto: UpdateStockLevelDto) {
     const vesselId = requireVesselId(auth);
-    this.findOne(auth, id);
+    const existing = this.findOne(auth, id);
     const fields: Record<string, unknown> = {};
     if (dto.minStock !== undefined) fields['minStock'] = dto.minStock;
     if (dto.maxStock !== undefined) fields['maxStock'] = dto.maxStock;
     if (dto.reorderPoint !== undefined) fields['reorderPoint'] = dto.reorderPoint;
+    if (dto.locationId !== undefined) fields['locationId'] = dto.locationId;
     return this.drizzle.db.transaction((tx) => {
+      if (dto.locationId !== undefined && dto.locationId !== existing.locationId) {
+        const conflict = tx
+          .select()
+          .from(stockLevels)
+          .where(
+            and(
+              eq(stockLevels.tenantId, auth.tenantId!),
+              eq(stockLevels.vesselId, vesselId),
+              eq(stockLevels.partId, existing.partId),
+              eq(stockLevels.locationId, dto.locationId),
+              isNull(stockLevels.deletedAt),
+            ),
+          )
+          .get();
+        if (conflict && conflict.id !== id)
+          throw new ConflictException('StockLevel for this part+location already exists');
+      }
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -136,6 +154,7 @@ export class StockLevelService {
       const [row] = tx
         .update(stockLevels)
         .set({
+          ...(dto.locationId !== undefined && { locationId: dto.locationId }),
           ...(dto.minStock !== undefined && { minStock: dto.minStock }),
           ...(dto.maxStock !== undefined && { maxStock: dto.maxStock }),
           ...(dto.reorderPoint !== undefined && { reorderPoint: dto.reorderPoint }),
@@ -155,7 +174,7 @@ export class StockLevelService {
     this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordDelete(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
       );

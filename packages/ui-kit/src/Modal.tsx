@@ -8,11 +8,21 @@ interface ModalProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   size?: 'sm' | 'md' | 'lg';
+  /** Called when the user presses Enter in a text input inside the modal. */
+  onSubmit?: () => void;
 }
 
 const maxWidths = { sm: 440, md: 560, lg: 780 };
 
-export function Modal({ open, title, onClose, children, footer, size = 'md' }: ModalProps) {
+export function Modal({
+  open,
+  title,
+  onClose,
+  children,
+  footer,
+  size = 'md',
+  onSubmit,
+}: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -40,6 +50,15 @@ export function Modal({ open, title, onClose, children, footer, size = 'md' }: M
       onCancel={(e) => {
         e.preventDefault();
         onClose();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && onSubmit) {
+          const tag = (e.target as HTMLElement).tagName;
+          if (tag !== 'TEXTAREA' && tag !== 'SELECT' && tag !== 'BUTTON') {
+            e.preventDefault();
+            onSubmit();
+          }
+        }
       }}
       style={{
         width: '100%',

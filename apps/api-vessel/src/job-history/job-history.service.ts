@@ -80,7 +80,7 @@ export class JobHistoryService {
   findAll(auth: AuthContext, jobInstanceId?: string) {
     const vesselId = requireVesselId(auth);
     const conds = [
-      eq(jobHistories.tenantId, auth.tenantId),
+      eq(jobHistories.tenantId, auth.tenantId!),
       eq(jobHistories.vesselId, vesselId),
       isNull(jobHistories.deletedAt),
     ];
@@ -102,7 +102,7 @@ export class JobHistoryService {
       .where(
         and(
           eq(jobHistories.id, id),
-          eq(jobHistories.tenantId, auth.tenantId),
+          eq(jobHistories.tenantId, auth.tenantId!),
           eq(jobHistories.vesselId, vesselId),
           isNull(jobHistories.deletedAt),
         ),
@@ -141,7 +141,7 @@ export class JobHistoryService {
       .where(
         and(
           eq(jobInstances.id, jobInstanceId),
-          eq(jobInstances.tenantId, auth.tenantId),
+          eq(jobInstances.tenantId, auth.tenantId!),
           eq(jobInstances.vesselId, vesselId),
           isNull(jobInstances.deletedAt),
         ),
@@ -168,7 +168,7 @@ export class JobHistoryService {
     for (let i = 0; i < photos.length; i++) {
       const file = photos[i]!;
       const key = await this.storage.putJobHistoryPhoto(
-        { tenantId: auth.tenantId, vesselId, jobHistoryId: historyId },
+        { tenantId: auth.tenantId!, vesselId, jobHistoryId: historyId },
         i,
         file,
       );
@@ -193,7 +193,7 @@ export class JobHistoryService {
       };
       const { hlc: historyHlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         HISTORY_ENTITY,
         historyId,
         historyFields,
@@ -202,7 +202,7 @@ export class JobHistoryService {
         .insert(jobHistories)
         .values({
           id: historyId,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           jobInstanceId,
           jobId: instance.jobId,
@@ -221,7 +221,7 @@ export class JobHistoryService {
 
       const { hlc: instanceHlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         INSTANCE_ENTITY,
         jobInstanceId,
         { status: 'DONE' },
@@ -232,7 +232,7 @@ export class JobHistoryService {
         .run();
 
       this.log.log(
-        `signoff history=${historyId} instance=${jobInstanceId} tenant=${auth.tenantId} vessel=${vesselId} photos=${photoKeys.length}`,
+        `signoff history=${historyId} instance=${jobInstanceId} tenant=${auth.tenantId!} vessel=${vesselId} photos=${photoKeys.length}`,
       );
 
       // P1-10: consume parts → StockMovements → reorder check → draft Requisition
@@ -243,7 +243,7 @@ export class JobHistoryService {
           const negQty = String(-parseFloat(item.quantity));
           const { hlc: movHlc } = this.recorder.recordUpsert(
             tx,
-            { tenantId: auth.tenantId, vesselId },
+            { tenantId: auth.tenantId!, vesselId },
             'StockMovement',
             movId,
             {
@@ -260,7 +260,7 @@ export class JobHistoryService {
           tx.insert(stockMovements)
             .values({
               id: movId,
-              tenantId: auth.tenantId,
+              tenantId: auth.tenantId!,
               vesselId,
               partId: item.partId,
               locationId: item.locationId,
@@ -289,7 +289,7 @@ export class JobHistoryService {
             .from(stockMovements)
             .where(
               and(
-                eq(stockMovements.tenantId, auth.tenantId),
+                eq(stockMovements.tenantId, auth.tenantId!),
                 eq(stockMovements.vesselId, vesselId),
                 eq(stockMovements.partId, item.partId),
                 eq(stockMovements.locationId, item.locationId),
@@ -304,7 +304,7 @@ export class JobHistoryService {
             .from(stockLevels)
             .where(
               and(
-                eq(stockLevels.tenantId, auth.tenantId),
+                eq(stockLevels.tenantId, auth.tenantId!),
                 eq(stockLevels.vesselId, vesselId),
                 eq(stockLevels.partId, item.partId),
                 eq(stockLevels.locationId, item.locationId),
@@ -331,7 +331,7 @@ export class JobHistoryService {
           const reqTitle = `Restock — job sign-off ${jobInstanceId}`;
           const { hlc: reqHlc } = this.recorder.recordUpsert(
             tx,
-            { tenantId: auth.tenantId, vesselId },
+            { tenantId: auth.tenantId!, vesselId },
             'Requisition',
             reqId,
             { vesselId, title: reqTitle, status: 'DRAFT', requestedAt: completedAtIso },
@@ -339,7 +339,7 @@ export class JobHistoryService {
           tx.insert(requisitions)
             .values({
               id: reqId,
-              tenantId: auth.tenantId,
+              tenantId: auth.tenantId!,
               vesselId,
               title: reqTitle,
               status: 'DRAFT',
@@ -355,13 +355,13 @@ export class JobHistoryService {
             const partRow = tx
               .select({ name: parts.name, unit: parts.unit })
               .from(parts)
-              .where(and(eq(parts.id, trigger.partId), eq(parts.tenantId, auth.tenantId)))
+              .where(and(eq(parts.id, trigger.partId), eq(parts.tenantId, auth.tenantId!)))
               .get();
             const lineId = newId();
             const description = partRow?.name ?? trigger.partId;
             const { hlc: lineHlc } = this.recorder.recordUpsert(
               tx,
-              { tenantId: auth.tenantId, vesselId },
+              { tenantId: auth.tenantId!, vesselId },
               'RequisitionLine',
               lineId,
               {
@@ -375,7 +375,7 @@ export class JobHistoryService {
             tx.insert(requisitionLines)
               .values({
                 id: lineId,
-                tenantId: auth.tenantId,
+                tenantId: auth.tenantId!,
                 vesselId,
                 requisitionId: reqId,
                 partId: trigger.partId,

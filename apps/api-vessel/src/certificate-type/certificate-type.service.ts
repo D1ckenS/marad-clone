@@ -17,7 +17,7 @@ export class CertificateTypeService {
       .insert(certificateTypes)
       .values({
         id: newId(),
-        tenantId: auth.tenantId,
+        tenantId: auth.tenantId!,
         name: dto.name,
         description: dto.description ?? null,
         alertDaysJson: dto.alertDays
@@ -35,7 +35,7 @@ export class CertificateTypeService {
     return this.drizzle.db
       .select()
       .from(certificateTypes)
-      .where(and(eq(certificateTypes.tenantId, auth.tenantId), isNull(certificateTypes.deletedAt)))
+      .where(and(eq(certificateTypes.tenantId, auth.tenantId!), isNull(certificateTypes.deletedAt)))
       .orderBy(certificateTypes.name)
       .all();
   }
@@ -47,7 +47,7 @@ export class CertificateTypeService {
       .where(
         and(
           eq(certificateTypes.id, id),
-          eq(certificateTypes.tenantId, auth.tenantId),
+          eq(certificateTypes.tenantId, auth.tenantId!),
           isNull(certificateTypes.deletedAt),
         ),
       )

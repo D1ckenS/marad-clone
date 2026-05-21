@@ -34,7 +34,7 @@ export class RunningHourReadingService {
         .where(
           and(
             eq(components.id, dto.componentId),
-            eq(components.tenantId, auth.tenantId),
+            eq(components.tenantId, auth.tenantId!),
             eq(components.vesselId, vesselId),
             isNull(components.deletedAt),
           ),
@@ -62,7 +62,7 @@ export class RunningHourReadingService {
       };
       const { hlc: readingHlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         readingFields,
@@ -71,7 +71,7 @@ export class RunningHourReadingService {
         .insert(runningHourReadings)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           componentId: dto.componentId,
           value: dto.value,
@@ -86,7 +86,7 @@ export class RunningHourReadingService {
       // Bump the Component's runningHours counter.
       const { hlc: compHlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         COMPONENT_ENTITY,
         component.id,
         { runningHours: dto.value },
@@ -104,7 +104,7 @@ export class RunningHourReadingService {
         .where(
           and(
             eq(jobs.componentId, component.id),
-            eq(jobs.tenantId, auth.tenantId),
+            eq(jobs.tenantId, auth.tenantId!),
             eq(jobs.vesselId, vesselId),
             isNull(jobs.deletedAt),
             isNotNull(jobs.intervalRunningHours),
@@ -131,7 +131,7 @@ export class RunningHourReadingService {
             .where(
               and(
                 eq(jobInstances.jobId, job.id),
-                eq(jobInstances.tenantId, auth.tenantId),
+                eq(jobInstances.tenantId, auth.tenantId!),
                 eq(jobInstances.dueAtRunningHours, thresholdStr),
                 isNull(jobInstances.deletedAt),
               ),
@@ -142,7 +142,7 @@ export class RunningHourReadingService {
           const iid = newId();
           const { hlc: ihlc } = this.recorder.recordUpsert(
             tx,
-            { tenantId: auth.tenantId, vesselId },
+            { tenantId: auth.tenantId!, vesselId },
             'JobInstance',
             iid,
             {
@@ -156,7 +156,7 @@ export class RunningHourReadingService {
           tx.insert(jobInstances)
             .values({
               id: iid,
-              tenantId: auth.tenantId,
+              tenantId: auth.tenantId!,
               vesselId,
               jobId: job.id,
               componentId: component.id,
@@ -175,7 +175,7 @@ export class RunningHourReadingService {
   findAll(auth: AuthContext, componentId?: string) {
     const vesselId = requireVesselId(auth);
     const conds = [
-      eq(runningHourReadings.tenantId, auth.tenantId),
+      eq(runningHourReadings.tenantId, auth.tenantId!),
       eq(runningHourReadings.vesselId, vesselId),
       isNull(runningHourReadings.deletedAt),
     ];

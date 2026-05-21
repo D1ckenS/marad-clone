@@ -29,7 +29,9 @@ export function VesselProvider({ children }: { children: ReactNode }) {
   const [selectedVesselId, setSelectedVesselIdState] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
 
-  const isVesselLocked = Boolean(user?.vesselId);
+  // Allow switching vessels even when the JWT binds the user to a specific vessel —
+  // the JWT vesselId only drives the initial auto-selection, not permanent lock-in.
+  const isVesselLocked = false;
 
   const load = useCallback(() => {
     if (!user) return;

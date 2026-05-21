@@ -6,7 +6,7 @@ import type { AuthContext } from './auth-context';
 
 type ShoreClaims = {
   sub: string;
-  tenantId: string;
+  tenantId: string | null;
   vesselId?: string;
   email: string;
   role: string;
@@ -15,7 +15,7 @@ type ShoreClaims = {
 
 type VesselLocalClaims = {
   sub: string;
-  tenantId: string;
+  tenantId: string | null;
   vesselId?: string;
   email: string;
   role: string;
@@ -66,7 +66,7 @@ export class JwtAuthGuard implements CanActivate {
         throw new UnauthorizedException('Token is not an access token');
       }
       req.authCtx = {
-        tenantId: payload.tenantId,
+        tenantId: payload.tenantId ?? null,
         vesselId: payload.vesselId ?? null,
         userId: payload.sub,
         role: payload.role,
@@ -89,7 +89,7 @@ export class JwtAuthGuard implements CanActivate {
         throw new UnauthorizedException('Token is not a vessel-local access token');
       }
       req.authCtx = {
-        tenantId: payload.tenantId,
+        tenantId: payload.tenantId ?? null,
         vesselId: payload.vesselId ?? null,
         userId: payload.sub,
         role: payload.role,

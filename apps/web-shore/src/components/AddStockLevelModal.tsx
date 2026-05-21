@@ -88,6 +88,7 @@ export function AddStockLevelModal({ open, partId, partName, onClose, onSaved }:
       open={open}
       title={`Stock Config — ${partName}`}
       onClose={handleClose}
+      onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>

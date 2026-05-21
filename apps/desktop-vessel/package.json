@@ -7,11 +7,13 @@
   "scripts": {
     "dev": "tsc -p tsconfig.build.json && electron .",
     "build": "tsc -p tsconfig.build.json",
-    "dist": "pnpm run build && electron-builder",
+    "prepare-bundle": "node scripts/prepare-bundle.mjs",
+    "dist": "pnpm run build && pnpm run prepare-bundle && electron-builder",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src"
   },
   "devDependencies": {
+    "@electron/rebuild": "3.7.1",
     "electron": "30.5.1",
     "electron-builder": "24.13.3"
   }

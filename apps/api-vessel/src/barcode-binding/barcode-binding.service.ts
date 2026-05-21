@@ -16,7 +16,7 @@ export class BarcodeBindingService {
       .from(barcodeBindings)
       .where(
         and(
-          eq(barcodeBindings.tenantId, auth.tenantId),
+          eq(barcodeBindings.tenantId, auth.tenantId!),
           isNull(barcodeBindings.deletedAt),
           ...(partId ? [eq(barcodeBindings.partId, partId)] : []),
         ),
@@ -31,7 +31,7 @@ export class BarcodeBindingService {
       .from(barcodeBindings)
       .where(
         and(
-          eq(barcodeBindings.tenantId, auth.tenantId),
+          eq(barcodeBindings.tenantId, auth.tenantId!),
           eq(barcodeBindings.barcode, dto.barcode),
           isNull(barcodeBindings.deletedAt),
         ),
@@ -41,7 +41,7 @@ export class BarcodeBindingService {
 
     const [row] = this.drizzle.db
       .insert(barcodeBindings)
-      .values({ id: newId(), tenantId: auth.tenantId, partId: dto.partId, barcode: dto.barcode })
+      .values({ id: newId(), tenantId: auth.tenantId!, partId: dto.partId, barcode: dto.barcode })
       .returning()
       .all();
     return row;
@@ -61,7 +61,7 @@ export class BarcodeBindingService {
       .innerJoin(parts, eq(barcodeBindings.partId, parts.id))
       .where(
         and(
-          eq(barcodeBindings.tenantId, auth.tenantId),
+          eq(barcodeBindings.tenantId, auth.tenantId!),
           eq(barcodeBindings.barcode, barcode),
           isNull(barcodeBindings.deletedAt),
         ),
@@ -78,7 +78,7 @@ export class BarcodeBindingService {
       .where(
         and(
           eq(barcodeBindings.id, id),
-          eq(barcodeBindings.tenantId, auth.tenantId),
+          eq(barcodeBindings.tenantId, auth.tenantId!),
           isNull(barcodeBindings.deletedAt),
         ),
       )
