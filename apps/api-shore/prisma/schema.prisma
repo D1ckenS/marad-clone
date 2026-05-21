@@ -244,6 +244,7 @@ model Vessel {
   budgets                  Budget[]
   ocimfInspections         OcimfInspection[]
   classSocietySubmissions  ClassSocietySubmission[]
+  parts                    Part[]
 
   @@map("vessels")
 }
@@ -486,10 +487,11 @@ model PartCategory {
   @@map("part_categories")
 }
 
-// Part — spare-part catalog entry (fleet-wide, tenant-scoped; not vessel-scoped).
+// Part — vessel-scoped spare-part entry. Each vessel maintains its own parts list.
 model Part {
   id          String    @id
   tenantId    String    @map("tenant_id")
+  vesselId    String?   @map("vessel_id")
   categoryId  String?   @map("category_id")
   name        String
   description String?
@@ -501,6 +503,7 @@ model Part {
   deletedAt   DateTime? @map("deleted_at")
 
   tenant             Tenant             @relation(fields: [tenantId], references: [id])
+  vessel             Vessel?            @relation(fields: [vesselId], references: [id])
   category           PartCategory?      @relation(fields: [categoryId], references: [id])
   stockLevels        StockLevel[]
   stockMovements     StockMovement[]
@@ -511,6 +514,7 @@ model Part {
   goodsReceiptLines  GoodsReceiptLine[]
 
   @@index([tenantId])
+  @@index([tenantId, vesselId])
   @@index([tenantId, partNumber])
   @@map("parts")
 }

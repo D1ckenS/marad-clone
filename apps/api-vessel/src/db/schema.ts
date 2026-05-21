@@ -291,6 +291,7 @@ export const parts = sqliteTable(
     tenantId: text('tenant_id')
       .notNull()
       .references(() => tenants.id),
+    vesselId: text('vessel_id').references(() => vessels.id),
     categoryId: text('category_id').references(() => partCategories.id),
     name: text('name').notNull(),
     description: text('description'),
@@ -303,6 +304,7 @@ export const parts = sqliteTable(
   },
   (t) => [
     index('parts_tenant_idx').on(t.tenantId),
+    index('parts_tenant_vessel_idx').on(t.tenantId, t.vesselId),
     index('parts_tenant_part_number_idx').on(t.tenantId, t.partNumber),
   ],
 );

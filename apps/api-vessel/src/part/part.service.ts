@@ -22,11 +22,13 @@ export class PartService {
   constructor(private readonly drizzle: DrizzleService) {}
 
   create(auth: AuthContext, dto: CreatePartDto) {
+    const vesselId = requireVesselId(auth);
     const [row] = this.drizzle.db
       .insert(parts)
       .values({
         id: newId(),
         tenantId: auth.tenantId!,
+        vesselId,
         name: dto.name,
         description: dto.description ?? null,
         partNumber: dto.partNumber ?? null,
@@ -39,19 +41,34 @@ export class PartService {
   }
 
   findAll(auth: AuthContext) {
+    const vesselId = requireVesselId(auth);
     return this.drizzle.db
       .select()
       .from(parts)
-      .where(and(eq(parts.tenantId, auth.tenantId!), isNull(parts.deletedAt)))
+      .where(
+        and(
+          eq(parts.tenantId, auth.tenantId!),
+          eq(parts.vesselId, vesselId),
+          isNull(parts.deletedAt),
+        ),
+      )
       .orderBy(parts.name)
       .all();
   }
 
   findOne(auth: AuthContext, id: string) {
+    const vesselId = requireVesselId(auth);
     const row = this.drizzle.db
       .select()
       .from(parts)
-      .where(and(eq(parts.id, id), eq(parts.tenantId, auth.tenantId!), isNull(parts.deletedAt)))
+      .where(
+        and(
+          eq(parts.id, id),
+          eq(parts.tenantId, auth.tenantId!),
+          eq(parts.vesselId, vesselId),
+          isNull(parts.deletedAt),
+        ),
+      )
       .get();
     if (row === undefined) throw new NotFoundException(`Part ${id} not found`);
     return row;
@@ -89,7 +106,13 @@ export class PartService {
     const allParts = this.drizzle.db
       .select()
       .from(parts)
-      .where(and(eq(parts.tenantId, auth.tenantId!), isNull(parts.deletedAt)))
+      .where(
+        and(
+          eq(parts.tenantId, auth.tenantId!),
+          eq(parts.vesselId, vesselId),
+          isNull(parts.deletedAt),
+        ),
+      )
       .orderBy(parts.name)
       .all();
 
@@ -133,28 +156,26 @@ export class PartService {
 
     const robMap = new Map(robRows.map((r) => [`${r.partId}:${r.locationId}`, r.rob ?? '0']));
 
-    return allParts
-      .map((p) => {
-        const partLevels = levels.filter((l) => l.partId === p.id);
-        return {
-          ...p,
-          stockLevels: partLevels.map((l) => {
-            const rob = parseFloat(robMap.get(`${p.id}:${l.locationId}`) ?? '0');
-            const minStock = parseFloat(l.minStock ?? '0');
-            const reorderPoint = l.reorderPoint ? parseFloat(l.reorderPoint) : null;
-            return {
-              id: l.id,
-              locationId: l.locationId,
-              locationName: l.locationName,
-              minStock: l.minStock ?? '0',
-              maxStock: l.maxStock ?? null,
-              reorderPoint: l.reorderPoint ?? null,
-              rob: rob.toString(),
-              status: robStatus(rob, minStock, reorderPoint),
-            };
-          }),
-        };
-      })
-      .filter((p) => p.stockLevels.length > 0);
+    return allParts.map((p) => {
+      const partLevels = levels.filter((l) => l.partId === p.id);
+      return {
+        ...p,
+        stockLevels: partLevels.map((l) => {
+          const rob = parseFloat(robMap.get(`${p.id}:${l.locationId}`) ?? '0');
+          const minStock = parseFloat(l.minStock ?? '0');
+          const reorderPoint = l.reorderPoint ? parseFloat(l.reorderPoint) : null;
+          return {
+            id: l.id,
+            locationId: l.locationId,
+            locationName: l.locationName,
+            minStock: l.minStock ?? '0',
+            maxStock: l.maxStock ?? null,
+            reorderPoint: l.reorderPoint ?? null,
+            rob: rob.toString(),
+            status: robStatus(rob, minStock, reorderPoint),
+          };
+        }),
+      };
+    });
   }
 }
