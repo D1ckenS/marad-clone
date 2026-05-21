@@ -69,3 +69,6 @@ release/
 *.dmg
 *.AppImage
 .aider*
+
+# Fully regenerated on every Electron build — source migrations live in apps/api-vessel/drizzle/
+apps/desktop-vessel/api-vessel-bundle/
