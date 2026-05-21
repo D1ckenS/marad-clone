@@ -8,6 +8,16 @@
 
 > Most-recent first. Format: `### YYYY-MM-DD — <task> — <summary>` then bullets.
 
+### 2026-05-21 — UX bug fixes — Modal Enter key, inventory location editing, Electron vessel switch
+
+| Item                        | Detail                                                                                                                                                                                                                                                                                                                           |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Modal Enter key**         | Added `onSubmit?: () => void` prop to `packages/ui-kit/src/Modal.tsx`. Dialog-level `onKeyDown` fires `onSubmit` on Enter (skips textarea/select/button). Wired into 11 modals: CreatePart, EditPart, AddStockLevel, PostStockMovement, CreateComponent, EditComponent, LogRunningHours, CreateJobInstance, CreateSupplier, EditSupplier. AddLocation/AddCategory already had it inline. |
+| **Inventory location edit** | `EditPartModal` extended: shows Location dropdown when the part has a stock level; on save, calls `PATCH /stock-levels/:id` with new `locationId` if changed. Both shore and vessel `UpdateStockLevelDto` extended with `locationId?: string`. Both services apply a conflict check (409 if target location already has a stock level for that part). |
+| **Electron vessel switch**  | `VesselContext.isVesselLocked` was `Boolean(user?.vesselId)`, permanently locking all vessel-DB users to their JWT vessel. Changed to always `false`. JWT `vesselId` still drives initial auto-selection; users can now switch to All or another vessel via the sidebar dropdown.                                                 |
+| **CI result**               | `pnpm run ci:full` ✓ (lint + typecheck + 156 unit tests)                                                                                                                                                                                                                                                                        |
+| **PR**                      | #29 open — fix/modal-enter-key-location-vessel-switch                                                                                                                                                                                                                                                                           |
+
 ### 2026-05-19 — P5-4 — Pen test + security hardening
 
 | Item                            | Detail                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
@@ -555,7 +565,7 @@ Large batch of UI work implementing the Bearing design system across all Phase 1
 
 **P5-4 complete (2026-05-19).** Pen test completed — 5 vulnerabilities found and fixed. PR #27 open (feat/p5-4-pentest). Shore e2e 259 ✓ (24 files). See §15 entry dated 2026-05-19 for details.
 
-Next: **Merge PR #27 (P5-4 security hardening), then proceed to P5-5 (production deployment readiness — Dockerfile, env-var hardening, seed-data cleanup) or await Ziad's direction on pilot vessel.**
+Next: **Merge PR #29 (UX bug fixes — modal Enter key, inventory location editing, Electron vessel switch), then proceed to P5-5 (production deployment readiness — Dockerfile, env-var hardening, seed-data cleanup) or await Ziad's direction on pilot vessel.**
 
 **Outstanding follow-up tickets (deferred, not blocking P1-4):**
 
