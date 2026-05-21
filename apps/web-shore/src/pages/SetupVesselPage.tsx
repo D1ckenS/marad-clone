@@ -99,8 +99,8 @@ export function SetupVesselPage() {
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h2 className="font-semibold text-slate-900 mb-2">Vessel not provisioned</h2>
           <p className="text-sm text-slate-600 mb-3">
-            This vessel laptop has no users yet, and provisioning is disabled. Ask shore IT to
-            set <code>VESSEL_BOOTSTRAP_KEY</code> in the desktop environment, then relaunch.
+            This vessel laptop has no users yet, and provisioning is disabled. Ask shore IT to set{' '}
+            <code>VESSEL_BOOTSTRAP_KEY</code> in the desktop environment, then relaunch.
           </p>
         </div>
       </Screen>

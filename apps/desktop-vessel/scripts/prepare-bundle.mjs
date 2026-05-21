@@ -165,7 +165,11 @@ if (existsSync(srcJwt)) {
 // 5. Write a minimal package.json so Node finds dependencies correctly.
 writeFileSync(
   path.join(BUNDLE_DIR, 'package.json'),
-  JSON.stringify({ name: '@fleetops/api-vessel-bundle', version: '0.0.0', main: 'dist/main.js' }, null, 2),
+  JSON.stringify(
+    { name: '@fleetops/api-vessel-bundle', version: '0.0.0', main: 'dist/main.js' },
+    null,
+    2,
+  ),
 );
 
 // 6. Seed the demo database BEFORE rebuilding better-sqlite3 for Electron —

@@ -43,9 +43,7 @@ mkdirSync(path.dirname(SEED_DB), { recursive: true });
 // is Electron-ABI from the earlier rebuild and can't load under plain Node.
 // Resolve from the api-vessel workspace where bcrypt and better-sqlite3 are
 // installed (they're not direct deps of @fleetops/desktop-vessel).
-const apiVesselReq = createRequire(
-  path.join(REPO_ROOT, 'apps', 'api-vessel', 'package.json'),
-);
+const apiVesselReq = createRequire(path.join(REPO_ROOT, 'apps', 'api-vessel', 'package.json'));
 
 let Database;
 try {
@@ -138,9 +136,12 @@ const insertUser = db.prepare(
 const hashes = await Promise.all(seedUsers.map((u) => bcrypt.hash(u.password, 12)));
 
 db.transaction(() => {
-  db.prepare(
-    `INSERT INTO tenants (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)`,
-  ).run(TENANT_ID, 'Arab Bridge Maritime', now, now);
+  db.prepare(`INSERT INTO tenants (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)`).run(
+    TENANT_ID,
+    'Arab Bridge Maritime',
+    now,
+    now,
+  );
 
   db.prepare(
     `INSERT INTO vessels (id, tenant_id, name, imo_number, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
@@ -156,6 +157,12 @@ db.pragma('wal_checkpoint(TRUNCATE)');
 db.close();
 
 console.log(`[seed-demo-db] seeded ${count} users in ${SEED_DB}`);
-console.log('[seed-demo-db]   Ziad     (zeyad_yasser2010@yahoo.com)  / FleetOps123   SUPER_ADMIN (no tenant)');
-console.log('[seed-demo-db]   abdallah (abdallah@asm.com.jo)         / asm12345      TENANT_ADMIN (ABM)');
-console.log('[seed-demo-db]   zyad     (zyad@abmaritime.com.jo)      / abm12345      TENANT_ADMIN (ABM)');
+console.log(
+  '[seed-demo-db]   Ziad     (zeyad_yasser2010@yahoo.com)  / FleetOps123   SUPER_ADMIN (no tenant)',
+);
+console.log(
+  '[seed-demo-db]   abdallah (abdallah@asm.com.jo)         / asm12345      TENANT_ADMIN (ABM)',
+);
+console.log(
+  '[seed-demo-db]   zyad     (zyad@abmaritime.com.jo)      / abm12345      TENANT_ADMIN (ABM)',
+);

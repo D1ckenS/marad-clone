@@ -70,7 +70,10 @@ export class UserService {
 
   /** Total user count across all tenants. Used by the first-launch setup check. */
   countAll(): number {
-    const row = this.drizzle.db.select({ n: sql<number>`COUNT(*)` }).from(users).get();
+    const row = this.drizzle.db
+      .select({ n: sql<number>`COUNT(*)` })
+      .from(users)
+      .get();
     return row?.n ?? 0;
   }
 }

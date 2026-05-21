@@ -26,7 +26,10 @@ const page = await ctx.newPage();
 
 const errors = { pageErrors: [], consoleErrors: [], netFails: [] };
 page.on('pageerror', (e) => errors.pageErrors.push(String(e).slice(0, 400)));
-page.on('console', (msg) => msg.type() === 'error' && errors.consoleErrors.push(msg.text().slice(0, 400)));
+page.on(
+  'console',
+  (msg) => msg.type() === 'error' && errors.consoleErrors.push(msg.text().slice(0, 400)),
+);
 page.on('response', (r) => {
   if (r.status() >= 400 && !r.url().includes('favicon')) {
     errors.netFails.push(`${r.status()} ${r.request().method()} ${r.url()}`);
@@ -85,5 +88,8 @@ await browser.close();
 console.log('\n=== Summary ===');
 console.log('pageErrors:', errors.pageErrors.length, errors.pageErrors[0] ?? '');
 console.log('consoleErrors:', errors.consoleErrors.length, errors.consoleErrors[0] ?? '');
-console.log('netFails (excluding the 409 we expect):', errors.netFails.filter((n) => !n.startsWith('409')).length);
+console.log(
+  'netFails (excluding the 409 we expect):',
+  errors.netFails.filter((n) => !n.startsWith('409')).length,
+);
 for (const n of errors.netFails) console.log('  ', n);

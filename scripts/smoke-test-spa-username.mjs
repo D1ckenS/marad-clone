@@ -20,7 +20,10 @@ const page = await ctx.newPage();
 await page.goto(`${URL}/login`, { waitUntil: 'networkidle' });
 await page.locator('#identifier').fill('zyad');
 await page.locator('#password').fill('abm12345');
-await page.getByRole('button', { name: /sign in/i }).first().click();
+await page
+  .getByRole('button', { name: /sign in/i })
+  .first()
+  .click();
 await page.waitForURL(/dashboard/, { timeout: 15000 });
 await page.waitForLoadState('networkidle');
 await page.waitForTimeout(800);

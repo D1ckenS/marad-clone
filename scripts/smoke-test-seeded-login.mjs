@@ -26,7 +26,10 @@ const page = await ctx.newPage();
 
 const errors = { pageErrors: [], consoleErrors: [], netFails: [] };
 page.on('pageerror', (e) => errors.pageErrors.push(String(e).slice(0, 400)));
-page.on('console', (msg) => msg.type() === 'error' && errors.consoleErrors.push(msg.text().slice(0, 400)));
+page.on(
+  'console',
+  (msg) => msg.type() === 'error' && errors.consoleErrors.push(msg.text().slice(0, 400)),
+);
 page.on('response', (r) => {
   if (r.status() >= 400 && !r.url().includes('favicon')) {
     errors.netFails.push(`${r.status()} ${r.request().method()} ${r.url()}`);
@@ -48,7 +51,10 @@ await page.screenshot({ path: path.join(OUT, 'seeded-1-login.png'), fullPage: tr
 // 3. Log in as zyad
 await page.locator('#identifier').fill('zyad@abmaritime.com.jo');
 await page.locator('#password').fill('abm12345');
-await page.getByRole('button', { name: /sign in/i }).first().click();
+await page
+  .getByRole('button', { name: /sign in/i })
+  .first()
+  .click();
 await page.waitForURL(/dashboard/, { timeout: 15000 });
 await page.waitForLoadState('networkidle');
 await page.waitForTimeout(800);

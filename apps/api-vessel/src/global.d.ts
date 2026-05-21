@@ -5,7 +5,7 @@
 
 declare global {
   namespace Express {
-      namespace Multer {
+    namespace Multer {
       interface File {
         fieldname: string;
         originalname: string;

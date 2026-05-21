@@ -28,7 +28,10 @@ const page = await ctx.newPage();
 
 const errors = { pageErrors: [], consoleErrors: [], netFails: [] };
 page.on('pageerror', (e) => errors.pageErrors.push(String(e).slice(0, 400)));
-page.on('console', (msg) => msg.type() === 'error' && errors.consoleErrors.push(msg.text().slice(0, 400)));
+page.on(
+  'console',
+  (msg) => msg.type() === 'error' && errors.consoleErrors.push(msg.text().slice(0, 400)),
+);
 page.on('response', (r) => {
   if (r.status() >= 400 && !r.url().includes('favicon')) {
     errors.netFails.push(`${r.status()} ${r.request().method()} ${r.url()}`);
@@ -46,7 +49,9 @@ console.log(`  body: ${body.slice(0, 200)}`);
 await page.goto(`${URL}/login`, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(1500);
 await page.screenshot({ path: path.join(OUT, 'electron-standalone-login.png'), fullPage: true });
-console.log(`captured login screenshot — page errors: ${errors.pageErrors.length}, console: ${errors.consoleErrors.length}`);
+console.log(
+  `captured login screenshot — page errors: ${errors.pageErrors.length}, console: ${errors.consoleErrors.length}`,
+);
 
 // Also navigate to dashboard route (will redirect to login since no token)
 await page.goto(`${URL}/dashboard`, { waitUntil: 'domcontentloaded' });

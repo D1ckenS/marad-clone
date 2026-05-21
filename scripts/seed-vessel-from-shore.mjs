@@ -43,7 +43,15 @@ function parseArgs() {
 }
 
 const args = parseArgs();
-const required = ['shore', 'shore-admin', 'shore-password', 'tenant', 'temp-password', 'vessel-db', 'migrations'];
+const required = [
+  'shore',
+  'shore-admin',
+  'shore-password',
+  'tenant',
+  'temp-password',
+  'vessel-db',
+  'migrations',
+];
 for (const r of required) {
   if (!args[r]) {
     console.error(`Missing required arg --${r}`);
@@ -183,5 +191,7 @@ const rowCount = db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
 db.close();
 
 console.log(`[seed-vessel] done. ${rowCount} users now in ${vesselDb}.`);
-console.log(`[seed-vessel] all seeded users share the temporary password: ${args['temp-password']}`);
+console.log(
+  `[seed-vessel] all seeded users share the temporary password: ${args['temp-password']}`,
+);
 console.log('[seed-vessel] each user must change it after first login.');

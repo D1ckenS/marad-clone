@@ -58,7 +58,11 @@ export function spawnApiVessel(opts: SpawnVesselOptions): ChildProcess {
     env['VESSEL_LOCAL_JWT_SECRET'] = process.env['VESSEL_LOCAL_JWT_SECRET'];
   }
 
-  const child = spawn(process.execPath, [serverScript], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(process.execPath, [serverScript], {
+    cwd,
+    env,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
 
   child.stdout?.on('data', (chunk: Buffer) => {
     process.stdout.write(`[api-vessel] ${chunk.toString()}`);
