@@ -8,6 +8,17 @@
 
 > Most-recent first. Format: `### YYYY-MM-DD — <task> — <summary>` then bullets.
 
+### 2026-05-21 — Bug fix — Categories tab showing empty (vessel_id column mismatch)
+
+| Item | Detail |
+|---|---|
+| **Root cause** | The Electron bundle was built with `vesselId` in the `partCategories` Drizzle schema (querying `vessel_id = ? OR vessel_id IS NULL`), but migration 0014 (`0014_vessel_scoped_categories`) was never applied to the live vessel DB. SQLite threw "no such column: vessel_id" on every `GET /part-categories` call → empty tab. |
+| **Shore fix** | Added migration `20260521140000_remove_vessel_id_from_part_categories` to DROP the column added by migration `20260521130000`. Applied via psql (marad superuser) and registered with `prisma migrate resolve --applied`. Prisma schema + service updated to remove vesselId. |
+| **Vessel fix** | Removed migration 0014 from `_journal.json` and deleted the orphaned `0014_vessel_scoped_categories.sql` file. Removed `vesselId` from `schema.ts` and the service. |
+| **Both services** | `findAll` now filters by `tenantId` only — categories are fleet-wide, not per-vessel. |
+| **Bundle rebuild** | `pnpm --filter desktop-vessel run prepare-bundle` — bundle now queries without vessel_id, migration list is 0000–0013. |
+| **CI result** | `pnpm -w run ci:full` ✓ (156 unit tests, format check) |
+
 ### 2026-05-21 — Merge to main + Electron rebuild — PR #35 merged; installer rebuilt
 
 | Item                    | Detail                                                                                                                                                                                                                                                                                                                             |
