@@ -850,21 +850,27 @@ export function InventoryPage() {
   const [modal, setModal] = useState<ActiveModal>({ kind: 'none' });
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const loadCategories = useCallback(() => {
+    api
+      .get<Category[]>('/part-categories')
+      .then(setCategories)
+      .catch(() => {});
+  }, []);
+
   const load = useCallback(() => {
     setLoading(true);
+    loadCategories();
     Promise.all([
       api.get<Part[]>('/parts/inventory-summary'),
       api.get<Location[]>('/stock-locations'),
-      api.get<Category[]>('/part-categories'),
     ])
-      .then(([p, l, c]) => {
+      .then(([p, l]) => {
         setParts(p);
         setLocations(l);
-        setCategories(c);
       })
       .catch(() => undefined)
       .finally(() => setLoading(false));
-  }, []);
+  }, [loadCategories]);
 
   useEffect(() => {
     load();
@@ -1537,7 +1543,9 @@ export function InventoryPage() {
         onClose={closeModal}
       />
       {addLocOpen && <AddLocationModal onClose={() => setAddLocOpen(false)} onCreated={load} />}
-      {addCatOpen && <AddCategoryModal onClose={() => setAddCatOpen(false)} onCreated={load} />}
+      {addCatOpen && (
+        <AddCategoryModal onClose={() => setAddCatOpen(false)} onCreated={loadCategories} />
+      )}
     </div>
   );
 }
