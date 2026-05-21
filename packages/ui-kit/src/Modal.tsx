@@ -14,7 +14,15 @@ interface ModalProps {
 
 const maxWidths = { sm: 440, md: 560, lg: 780 };
 
-export function Modal({ open, title, onClose, children, footer, size = 'md', onSubmit }: ModalProps) {
+export function Modal({
+  open,
+  title,
+  onClose,
+  children,
+  footer,
+  size = 'md',
+  onSubmit,
+}: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
