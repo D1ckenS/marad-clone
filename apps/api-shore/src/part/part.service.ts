@@ -101,29 +101,31 @@ export class PartService {
 
       const robMap = new Map(robRows.map((r) => [`${r.part_id}:${r.location_id}`, r.rob]));
 
-      return parts.map((p) => {
-        const { category, ...rest } = p;
-        const partLevels = levels.filter((l) => l.partId === p.id);
-        return {
-          ...rest,
-          categoryName: category?.name ?? null,
-          stockLevels: partLevels.map((l) => {
-            const rob = parseFloat(robMap.get(`${p.id}:${l.locationId}`) ?? '0');
-            const minStock = parseFloat(l.minStock.toString());
-            const reorderPoint = l.reorderPoint ? parseFloat(l.reorderPoint.toString()) : null;
-            return {
-              id: l.id,
-              locationId: l.locationId,
-              locationName: l.location.name,
-              minStock: l.minStock.toString(),
-              maxStock: l.maxStock?.toString() ?? null,
-              reorderPoint: l.reorderPoint?.toString() ?? null,
-              rob: rob.toString(),
-              status: robStatus(rob, minStock, reorderPoint),
-            };
-          }),
-        };
-      });
+      return parts
+        .map((p) => {
+          const { category, ...rest } = p;
+          const partLevels = levels.filter((l) => l.partId === p.id);
+          return {
+            ...rest,
+            categoryName: category?.name ?? null,
+            stockLevels: partLevels.map((l) => {
+              const rob = parseFloat(robMap.get(`${p.id}:${l.locationId}`) ?? '0');
+              const minStock = parseFloat(l.minStock.toString());
+              const reorderPoint = l.reorderPoint ? parseFloat(l.reorderPoint.toString()) : null;
+              return {
+                id: l.id,
+                locationId: l.locationId,
+                locationName: l.location.name,
+                minStock: l.minStock.toString(),
+                maxStock: l.maxStock?.toString() ?? null,
+                reorderPoint: l.reorderPoint?.toString() ?? null,
+                rob: rob.toString(),
+                status: robStatus(rob, minStock, reorderPoint),
+              };
+            }),
+          };
+        })
+        .filter((p) => p.stockLevels.length > 0);
     });
   }
 }

@@ -133,26 +133,28 @@ export class PartService {
 
     const robMap = new Map(robRows.map((r) => [`${r.partId}:${r.locationId}`, r.rob ?? '0']));
 
-    return allParts.map((p) => {
-      const partLevels = levels.filter((l) => l.partId === p.id);
-      return {
-        ...p,
-        stockLevels: partLevels.map((l) => {
-          const rob = parseFloat(robMap.get(`${p.id}:${l.locationId}`) ?? '0');
-          const minStock = parseFloat(l.minStock ?? '0');
-          const reorderPoint = l.reorderPoint ? parseFloat(l.reorderPoint) : null;
-          return {
-            id: l.id,
-            locationId: l.locationId,
-            locationName: l.locationName,
-            minStock: l.minStock ?? '0',
-            maxStock: l.maxStock ?? null,
-            reorderPoint: l.reorderPoint ?? null,
-            rob: rob.toString(),
-            status: robStatus(rob, minStock, reorderPoint),
-          };
-        }),
-      };
-    });
+    return allParts
+      .map((p) => {
+        const partLevels = levels.filter((l) => l.partId === p.id);
+        return {
+          ...p,
+          stockLevels: partLevels.map((l) => {
+            const rob = parseFloat(robMap.get(`${p.id}:${l.locationId}`) ?? '0');
+            const minStock = parseFloat(l.minStock ?? '0');
+            const reorderPoint = l.reorderPoint ? parseFloat(l.reorderPoint) : null;
+            return {
+              id: l.id,
+              locationId: l.locationId,
+              locationName: l.locationName,
+              minStock: l.minStock ?? '0',
+              maxStock: l.maxStock ?? null,
+              reorderPoint: l.reorderPoint ?? null,
+              rob: rob.toString(),
+              status: robStatus(rob, minStock, reorderPoint),
+            };
+          }),
+        };
+      })
+      .filter((p) => p.stockLevels.length > 0);
   }
 }
