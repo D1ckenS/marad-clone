@@ -23,6 +23,21 @@ type VesselLocalClaims = {
 };
 
 /**
+ * Mirrors the shore guard: TENANT_ADMIN users may supply X-Vessel-Id to switch
+ * between vessels even when their JWT already carries a vesselId. All other roles
+ * are hard-bound to the JWT vessel so they cannot cross vessel boundaries.
+ */
+function resolveVesselId(
+  jwtVesselId: string | null,
+  role: string,
+  headers: Record<string, string | undefined>,
+): string | null {
+  const headerVesselId = headers['x-vessel-id'] ?? null;
+  if (role === 'TENANT_ADMIN' && headerVesselId) return headerVesselId;
+  return jwtVesselId ?? headerVesselId;
+}
+
+/**
  * Verifies the `Authorization: Bearer <token>` header against EITHER the
  * shore RS256 public key (preferred — works offline once cached) OR the
  * vessel-local HS256 secret (legacy / dev path retained from P0-10). On
@@ -67,7 +82,7 @@ export class JwtAuthGuard implements CanActivate {
       }
       req.authCtx = {
         tenantId: payload.tenantId ?? null,
-        vesselId: payload.vesselId ?? null,
+        vesselId: resolveVesselId(payload.vesselId ?? null, payload.role, req.headers),
         userId: payload.sub,
         role: payload.role,
       };
@@ -90,7 +105,7 @@ export class JwtAuthGuard implements CanActivate {
       }
       req.authCtx = {
         tenantId: payload.tenantId ?? null,
-        vesselId: payload.vesselId ?? null,
+        vesselId: resolveVesselId(payload.vesselId ?? null, payload.role, req.headers),
         userId: payload.sub,
         role: payload.role,
       };
