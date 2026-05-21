@@ -5,6 +5,8 @@
     "target": "ES2022",
     "outDir": "./dist",
     "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
     "verbatimModuleSyntax": false,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
