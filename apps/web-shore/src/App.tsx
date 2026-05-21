@@ -171,7 +171,9 @@ function ProtectedContent() {
       isVesselLocked={isVesselLocked}
       sidebarFooterContent={<LanguageSwitcher />}
     >
-      <Routes>
+      {/* Key forces every page to remount when the vessel changes so their
+          useEffect load calls fire with the correct X-Vessel-Id in localStorage. */}
+      <Routes key={selectedVesselId ?? '__all__'}>
         <Route path="dashboard" element={<DashboardPage />} />
         <Route
           path="components"
