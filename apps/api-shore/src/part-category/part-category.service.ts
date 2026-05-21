@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { newId } from '@fleetops/domain';
 import type { AuthContext } from '../auth/auth-context';
+import { requireVesselId } from '../auth/vessel-bound';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreatePartCategoryDto } from './dto/create-part-category.dto';
 import type { UpdatePartCategoryDto } from './dto/update-part-category.dto';
@@ -10,11 +11,13 @@ export class PartCategoryService {
   constructor(private readonly prisma: PrismaService) {}
 
   create(auth: AuthContext, dto: CreatePartCategoryDto) {
+    const vesselId = requireVesselId(auth);
     return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.partCategory.create({
         data: {
           id: newId(),
           tenantId: auth.tenantId!,
+          vesselId,
           name: dto.name,
           description: dto.description ?? null,
           parentId: dto.parentId ?? null,
@@ -24,17 +27,21 @@ export class PartCategoryService {
   }
 
   findAll(auth: AuthContext) {
+    const vesselId = requireVesselId(auth);
     return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.partCategory.findMany({
-        where: { tenantId: auth.tenantId!, deletedAt: null },
+        where: { tenantId: auth.tenantId!, vesselId, deletedAt: null },
         orderBy: { name: 'asc' },
       }),
     );
   }
 
   async findOne(auth: AuthContext, id: string) {
+    const vesselId = requireVesselId(auth);
     const row = await this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.partCategory.findFirst({ where: { id, tenantId: auth.tenantId!, deletedAt: null } }),
+      tx.partCategory.findFirst({
+        where: { id, tenantId: auth.tenantId!, vesselId, deletedAt: null },
+      }),
     );
     if (row === null) throw new NotFoundException(`PartCategory ${id} not found`);
     return row;
