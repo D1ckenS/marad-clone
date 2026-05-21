@@ -26,6 +26,7 @@ export function Button({
   children,
   disabled,
   style,
+  type = 'button',
   ...rest
 }: ButtonProps) {
   const s = STYLES[variant];
@@ -33,6 +34,7 @@ export function Button({
   return (
     <button
       {...rest}
+      type={type}
       disabled={isDisabled}
       style={{
         height: HEIGHTS[size],
