@@ -22,11 +22,13 @@ export class PartService {
   constructor(private readonly drizzle: DrizzleService) {}
 
   create(auth: AuthContext, dto: CreatePartDto) {
+    const vesselId = requireVesselId(auth);
     const [row] = this.drizzle.db
       .insert(parts)
       .values({
         id: newId(),
         tenantId: auth.tenantId!,
+        vesselId,
         name: dto.name,
         description: dto.description ?? null,
         partNumber: dto.partNumber ?? null,
@@ -39,19 +41,34 @@ export class PartService {
   }
 
   findAll(auth: AuthContext) {
+    const vesselId = requireVesselId(auth);
     return this.drizzle.db
       .select()
       .from(parts)
-      .where(and(eq(parts.tenantId, auth.tenantId!), isNull(parts.deletedAt)))
+      .where(
+        and(
+          eq(parts.tenantId, auth.tenantId!),
+          eq(parts.vesselId, vesselId),
+          isNull(parts.deletedAt),
+        ),
+      )
       .orderBy(parts.name)
       .all();
   }
 
   findOne(auth: AuthContext, id: string) {
+    const vesselId = requireVesselId(auth);
     const row = this.drizzle.db
       .select()
       .from(parts)
-      .where(and(eq(parts.id, id), eq(parts.tenantId, auth.tenantId!), isNull(parts.deletedAt)))
+      .where(
+        and(
+          eq(parts.id, id),
+          eq(parts.tenantId, auth.tenantId!),
+          eq(parts.vesselId, vesselId),
+          isNull(parts.deletedAt),
+        ),
+      )
       .get();
     if (row === undefined) throw new NotFoundException(`Part ${id} not found`);
     return row;
@@ -89,7 +106,13 @@ export class PartService {
     const allParts = this.drizzle.db
       .select()
       .from(parts)
-      .where(and(eq(parts.tenantId, auth.tenantId!), isNull(parts.deletedAt)))
+      .where(
+        and(
+          eq(parts.tenantId, auth.tenantId!),
+          eq(parts.vesselId, vesselId),
+          isNull(parts.deletedAt),
+        ),
+      )
       .orderBy(parts.name)
       .all();
 
