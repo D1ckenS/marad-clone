@@ -273,6 +273,7 @@ export const partCategories = sqliteTable(
     tenantId: text('tenant_id')
       .notNull()
       .references(() => tenants.id),
+    vesselId: text('vessel_id').references(() => vessels.id),
     parentId: text('parent_id'), // soft self-FK — SQLite cannot enforce circular FK
     name: text('name').notNull(),
     description: text('description'),
@@ -281,7 +282,7 @@ export const partCategories = sqliteTable(
     hlc: text('hlc'),
     deletedAt: text('deleted_at'),
   },
-  (t) => [index('part_categories_tenant_idx').on(t.tenantId)],
+  (t) => [index('part_categories_tenant_vessel_idx').on(t.tenantId, t.vesselId)],
 );
 
 export const parts = sqliteTable(
