@@ -279,7 +279,11 @@ function DetailPane({
   part: Part | null;
   onClose: () => void;
   onEdit: (part: Part) => void;
-  onMovement: (id: string, name: string) => void;
+  onMovement: (
+    id: string,
+    name: string,
+    stockLevels: Array<{ locationId: string; locationName: string }>,
+  ) => void;
   onStockConfig: (id: string, name: string) => void;
   onBarcodes: (id: string, name: string) => void;
 }) {
@@ -562,7 +566,7 @@ function DetailPane({
           flexWrap: 'wrap',
         }}
       >
-        <Button size="sm" onClick={() => onMovement(part.id, part.name)}>
+        <Button size="sm" onClick={() => onMovement(part.id, part.name, part.stockLevels)}>
           {t('inventory.post_movement')}
         </Button>
         <Button size="sm" variant="secondary" onClick={() => onStockConfig(part.id, part.name)}>
@@ -839,7 +843,12 @@ function AddLocationModal({
 type ActiveModal =
   | { kind: 'none' }
   | { kind: 'stockLevel'; partId: string; partName: string }
-  | { kind: 'movement'; partId: string; partName: string }
+  | {
+      kind: 'movement';
+      partId: string;
+      partName: string;
+      stockLevels: Array<{ locationId: string; locationName: string }>;
+    }
   | { kind: 'editPart'; part: PartItem }
   | { kind: 'barcodes'; partId: string; partName: string };
 
@@ -860,6 +869,7 @@ export function InventoryPage() {
   const [addLocOpen, setAddLocOpen] = useState(false);
   const [addCatOpen, setAddCatOpen] = useState(false);
   const [modal, setModal] = useState<ActiveModal>({ kind: 'none' });
+  const [railTab, setRailTab] = useState<'locations' | 'categories'>('locations');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const loadCategories = useCallback(() => {
@@ -1032,10 +1042,10 @@ export function InventoryPage() {
         color: T.ink,
       }}
     >
-      {/* ── Location rail ──────────────────────────────────────────── */}
+      {/* ── Left rail (Locations / Categories tabs) ────────────── */}
       <aside
         style={{
-          width: 200,
+          width: 220,
           flexShrink: 0,
           background: T.surface,
           borderRight: `1px solid ${T.border}`,
@@ -1043,22 +1053,31 @@ export function InventoryPage() {
           flexDirection: 'column',
         }}
       >
-        <div style={{ padding: '12px 12px 6px', display: 'flex', alignItems: 'center' }}>
-          <span
-            style={{
-              flex: 1,
-              fontSize: 10.5,
-              fontWeight: 500,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              color: T.ink3,
-            }}
-          >
-            {t('inventory.locations')}
-          </span>
+        {/* Tab switcher */}
+        <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 4 }}>
+          {(['locations', 'categories'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setRailTab(tab)}
+              style={{
+                flex: 1,
+                height: 26,
+                fontSize: 11.5,
+                fontWeight: railTab === tab ? 600 : 400,
+                border: `1px solid ${railTab === tab ? T.navy : T.border}`,
+                borderRadius: 5,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                background: railTab === tab ? T.navy : T.surface,
+                color: railTab === tab ? '#fff' : T.ink3,
+              }}
+            >
+              {tab === 'locations' ? t('inventory.locations') : 'Categories'}
+            </button>
+          ))}
           <button
-            onClick={() => setAddLocOpen(true)}
-            title="Add location"
+            onClick={() => (railTab === 'locations' ? setAddLocOpen(true) : setAddCatOpen(true))}
+            title={railTab === 'locations' ? 'Add location' : 'Add category'}
             style={{
               background: 'none',
               border: 'none',
@@ -1067,142 +1086,116 @@ export function InventoryPage() {
               fontSize: 18,
               lineHeight: 1,
               padding: '0 2px',
+              flexShrink: 0,
             }}
           >
             +
           </button>
         </div>
+
+        {/* List content */}
         <div
           style={{
             flex: 1,
             overflowY: 'auto',
-            padding: '0 6px 8px',
+            padding: '4px 6px 8px',
             display: 'flex',
             flexDirection: 'column',
             gap: 1,
           }}
         >
-          {/* All Locations — clears filter */}
-          <RailCheckbox
-            label="All Locations"
-            checked={activeLocs.size === 0}
-            onChange={() => setActiveLocs(new Set())}
-            count={parts.length}
-          />
-          {locations.map((l) => {
-            const checked = activeLocs.has(l.id);
-            const toggle = () =>
-              setActiveLocs((prev) => {
-                const next = new Set(prev);
-                if (checked) next.delete(l.id);
-                else next.add(l.id);
-                return next;
-              });
-            return (
+          {railTab === 'locations' ? (
+            <>
               <RailCheckbox
-                key={l.id}
-                label={l.name}
-                checked={checked}
-                onChange={toggle}
-                count={countByLoc.get(l.id) ?? 0}
+                label="All Locations"
+                checked={activeLocs.size === 0}
+                onChange={() => setActiveLocs(new Set())}
+                count={parts.length}
               />
-            );
-          })}
-        </div>
-        {/* Categories section */}
-        <div style={{ borderTop: `1px solid ${T.hairline}`, padding: '8px 6px 4px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', padding: '0 6px 4px' }}>
-            <span
-              style={{
-                flex: 1,
-                fontSize: 10.5,
-                fontWeight: 500,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                color: T.ink3,
-              }}
-            >
-              Categories
-            </span>
-            <button
-              onClick={() => setAddCatOpen(true)}
-              title="Add category"
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: T.ink3,
-                fontSize: 18,
-                lineHeight: 1,
-                padding: '0 2px',
-              }}
-            >
-              +
-            </button>
-          </div>
-          {/* Categories relevant to current location selection */}
-          {(() => {
-            const locParts =
-              activeLocs.size === 0
-                ? parts
-                : parts.filter((p) => p.stockLevels.some((l) => activeLocs.has(l.locationId)));
-            const catIdsInLoc = new Set(locParts.map((p) => p.categoryId).filter(Boolean));
-            const visibleCats = categories.filter((c) => catIdsInLoc.has(c.id));
-            const uncategorisedCount = locParts.filter((p) => !p.categoryId).length;
-            return (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {/* All Categories — clears filter */}
-                <RailCheckbox
-                  label="All"
-                  checked={activeCats.size === 0}
-                  onChange={() => setActiveCats(new Set())}
-                  count={locParts.length}
-                />
-                {visibleCats.map((c) => {
-                  const checked = activeCats.has(c.id);
-                  const count = locParts.filter((p) => p.categoryId === c.id).length;
-                  const toggle = () =>
-                    setActiveCats((prev) => {
-                      const next = new Set(prev);
-                      if (checked) next.delete(c.id);
-                      else next.add(c.id);
-                      return next;
-                    });
-                  return (
-                    <RailCheckbox
-                      key={c.id}
-                      label={c.name}
-                      checked={checked}
-                      onChange={toggle}
-                      count={count}
-                    />
-                  );
-                })}
-                {uncategorisedCount > 0 &&
-                  (() => {
-                    const checked = activeCats.has('__none__');
+              {locations.map((l) => {
+                const checked = activeLocs.has(l.id);
+                const toggle = () =>
+                  setActiveLocs((prev) => {
+                    const next = new Set(prev);
+                    if (checked) next.delete(l.id);
+                    else next.add(l.id);
+                    return next;
+                  });
+                return (
+                  <RailCheckbox
+                    key={l.id}
+                    label={l.name}
+                    checked={checked}
+                    onChange={toggle}
+                    count={countByLoc.get(l.id) ?? 0}
+                  />
+                );
+              })}
+            </>
+          ) : (
+            (() => {
+              const locParts =
+                activeLocs.size === 0
+                  ? parts
+                  : parts.filter((p) => p.stockLevels.some((l) => activeLocs.has(l.locationId)));
+              const catIdsInLoc = new Set(locParts.map((p) => p.categoryId).filter(Boolean));
+              const visibleCats = categories.filter((c) => catIdsInLoc.has(c.id));
+              const uncategorisedCount = locParts.filter((p) => !p.categoryId).length;
+              return (
+                <>
+                  <RailCheckbox
+                    label="All"
+                    checked={activeCats.size === 0}
+                    onChange={() => setActiveCats(new Set())}
+                    count={locParts.length}
+                  />
+                  {visibleCats.map((c) => {
+                    const checked = activeCats.has(c.id);
+                    const count = locParts.filter((p) => p.categoryId === c.id).length;
+                    const toggle = () =>
+                      setActiveCats((prev) => {
+                        const next = new Set(prev);
+                        if (checked) next.delete(c.id);
+                        else next.add(c.id);
+                        return next;
+                      });
                     return (
                       <RailCheckbox
-                        label="Uncategorised"
+                        key={c.id}
+                        label={c.name}
                         checked={checked}
-                        onChange={() =>
-                          setActiveCats((prev) => {
-                            const next = new Set(prev);
-                            if (checked) next.delete('__none__');
-                            else next.add('__none__');
-                            return next;
-                          })
-                        }
-                        count={uncategorisedCount}
-                        italic
+                        onChange={toggle}
+                        count={count}
                       />
                     );
-                  })()}
-              </div>
-            );
-          })()}
+                  })}
+                  {uncategorisedCount > 0 &&
+                    (() => {
+                      const checked = activeCats.has('__none__');
+                      return (
+                        <RailCheckbox
+                          label="Uncategorised"
+                          checked={checked}
+                          onChange={() =>
+                            setActiveCats((prev) => {
+                              const next = new Set(prev);
+                              if (checked) next.delete('__none__');
+                              else next.add('__none__');
+                              return next;
+                            })
+                          }
+                          count={uncategorisedCount}
+                          italic
+                        />
+                      );
+                    })()}
+                </>
+              );
+            })()
+          )}
         </div>
 
+        {/* Status legend */}
         <div
           style={{
             padding: '10px 12px',
@@ -1502,7 +1495,9 @@ export function InventoryPage() {
         part={selected}
         onClose={() => setSelected(null)}
         onEdit={(p) => setModal({ kind: 'editPart', part: p })}
-        onMovement={(id, name) => setModal({ kind: 'movement', partId: id, partName: name })}
+        onMovement={(id, name, stockLevels) =>
+          setModal({ kind: 'movement', partId: id, partName: name, stockLevels })
+        }
         onStockConfig={(id, name) => setModal({ kind: 'stockLevel', partId: id, partName: name })}
         onBarcodes={(id, name) => setModal({ kind: 'barcodes', partId: id, partName: name })}
       />
@@ -1542,6 +1537,7 @@ export function InventoryPage() {
         open={modal.kind === 'movement'}
         partId={modal.kind === 'movement' ? modal.partId : ''}
         partName={modal.kind === 'movement' ? modal.partName : ''}
+        stockLevels={modal.kind === 'movement' ? modal.stockLevels : []}
         onClose={closeModal}
         onPosted={() => {
           closeModal();

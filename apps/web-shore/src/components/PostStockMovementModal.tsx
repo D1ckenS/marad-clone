@@ -8,10 +8,17 @@ interface Location {
   name: string;
 }
 
+interface StockLevelEntry {
+  locationId: string;
+  locationName: string;
+}
+
 interface Props {
   open: boolean;
   partId: string;
   partName: string;
+  /** Stock levels already on the part — used to skip the location picker. */
+  stockLevels?: StockLevelEntry[];
   onClose: () => void;
   onPosted: () => void;
 }
@@ -25,7 +32,14 @@ const TYPE_HELP: Record<MovementType, string> = {
   ADJUSTMENT: 'Manual correction. Use negative to reduce ROB (e.g. "-5").',
 };
 
-export function PostStockMovementModal({ open, partId, partName, onClose, onPosted }: Props) {
+export function PostStockMovementModal({
+  open,
+  partId,
+  partName,
+  stockLevels,
+  onClose,
+  onPosted,
+}: Props) {
   const { t } = useTranslation();
   const [locations, setLocations] = useState<Location[]>([]);
   const [loadingLocs, setLoadingLocs] = useState(false);
@@ -38,18 +52,27 @@ export function PostStockMovementModal({ open, partId, partName, onClose, onPost
 
   useEffect(() => {
     if (!open) return;
-    setLocationId('');
     setMovementType('RECEIPT');
     setQuantity('');
     setNotes('');
     setError(null);
-    setLoadingLocs(true);
-    api
-      .get<Location[]>('/stock-locations')
-      .then(setLocations)
-      .catch(() => setError('Could not load locations.'))
-      .finally(() => setLoadingLocs(false));
-  }, [open]);
+
+    const firstLevel = stockLevels?.[0];
+    if (firstLevel) {
+      // Auto-populate from the part's own stock levels — no fetch needed.
+      setLocationId(firstLevel.locationId);
+      setLocations([]);
+      setLoadingLocs(false);
+    } else {
+      setLocationId('');
+      setLoadingLocs(true);
+      api
+        .get<Location[]>('/stock-locations')
+        .then(setLocations)
+        .catch(() => setError('Could not load locations.'))
+        .finally(() => setLoadingLocs(false));
+    }
+  }, [open]); // stockLevels intentionally omitted — open transition is the only trigger
 
   const handleClose = () => {
     setError(null);
@@ -127,21 +150,44 @@ export function PostStockMovementModal({ open, partId, partName, onClose, onPost
           <p className="mt-1.5 text-xs text-slate-500">{TYPE_HELP[movementType]}</p>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="sm-loc">
-            Location *
-          </label>
-          {loadingLocs ? (
-            <Spinner />
-          ) : (
-            <Select
-              value={locationId}
-              onChange={setLocationId}
-              options={locations.map((l) => ({ value: l.id, label: l.name }))}
-              placeholder="— Select location —"
-            />
-          )}
-        </div>
+        {/* Location — hidden for single-location parts; segmented for multi-location; dropdown fallback */}
+        {stockLevels && stockLevels.length > 1 ? (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Location</label>
+            <div className="flex rounded-md border border-slate-200 overflow-hidden text-sm">
+              {stockLevels.map((sl) => (
+                <button
+                  key={sl.locationId}
+                  type="button"
+                  onClick={() => setLocationId(sl.locationId)}
+                  className={`flex-1 py-1.5 px-2 transition-colors truncate ${
+                    locationId === sl.locationId
+                      ? 'bg-[#0A1F33] text-white font-medium'
+                      : 'bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {sl.locationName}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : !stockLevels || stockLevels.length === 0 ? (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="sm-loc">
+              Location *
+            </label>
+            {loadingLocs ? (
+              <Spinner />
+            ) : (
+              <Select
+                value={locationId}
+                onChange={setLocationId}
+                options={locations.map((l) => ({ value: l.id, label: l.name }))}
+                placeholder="— Select location —"
+              />
+            )}
+          </div>
+        ) : null}
 
         <Input
           id="sm-qty"
