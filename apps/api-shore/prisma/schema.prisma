@@ -204,7 +204,6 @@ model Vessel {
   deletedAt DateTime? @map("deleted_at")
 
   tenant               Tenant               @relation(fields: [tenantId], references: [id])
-  partCategories       PartCategory[]
   users                User[]
   components           Component[]
   jobs                 Job[]
@@ -467,11 +466,10 @@ model RunningHourReading {
 
 // ── Inventory (P1-5) ─────────────────────────────────────────────────────────
 
-// PartCategory — vessel-scoped part classification.
+// PartCategory — hierarchical part classification (fleet-wide, tenant-scoped).
 model PartCategory {
   id          String    @id
   tenantId    String    @map("tenant_id")
-  vesselId    String?   @map("vessel_id")
   parentId    String?   @map("parent_id")
   name        String
   description String?
@@ -481,12 +479,11 @@ model PartCategory {
   deletedAt   DateTime? @map("deleted_at")
 
   tenant   Tenant         @relation(fields: [tenantId], references: [id])
-  vessel   Vessel?        @relation(fields: [vesselId], references: [id])
   parent   PartCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
   children PartCategory[] @relation("CategoryHierarchy")
   parts    Part[]
 
-  @@index([tenantId, vesselId])
+  @@index([tenantId])
   @@map("part_categories")
 }
 
