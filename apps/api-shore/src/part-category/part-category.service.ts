@@ -30,7 +30,11 @@ export class PartCategoryService {
     const vesselId = requireVesselId(auth);
     return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.partCategory.findMany({
-        where: { tenantId: auth.tenantId!, vesselId, deletedAt: null },
+        where: {
+          tenantId: auth.tenantId!,
+          OR: [{ vesselId }, { vesselId: null }],
+          deletedAt: null,
+        },
         orderBy: { name: 'asc' },
       }),
     );
@@ -40,7 +44,12 @@ export class PartCategoryService {
     const vesselId = requireVesselId(auth);
     const row = await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.partCategory.findFirst({
-        where: { id, tenantId: auth.tenantId!, vesselId, deletedAt: null },
+        where: {
+          id,
+          tenantId: auth.tenantId!,
+          OR: [{ vesselId }, { vesselId: null }],
+          deletedAt: null,
+        },
       }),
     );
     if (row === null) throw new NotFoundException(`PartCategory ${id} not found`);
