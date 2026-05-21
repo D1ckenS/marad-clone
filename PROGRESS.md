@@ -8,6 +8,17 @@
 
 > Most-recent first. Format: `### YYYY-MM-DD — <task> — <summary>` then bullets.
 
+### 2026-05-21 — Merge to main + Electron rebuild — PR #35 merged; installer rebuilt
+
+| Item                    | Detail                                                                                                                                                                                                                                                                                                                             |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Prisma regenerate**   | `pnpm --filter api-shore exec prisma generate` — regenerated Prisma client after Part schema gained `vesselId`; fixed TS2353 in `part.service.ts`.                                                                                                                                                                                 |
+| **TS2883 tsconfig fix** | Added `declaration: false` + `declarationMap: false` to `apps/api-vessel/tsconfig.json`. TypeScript 5.9.3 validates declaration emit even with `noEmit: true`; drizzle-orm table constants use opaque internal generics that cannot be named across module boundaries. Pre-existing failure on main and fix branch — now resolved. |
+| **Drizzle bundle**      | Committed all 14 SQLite migration SQL files (0000–0013) + Drizzle snapshots + updated `_journal.json` + `jwt-public.pem` — they were generated but never tracked in git; required for fresh vessel.db initialisation.                                                                                                              |
+| **CI result**           | `pnpm -w run ci:full` ✓ (lint + typecheck:all + 156 unit tests + format check); GitHub CI ✓ (51s)                                                                                                                                                                                                                                  |
+| **PR / merge**          | PR #35 merged to main (squash) as `0a9e6f5`                                                                                                                                                                                                                                                                                        |
+| **Electron build**      | `pnpm --filter desktop-vessel run dist` ✓ → `apps/desktop-vessel/release/FleetOps Setup 0.0.0.exe` rebuilt with all migrations bundled                                                                                                                                                                                             |
+
 ### 2026-05-21 — UX bug fixes — Modal Enter key, inventory location editing, Electron vessel switch
 
 | Item                        | Detail                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -565,7 +576,9 @@ Large batch of UI work implementing the Bearing design system across all Phase 1
 
 **P5-4 complete (2026-05-19).** Pen test completed — 5 vulnerabilities found and fixed. PR #27 open (feat/p5-4-pentest). Shore e2e 259 ✓ (24 files). See §15 entry dated 2026-05-19 for details.
 
-Next: **Merge PR #29 (UX bug fixes — modal Enter key, inventory location editing, Electron vessel switch), then proceed to P5-5 (production deployment readiness — Dockerfile, env-var hardening, seed-data cleanup) or await Ziad's direction on pilot vessel.**
+**PR #35 merged to main (2026-05-21).** fix/inventory-category-load: inventory category load fix, drizzle migration bundle, TS2883 tsconfig fix. CI ✓ (GitHub + local ci:full). Electron `FleetOps Setup 0.0.0.exe` rebuilt with all 14 migrations bundled.
+
+Next: **P5-5 (production deployment readiness — Dockerfile, env-var hardening, seed-data cleanup) or await Ziad's direction on pilot vessel.**
 
 **Outstanding follow-up tickets (deferred, not blocking P1-4):**
 
