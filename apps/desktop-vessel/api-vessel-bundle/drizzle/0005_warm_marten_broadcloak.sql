@@ -1,0 +1,1 @@
+ALTER TABLE `jobs` ADD `typical_parts_json` text;

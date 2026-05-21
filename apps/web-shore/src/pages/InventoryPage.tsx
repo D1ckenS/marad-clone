@@ -602,7 +602,13 @@ const FILTER_KEYS = [
 ];
 
 // ── Add Category modal ────────────────────────────────────────────────────
-function AddCategoryModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+function AddCategoryModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (cat: Category) => void;
+}) {
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
@@ -614,8 +620,8 @@ function AddCategoryModal({ onClose, onCreated }: { onClose: () => void; onCreat
     }
     setSaving(true);
     try {
-      await api.post<unknown>('/part-categories', { name: name.trim() });
-      onCreated();
+      const created = await api.post<Category>('/part-categories', { name: name.trim() });
+      onCreated(created);
       onClose();
     } catch {
       setErr('Failed to create category');
@@ -713,7 +719,13 @@ function AddCategoryModal({ onClose, onCreated }: { onClose: () => void; onCreat
 }
 
 // ── Add Location modal ────────────────────────────────────────────────────
-function AddLocationModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+function AddLocationModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (loc: Location) => void;
+}) {
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
@@ -725,8 +737,8 @@ function AddLocationModal({ onClose, onCreated }: { onClose: () => void; onCreat
     }
     setSaving(true);
     try {
-      await api.post<unknown>('/stock-locations', { name: name.trim() });
-      onCreated();
+      const created = await api.post<Location>('/stock-locations', { name: name.trim() });
+      onCreated(created);
       onClose();
     } catch {
       setErr('Failed to create location');
@@ -850,21 +862,27 @@ export function InventoryPage() {
   const [modal, setModal] = useState<ActiveModal>({ kind: 'none' });
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const loadCategories = useCallback(() => {
+    api
+      .get<Category[]>('/part-categories')
+      .then(setCategories)
+      .catch(() => {});
+  }, []);
+
   const load = useCallback(() => {
     setLoading(true);
+    loadCategories();
     Promise.all([
       api.get<Part[]>('/parts/inventory-summary'),
       api.get<Location[]>('/stock-locations'),
-      api.get<Category[]>('/part-categories'),
     ])
-      .then(([p, l, c]) => {
+      .then(([p, l]) => {
         setParts(p);
         setLocations(l);
-        setCategories(c);
       })
       .catch(() => undefined)
       .finally(() => setLoading(false));
-  }, []);
+  }, [loadCategories]);
 
   useEffect(() => {
     load();
@@ -1536,8 +1554,18 @@ export function InventoryPage() {
         partName={modal.kind === 'barcodes' ? modal.partName : ''}
         onClose={closeModal}
       />
-      {addLocOpen && <AddLocationModal onClose={() => setAddLocOpen(false)} onCreated={load} />}
-      {addCatOpen && <AddCategoryModal onClose={() => setAddCatOpen(false)} onCreated={load} />}
+      {addLocOpen && (
+        <AddLocationModal
+          onClose={() => setAddLocOpen(false)}
+          onCreated={(loc) => setLocations((prev) => [...prev, loc])}
+        />
+      )}
+      {addCatOpen && (
+        <AddCategoryModal
+          onClose={() => setAddCatOpen(false)}
+          onCreated={(cat) => setCategories((prev) => [...prev, cat])}
+        />
+      )}
     </div>
   );
 }
