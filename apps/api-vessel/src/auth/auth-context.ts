@@ -6,7 +6,8 @@
  * that happen to reach the vessel.
  */
 export interface AuthContext {
-  readonly tenantId: string;
+  // null for SUPER_ADMIN (no tenant assignment, matches shore §18)
+  readonly tenantId: string | null;
   readonly vesselId: string | null;
   readonly userId: string;
   readonly role: string;

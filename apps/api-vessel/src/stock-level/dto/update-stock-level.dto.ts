@@ -1,4 +1,4 @@
-import { IsNumberString, IsOptional } from 'class-validator';
+import { IsNumberString, IsOptional, IsString } from 'class-validator';
 
 export class UpdateStockLevelDto {
   @IsOptional()
@@ -12,4 +12,8 @@ export class UpdateStockLevelDto {
   @IsOptional()
   @IsNumberString()
   reorderPoint?: string;
+
+  @IsOptional()
+  @IsString()
+  locationId?: string;
 }

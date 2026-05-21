@@ -39,7 +39,7 @@ export class RequisitionService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -48,7 +48,7 @@ export class RequisitionService {
         .insert(requisitions)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           title: dto.title,
           notes: dto.notes ?? null,
@@ -73,7 +73,7 @@ export class RequisitionService {
       .from(requisitions)
       .where(
         and(
-          eq(requisitions.tenantId, auth.tenantId),
+          eq(requisitions.tenantId, auth.tenantId!),
           eq(requisitions.vesselId, vesselId),
           isNull(requisitions.deletedAt),
           ...(status ? [eq(requisitions.status, status as never)] : []),
@@ -99,7 +99,7 @@ export class RequisitionService {
       .where(
         and(
           eq(requisitions.id, id),
-          eq(requisitions.tenantId, auth.tenantId),
+          eq(requisitions.tenantId, auth.tenantId!),
           eq(requisitions.vesselId, vesselId),
           isNull(requisitions.deletedAt),
         ),
@@ -160,7 +160,7 @@ export class RequisitionService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         LINE_ENTITY_TYPE,
         id,
         fields,
@@ -169,7 +169,7 @@ export class RequisitionService {
         .insert(requisitionLines)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           requisitionId,
           partId: dto.partId ?? null,

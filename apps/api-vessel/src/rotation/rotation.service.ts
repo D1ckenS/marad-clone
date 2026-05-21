@@ -31,7 +31,7 @@ export class RotationService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY,
         id,
         fields,
@@ -40,7 +40,7 @@ export class RotationService {
         .insert(rotations)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           ...fields,
           createdAt: nowIso,
           updatedAt: nowIso,
@@ -53,7 +53,7 @@ export class RotationService {
   }
 
   findAll(auth: AuthContext, query: { vesselId?: string; crewMemberId?: string; status?: string }) {
-    const filters = [eq(rotations.tenantId, auth.tenantId), isNull(rotations.deletedAt)];
+    const filters = [eq(rotations.tenantId, auth.tenantId!), isNull(rotations.deletedAt)];
     if (query.vesselId) filters.push(eq(rotations.vesselId, query.vesselId));
     if (query.crewMemberId) filters.push(eq(rotations.crewMemberId, query.crewMemberId));
     if (query.status) filters.push(eq(rotations.status, query.status as never));
@@ -72,7 +72,7 @@ export class RotationService {
       .where(
         and(
           eq(rotations.id, id),
-          eq(rotations.tenantId, auth.tenantId),
+          eq(rotations.tenantId, auth.tenantId!),
           isNull(rotations.deletedAt),
         ),
       )
@@ -93,7 +93,7 @@ export class RotationService {
     return this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         ENTITY,
         id,
         fields,
@@ -113,7 +113,7 @@ export class RotationService {
     this.drizzle.db.transaction((tx) => {
       this.recorder.recordDelete(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         ENTITY,
         id,
       );

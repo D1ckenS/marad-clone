@@ -32,7 +32,7 @@ export class CapaService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY,
         id,
         fields,
@@ -41,7 +41,7 @@ export class CapaService {
         .insert(capas)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           ...fields,
           createdAt: nowIso,
           updatedAt: nowIso,
@@ -54,7 +54,7 @@ export class CapaService {
   }
 
   findAll(auth: AuthContext, query: { vesselId?: string; findingId?: string; status?: string }) {
-    const filters = [eq(capas.tenantId, auth.tenantId), isNull(capas.deletedAt)];
+    const filters = [eq(capas.tenantId, auth.tenantId!), isNull(capas.deletedAt)];
     if (query.vesselId) filters.push(eq(capas.vesselId, query.vesselId));
     if (query.findingId) filters.push(eq(capas.findingId, query.findingId));
     if (query.status) filters.push(eq(capas.status, query.status as never));
@@ -70,7 +70,7 @@ export class CapaService {
     const row = this.drizzle.db
       .select()
       .from(capas)
-      .where(and(eq(capas.id, id), eq(capas.tenantId, auth.tenantId), isNull(capas.deletedAt)))
+      .where(and(eq(capas.id, id), eq(capas.tenantId, auth.tenantId!), isNull(capas.deletedAt)))
       .get();
     if (!row) throw new NotFoundException(`CAPA ${id} not found`);
     return row;
@@ -86,7 +86,7 @@ export class CapaService {
     return this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         ENTITY,
         id,
         fields,
@@ -106,7 +106,7 @@ export class CapaService {
     this.drizzle.db.transaction((tx) => {
       this.recorder.recordDelete(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         ENTITY,
         id,
       );
@@ -123,7 +123,7 @@ export class CapaService {
     return this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         ENTITY,
         id,
         { status: 'VERIFIED', verifiedAt: nowIso },
@@ -144,7 +144,7 @@ export class CapaService {
     return this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         ENTITY,
         id,
         { status: 'CLOSED', closedAt: nowIso },

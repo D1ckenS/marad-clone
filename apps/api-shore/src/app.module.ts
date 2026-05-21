@@ -10,6 +10,7 @@ import { AccountingModule } from './accounting/accounting.module';
 import { ClassSocietyModule } from './class-society/class-society.module';
 import { BiModule } from './bi/bi.module';
 import { ComplianceModule } from './compliance/compliance.module';
+import { DeferredStubsModule } from './deferred-stubs/deferred-stubs.module';
 import { CapaModule } from './capa/capa.module';
 import { ChecklistInstanceModule } from './checklist-instance/checklist-instance.module';
 import { ChecklistTemplateModule } from './checklist-template/checklist-template.module';
@@ -127,6 +128,7 @@ import { VesselModule } from './vessel/vessel.module';
     ClassSocietyModule,
     BiModule,
     ComplianceModule,
+    DeferredStubsModule,
   ],
 })
 export class AppModule {}

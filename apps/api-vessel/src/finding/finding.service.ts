@@ -32,7 +32,7 @@ export class FindingService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY,
         id,
         fields,
@@ -41,7 +41,7 @@ export class FindingService {
         .insert(findings)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           ...fields,
           createdAt: nowIso,
           updatedAt: nowIso,
@@ -54,7 +54,7 @@ export class FindingService {
   }
 
   findAll(auth: AuthContext, query: { vesselId?: string; kind?: string; status?: string }) {
-    const filters = [eq(findings.tenantId, auth.tenantId), isNull(findings.deletedAt)];
+    const filters = [eq(findings.tenantId, auth.tenantId!), isNull(findings.deletedAt)];
     if (query.vesselId) filters.push(eq(findings.vesselId, query.vesselId));
     if (query.kind) filters.push(eq(findings.kind, query.kind as never));
     if (query.status) filters.push(eq(findings.status, query.status as never));
@@ -71,7 +71,7 @@ export class FindingService {
       .select()
       .from(findings)
       .where(
-        and(eq(findings.id, id), eq(findings.tenantId, auth.tenantId), isNull(findings.deletedAt)),
+        and(eq(findings.id, id), eq(findings.tenantId, auth.tenantId!), isNull(findings.deletedAt)),
       )
       .get();
     if (!row) throw new NotFoundException(`Finding ${id} not found`);
@@ -87,7 +87,7 @@ export class FindingService {
     return this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         ENTITY,
         id,
         fields,
@@ -107,7 +107,7 @@ export class FindingService {
     this.drizzle.db.transaction((tx) => {
       this.recorder.recordDelete(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         ENTITY,
         id,
       );
@@ -124,7 +124,7 @@ export class FindingService {
     return this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         ENTITY,
         id,
         { status: 'CLOSED', closedAt: nowIso },

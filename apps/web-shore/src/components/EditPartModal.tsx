@@ -4,6 +4,12 @@ import { Button, Input, Modal, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 import type { Category } from './CreatePartModal.js';
 
+interface StockLevelRef {
+  id: string;
+  locationId: string;
+  locationName: string;
+}
+
 export interface PartItem {
   id: string;
   name: string;
@@ -11,6 +17,12 @@ export interface PartItem {
   unit: string;
   description?: string | null;
   categoryId?: string | null;
+  stockLevels?: StockLevelRef[];
+}
+
+interface LocationOption {
+  id: string;
+  name: string;
 }
 
 interface Props {
@@ -31,6 +43,12 @@ export function EditPartModal({ open, part, categories, onClose, onSaved }: Prop
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Location editing state
+  const [locations, setLocations] = useState<LocationOption[]>([]);
+  const [stockLevelId, setStockLevelId] = useState('');
+  const [locationId, setLocationId] = useState('');
+  const [origLocationId, setOrigLocationId] = useState('');
+
   useEffect(() => {
     if (!part) return;
     setName(part.name);
@@ -39,7 +57,26 @@ export function EditPartModal({ open, part, categories, onClose, onSaved }: Prop
     setDescription(part.description ?? '');
     setCategoryId(part.categoryId ?? '');
     setError(null);
+
+    const sl = part.stockLevels?.[0];
+    if (sl) {
+      setStockLevelId(sl.id);
+      setLocationId(sl.locationId);
+      setOrigLocationId(sl.locationId);
+    } else {
+      setStockLevelId('');
+      setLocationId('');
+      setOrigLocationId('');
+    }
   }, [part]);
+
+  useEffect(() => {
+    if (!open) return;
+    api
+      .get<LocationOption[]>('/stock-locations')
+      .then(setLocations)
+      .catch(() => {});
+  }, [open]);
 
   const handleClose = () => {
     setError(null);
@@ -62,6 +99,9 @@ export function EditPartModal({ open, part, categories, onClose, onSaved }: Prop
         description: description.trim() || undefined,
         categoryId: categoryId || null,
       });
+      if (stockLevelId && locationId && locationId !== origLocationId) {
+        await api.patch(`/stock-levels/${stockLevelId}`, { locationId });
+      }
       onSaved();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to save.');
@@ -75,6 +115,7 @@ export function EditPartModal({ open, part, categories, onClose, onSaved }: Prop
       open={open}
       title={t('common.edit')}
       onClose={handleClose}
+      onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>
@@ -143,6 +184,37 @@ export function EditPartModal({ open, part, categories, onClose, onSaved }: Prop
             ))}
           </select>
         </div>
+        {stockLevelId && locations.length > 0 && (
+          <div>
+            <label
+              className="text-[11.5px] font-medium mb-1 block"
+              style={{ color: 'var(--ink-2)' }}
+            >
+              {t('inventory.location')}
+            </label>
+            <select
+              value={locationId}
+              onChange={(e) => setLocationId(e.target.value)}
+              style={{
+                width: '100%',
+                height: 34,
+                padding: '0 8px',
+                fontSize: 13,
+                border: '1px solid var(--border)',
+                borderRadius: 6,
+                background: 'var(--surface)',
+                color: 'var(--ink)',
+                fontFamily: 'inherit',
+              }}
+            >
+              {locations.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <TextArea
           id="ep-desc"
           label={t('common.description')}

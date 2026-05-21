@@ -25,7 +25,7 @@ export class RfqService {
       const fields = { vesselId, title: dto.title, status: 'DRAFT' as const };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY_TYPE,
         id,
         fields,
@@ -34,7 +34,7 @@ export class RfqService {
         .insert(rfqs)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           title: dto.title,
           notes: dto.notes ?? null,
@@ -57,7 +57,7 @@ export class RfqService {
       .select()
       .from(rfqs)
       .where(
-        and(eq(rfqs.tenantId, auth.tenantId), eq(rfqs.vesselId, vesselId), isNull(rfqs.deletedAt)),
+        and(eq(rfqs.tenantId, auth.tenantId!), eq(rfqs.vesselId, vesselId), isNull(rfqs.deletedAt)),
       )
       .orderBy(rfqs.createdAt)
       .all();
@@ -71,7 +71,7 @@ export class RfqService {
       .where(
         and(
           eq(rfqs.id, id),
-          eq(rfqs.tenantId, auth.tenantId),
+          eq(rfqs.tenantId, auth.tenantId!),
           eq(rfqs.vesselId, vesselId),
           isNull(rfqs.deletedAt),
         ),

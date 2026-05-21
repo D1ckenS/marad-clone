@@ -12,6 +12,6 @@ export class UserController {
 
   @Post()
   create(@AuthCtx() auth: AuthContext, @Body() dto: CreateUserDto) {
-    return this.users.create(auth.tenantId, dto);
+    return this.users.create(auth.tenantId!, dto);
   }
 }

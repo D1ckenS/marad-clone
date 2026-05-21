@@ -707,6 +707,7 @@
   },
   "flgo": {
     "title": "FLGO",
+    "subtitle": "Fuel · Liquids · Gas · Oil — soundings, BDNs and consumption",
     "tab_tanks": "Tanks",
     "tab_soundings": "Soundings",
     "tab_bdn": "BDN",

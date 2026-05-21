@@ -34,7 +34,7 @@ export class RestHourEntryService {
       .where(
         and(
           eq(restHourEntries.crewMemberId, dto.crewMemberId),
-          eq(restHourEntries.tenantId, auth.tenantId),
+          eq(restHourEntries.tenantId, auth.tenantId!),
           isNull(restHourEntries.deletedAt),
         ),
       )
@@ -71,7 +71,7 @@ export class RestHourEntryService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY,
         id,
         fields,
@@ -80,7 +80,7 @@ export class RestHourEntryService {
         .insert(restHourEntries)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           ...fields,
           createdAt: nowIso,
           updatedAt: nowIso,
@@ -94,7 +94,7 @@ export class RestHourEntryService {
 
   findAll(auth: AuthContext, query: { vesselId?: string; crewMemberId?: string }) {
     const filters = [
-      eq(restHourEntries.tenantId, auth.tenantId),
+      eq(restHourEntries.tenantId, auth.tenantId!),
       isNull(restHourEntries.deletedAt),
     ];
     if (query.vesselId) filters.push(eq(restHourEntries.vesselId, query.vesselId));
@@ -114,7 +114,7 @@ export class RestHourEntryService {
       .where(
         and(
           eq(restHourEntries.id, id),
-          eq(restHourEntries.tenantId, auth.tenantId),
+          eq(restHourEntries.tenantId, auth.tenantId!),
           isNull(restHourEntries.deletedAt),
         ),
       )
@@ -131,7 +131,7 @@ export class RestHourEntryService {
     return this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         ENTITY,
         id,
         fields,
@@ -151,7 +151,7 @@ export class RestHourEntryService {
     this.drizzle.db.transaction((tx) => {
       this.recorder.recordDelete(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         ENTITY,
         id,
       );

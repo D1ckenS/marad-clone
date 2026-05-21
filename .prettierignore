@@ -7,6 +7,7 @@ coverage
 .next
 .cache
 pnpm-lock.yaml
+.smoke-results
 
 # CLAUDE.md is hand-formatted; do not let prettier reflow it
 CLAUDE.md

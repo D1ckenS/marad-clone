@@ -16,7 +16,7 @@ export class PartCategoryService {
       .insert(partCategories)
       .values({
         id: newId(),
-        tenantId: auth.tenantId,
+        tenantId: auth.tenantId!,
         name: dto.name,
         description: dto.description ?? null,
         parentId: dto.parentId ?? null,
@@ -30,7 +30,7 @@ export class PartCategoryService {
     return this.drizzle.db
       .select()
       .from(partCategories)
-      .where(and(eq(partCategories.tenantId, auth.tenantId), isNull(partCategories.deletedAt)))
+      .where(and(eq(partCategories.tenantId, auth.tenantId!), isNull(partCategories.deletedAt)))
       .orderBy(partCategories.name)
       .all();
   }
@@ -42,7 +42,7 @@ export class PartCategoryService {
       .where(
         and(
           eq(partCategories.id, id),
-          eq(partCategories.tenantId, auth.tenantId),
+          eq(partCategories.tenantId, auth.tenantId!),
           isNull(partCategories.deletedAt),
         ),
       )

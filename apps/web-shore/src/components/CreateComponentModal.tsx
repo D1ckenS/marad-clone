@@ -61,6 +61,7 @@ export function CreateComponentModal({ open, parentId, parentName, onClose, onCr
       open={open}
       title={title}
       onClose={handleClose}
+      onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>

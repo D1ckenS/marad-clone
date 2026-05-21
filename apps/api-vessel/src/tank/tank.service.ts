@@ -32,7 +32,7 @@ export class TankService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY,
         id,
         fields,
@@ -41,7 +41,7 @@ export class TankService {
         .insert(tanks)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           ...fields,
           createdAt: nowIso,
           updatedAt: nowIso,
@@ -54,7 +54,7 @@ export class TankService {
   }
 
   findAll(auth: AuthContext, query: { vesselId?: string; tankType?: string }) {
-    const filters = [eq(tanks.tenantId, auth.tenantId), isNull(tanks.deletedAt)];
+    const filters = [eq(tanks.tenantId, auth.tenantId!), isNull(tanks.deletedAt)];
     if (query.vesselId) filters.push(eq(tanks.vesselId, query.vesselId));
     if (query.tankType) filters.push(eq(tanks.tankType, query.tankType as never));
     return this.drizzle.db
@@ -69,7 +69,7 @@ export class TankService {
     const row = this.drizzle.db
       .select()
       .from(tanks)
-      .where(and(eq(tanks.id, id), eq(tanks.tenantId, auth.tenantId), isNull(tanks.deletedAt)))
+      .where(and(eq(tanks.id, id), eq(tanks.tenantId, auth.tenantId!), isNull(tanks.deletedAt)))
       .get();
     if (!row) throw new NotFoundException(`Tank ${id} not found`);
     return row;
@@ -86,7 +86,7 @@ export class TankService {
     return this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         ENTITY,
         id,
         fields,
@@ -106,7 +106,7 @@ export class TankService {
     this.drizzle.db.transaction((tx) => {
       this.recorder.recordDelete(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         ENTITY,
         id,
       );

@@ -34,7 +34,7 @@ export class TankReadingService {
       };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         ENTITY,
         id,
         fields,
@@ -43,7 +43,7 @@ export class TankReadingService {
         .insert(tankReadings)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           ...fields,
           createdAt: nowIso,
           updatedAt: nowIso,
@@ -59,7 +59,7 @@ export class TankReadingService {
     auth: AuthContext,
     query: { vesselId?: string; tankId?: string; from?: string; to?: string },
   ) {
-    const filters = [eq(tankReadings.tenantId, auth.tenantId), isNull(tankReadings.deletedAt)];
+    const filters = [eq(tankReadings.tenantId, auth.tenantId!), isNull(tankReadings.deletedAt)];
     if (query.vesselId) filters.push(eq(tankReadings.vesselId, query.vesselId));
     if (query.tankId) filters.push(eq(tankReadings.tankId, query.tankId));
     if (query.from) filters.push(gte(tankReadings.readingDate, query.from));
@@ -79,7 +79,7 @@ export class TankReadingService {
       .where(
         and(
           eq(tankReadings.id, id),
-          eq(tankReadings.tenantId, auth.tenantId),
+          eq(tankReadings.tenantId, auth.tenantId!),
           isNull(tankReadings.deletedAt),
         ),
       )
@@ -97,7 +97,7 @@ export class TankReadingService {
     return this.drizzle.db.transaction((tx) => {
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         ENTITY,
         id,
         fields,
@@ -117,7 +117,7 @@ export class TankReadingService {
     this.drizzle.db.transaction((tx) => {
       this.recorder.recordDelete(
         tx,
-        { tenantId: auth.tenantId, vesselId: existing.vesselId },
+        { tenantId: auth.tenantId!, vesselId: existing.vesselId },
         ENTITY,
         id,
       );

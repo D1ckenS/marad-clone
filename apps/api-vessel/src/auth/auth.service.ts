@@ -1,7 +1,16 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { newId } from '@fleetops/domain';
+import { DrizzleService } from '../db/drizzle.service';
+import { tenants, users, vessels } from '../db/schema';
 import { UserService } from '../user/user.service';
+import type { BootstrapAdminDto } from './dto/bootstrap-admin.dto';
 
 export type ShoreJwtPayload = {
   sub: string;
@@ -25,8 +34,82 @@ const VESSEL_LOCAL_TTL_S = Math.floor(
 export class AuthService {
   constructor(
     private readonly users: UserService,
+    private readonly drizzle: DrizzleService,
     private readonly jwt: JwtService,
   ) {}
+
+  /**
+   * First-launch provisioning. Creates a tenant + vessel (idempotent on id)
+   * and a TENANT_ADMIN user, then issues a vessel-local JWT so the SPA can
+   * proceed directly to the dashboard without a second round-trip.
+   *
+   * Refused unless:
+   *   - VESSEL_BOOTSTRAP_KEY env var is set AND matches dto.bootstrapKey, AND
+   *   - the users table is empty (cannot be used to add a second admin —
+   *     for that, the existing admin must use the normal create-user flow).
+   *
+   * The empty-table guard mirrors shore's /auth/bootstrap-super-admin pattern.
+   */
+  async bootstrapAdmin(dto: BootstrapAdminDto): Promise<LocalLoginResult> {
+    const expected = process.env['VESSEL_BOOTSTRAP_KEY'];
+    if (expected === undefined || expected.trim() === '') {
+      throw new ForbiddenException(
+        'VESSEL_BOOTSTRAP_KEY not configured — set it in the desktop environment',
+      );
+    }
+    if (dto.bootstrapKey !== expected) {
+      throw new ForbiddenException('Invalid bootstrap key');
+    }
+    if (this.users.countAll() > 0) {
+      throw new ConflictException(
+        'Vessel already provisioned — log in with an existing admin to create more users',
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 12);
+    const userId = newId();
+    const vesselId = dto.vesselId ?? newId();
+
+    // Insert tenant, vessel, and user atomically.
+    this.drizzle.db.transaction((tx) => {
+      tx.insert(tenants)
+        .values({ id: dto.tenantId, name: dto.tenantName })
+        .onConflictDoNothing({ target: tenants.id })
+        .run();
+      tx.insert(vessels)
+        .values({
+          id: vesselId,
+          tenantId: dto.tenantId,
+          name: dto.vesselName ?? 'Vessel',
+          ...(dto.vesselImoNumber !== undefined && { imoNumber: dto.vesselImoNumber }),
+        })
+        .onConflictDoNothing({ target: vessels.id })
+        .run();
+      tx.insert(users)
+        .values({
+          id: userId,
+          tenantId: dto.tenantId,
+          vesselId,
+          email: dto.email,
+          passwordHash,
+          role: 'TENANT_ADMIN',
+        })
+        .run();
+    });
+
+    return this.login(dto.email, dto.password, dto.tenantId);
+  }
+
+  /**
+   * Reports whether the vessel needs first-launch provisioning. Public.
+   */
+  getSetupStatus(): { userCount: number; needsBootstrap: boolean; bootstrapEnabled: boolean } {
+    const userCount = this.users.countAll();
+    const bootstrapEnabled =
+      process.env['VESSEL_BOOTSTRAP_KEY'] !== undefined &&
+      process.env['VESSEL_BOOTSTRAP_KEY'].trim() !== '';
+    return { userCount, needsBootstrap: userCount === 0, bootstrapEnabled };
+  }
 
   /**
    * Verify a shore-issued RS256 access token using the cached public
@@ -50,17 +133,18 @@ export class AuthService {
   }
 
   /**
-   * Local-password login path retained for dev convenience. Uses a
-   * vessel-local secret (HS256) that is distinct from the shore RS256
-   * keypair, so neither path can spoof the other.
-   *
-   * In production this path will be disabled; vessel users will only
-   * authenticate via shore-issued tokens delivered through sync.
+   * Local-password login. Mirrors the shore login shape (identifier+password,
+   * tenantId optional) so the same SPA login form works against either side.
+   * Uses a vessel-local HS256 secret distinct from the shore RS256 keypair
+   * so neither path can spoof the other.
    */
-  async login(tenantId: string, email: string, password: string): Promise<LocalLoginResult> {
+  async login(identifier: string, password: string, tenantId?: string): Promise<LocalLoginResult> {
     let user;
     try {
-      user = this.users.findByEmail(tenantId, email);
+      user =
+        tenantId !== undefined && tenantId.trim() !== ''
+          ? this.users.findByEmail(tenantId, identifier)
+          : this.users.findByIdentifier(identifier);
     } catch {
       throw new UnauthorizedException('Invalid credentials');
     }

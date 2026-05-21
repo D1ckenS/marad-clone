@@ -16,7 +16,7 @@ export class FuelProductService {
       .insert(fuelProducts)
       .values({
         id: newId(),
-        tenantId: auth.tenantId,
+        tenantId: auth.tenantId!,
         name: dto.name,
         tankType: dto.tankType as never,
         sulphurPct: dto.sulphurPct ?? null,
@@ -33,7 +33,7 @@ export class FuelProductService {
     return this.drizzle.db
       .select()
       .from(fuelProducts)
-      .where(and(eq(fuelProducts.tenantId, auth.tenantId), isNull(fuelProducts.deletedAt)))
+      .where(and(eq(fuelProducts.tenantId, auth.tenantId!), isNull(fuelProducts.deletedAt)))
       .orderBy(fuelProducts.name)
       .all();
   }
@@ -45,7 +45,7 @@ export class FuelProductService {
       .where(
         and(
           eq(fuelProducts.id, id),
-          eq(fuelProducts.tenantId, auth.tenantId),
+          eq(fuelProducts.tenantId, auth.tenantId!),
           isNull(fuelProducts.deletedAt),
         ),
       )

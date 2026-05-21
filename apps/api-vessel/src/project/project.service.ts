@@ -27,7 +27,7 @@ export class ProjectService {
       const fields = { vesselId, title: dto.title, status: dto.status ?? 'PLANNING' };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId },
+        { tenantId: auth.tenantId!, vesselId },
         PROJECT_ENTITY,
         id,
         fields,
@@ -36,7 +36,7 @@ export class ProjectService {
         .insert(projects)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId,
           title: dto.title,
           description: dto.description ?? null,
@@ -55,7 +55,7 @@ export class ProjectService {
 
   findAllProjects(auth: AuthContext, vesselIdParam?: string) {
     if (!vesselIdParam) requireVesselId(auth);
-    const filters = [eq(projects.tenantId, auth.tenantId), isNull(projects.deletedAt)];
+    const filters = [eq(projects.tenantId, auth.tenantId!), isNull(projects.deletedAt)];
     if (vesselIdParam) filters.push(eq(projects.vesselId, vesselIdParam));
     const rows = this.drizzle.db
       .select()
@@ -78,7 +78,7 @@ export class ProjectService {
       .select()
       .from(projects)
       .where(
-        and(eq(projects.id, id), eq(projects.tenantId, auth.tenantId), isNull(projects.deletedAt)),
+        and(eq(projects.id, id), eq(projects.tenantId, auth.tenantId!), isNull(projects.deletedAt)),
       )
       .get();
     if (!project) throw new NotFoundException(`Project ${id} not found`);
@@ -124,7 +124,7 @@ export class ProjectService {
       const fields = { vesselId: project.vesselId, projectId, title: dto.title };
       const { hlc } = this.recorder.recordUpsert(
         tx,
-        { tenantId: auth.tenantId, vesselId: project.vesselId },
+        { tenantId: auth.tenantId!, vesselId: project.vesselId },
         TASK_ENTITY,
         id,
         fields,
@@ -133,7 +133,7 @@ export class ProjectService {
         .insert(projectTasks)
         .values({
           id,
-          tenantId: auth.tenantId,
+          tenantId: auth.tenantId!,
           vesselId: project.vesselId,
           projectId,
           title: dto.title,

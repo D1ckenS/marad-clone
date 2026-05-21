@@ -19,7 +19,7 @@ export class ChecklistTemplateService {
       .insert(checklistTemplates)
       .values({
         id: newId(),
-        tenantId: auth.tenantId,
+        tenantId: auth.tenantId!,
         title: dto.title,
         description: dto.description ?? null,
         itemsJson: dto.itemsJson,
@@ -36,7 +36,7 @@ export class ChecklistTemplateService {
       .select()
       .from(checklistTemplates)
       .where(
-        and(eq(checklistTemplates.tenantId, auth.tenantId), isNull(checklistTemplates.deletedAt)),
+        and(eq(checklistTemplates.tenantId, auth.tenantId!), isNull(checklistTemplates.deletedAt)),
       )
       .orderBy(checklistTemplates.title)
       .all();
@@ -49,7 +49,7 @@ export class ChecklistTemplateService {
       .where(
         and(
           eq(checklistTemplates.id, id),
-          eq(checklistTemplates.tenantId, auth.tenantId),
+          eq(checklistTemplates.tenantId, auth.tenantId!),
           isNull(checklistTemplates.deletedAt),
         ),
       )

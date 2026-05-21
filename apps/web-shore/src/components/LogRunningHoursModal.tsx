@@ -67,6 +67,7 @@ export function LogRunningHoursModal({
       open={open}
       title={`Log Running Hours — ${componentName}`}
       onClose={handleClose}
+      onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>

@@ -26,7 +26,7 @@ export class PartService {
       .insert(parts)
       .values({
         id: newId(),
-        tenantId: auth.tenantId,
+        tenantId: auth.tenantId!,
         name: dto.name,
         description: dto.description ?? null,
         partNumber: dto.partNumber ?? null,
@@ -42,7 +42,7 @@ export class PartService {
     return this.drizzle.db
       .select()
       .from(parts)
-      .where(and(eq(parts.tenantId, auth.tenantId), isNull(parts.deletedAt)))
+      .where(and(eq(parts.tenantId, auth.tenantId!), isNull(parts.deletedAt)))
       .orderBy(parts.name)
       .all();
   }
@@ -51,7 +51,7 @@ export class PartService {
     const row = this.drizzle.db
       .select()
       .from(parts)
-      .where(and(eq(parts.id, id), eq(parts.tenantId, auth.tenantId), isNull(parts.deletedAt)))
+      .where(and(eq(parts.id, id), eq(parts.tenantId, auth.tenantId!), isNull(parts.deletedAt)))
       .get();
     if (row === undefined) throw new NotFoundException(`Part ${id} not found`);
     return row;
@@ -89,7 +89,7 @@ export class PartService {
     const allParts = this.drizzle.db
       .select()
       .from(parts)
-      .where(and(eq(parts.tenantId, auth.tenantId), isNull(parts.deletedAt)))
+      .where(and(eq(parts.tenantId, auth.tenantId!), isNull(parts.deletedAt)))
       .orderBy(parts.name)
       .all();
 
@@ -107,7 +107,7 @@ export class PartService {
       .innerJoin(stockLocations, eq(stockLevels.locationId, stockLocations.id))
       .where(
         and(
-          eq(stockLevels.tenantId, auth.tenantId),
+          eq(stockLevels.tenantId, auth.tenantId!),
           eq(stockLevels.vesselId, vesselId),
           isNull(stockLevels.deletedAt),
         ),
@@ -123,7 +123,7 @@ export class PartService {
       .from(stockMovements)
       .where(
         and(
-          eq(stockMovements.tenantId, auth.tenantId),
+          eq(stockMovements.tenantId, auth.tenantId!),
           eq(stockMovements.vesselId, vesselId),
           isNull(stockMovements.deletedAt),
         ),
