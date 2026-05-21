@@ -21,6 +21,7 @@ out/
 # Test / coverage
 coverage/
 .nyc_output/
+.smoke-results/
 
 # Logs
 *.log

@@ -1138,8 +1138,7 @@ export function InventoryPage() {
                 activeLocs.size === 0
                   ? parts
                   : parts.filter((p) => p.stockLevels.some((l) => activeLocs.has(l.locationId)));
-              const catIdsInLoc = new Set(locParts.map((p) => p.categoryId).filter(Boolean));
-              const visibleCats = categories.filter((c) => catIdsInLoc.has(c.id));
+              const visibleCats = categories;
               const uncategorisedCount = locParts.filter((p) => !p.categoryId).length;
               return (
                 <>
