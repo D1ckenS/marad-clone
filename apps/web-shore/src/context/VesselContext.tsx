@@ -55,7 +55,14 @@ export function VesselProvider({ children }: { children: ReactNode }) {
           // TENANT_ADMIN (and shore users with no JWT vessel) restore their last selection.
           const stored = localStorage.getItem(STORAGE_KEY);
           const stillExists = stored && vs.some((v) => v.id === stored);
-          setSelectedVesselIdState(stillExists ? stored : (user.vesselId ?? null));
+          const resolved = stillExists ? stored : (user.vesselId ?? null);
+          setSelectedVesselIdState(resolved);
+          // Ensure localStorage is always in sync so X-Vessel-Id is set from the first request.
+          if (resolved) {
+            localStorage.setItem(STORAGE_KEY, resolved);
+          } else {
+            localStorage.removeItem(STORAGE_KEY);
+          }
         }
         setLoaded(true);
       })
