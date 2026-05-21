@@ -94,6 +94,7 @@ export function PostStockMovementModal({ open, partId, partName, onClose, onPost
       open={open}
       title={`Post Stock Movement — ${partName}`}
       onClose={handleClose}
+      onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>

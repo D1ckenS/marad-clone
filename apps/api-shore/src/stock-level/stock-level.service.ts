@@ -87,12 +87,27 @@ export class StockLevelService {
 
   async update(auth: AuthContext, id: string, dto: UpdateStockLevelDto) {
     const vesselId = requireVesselId(auth);
-    await this.findOne(auth, id);
+    const existing = await this.findOne(auth, id);
     const fields: Record<string, unknown> = {};
     if (dto.minStock !== undefined) fields['minStock'] = dto.minStock;
     if (dto.maxStock !== undefined) fields['maxStock'] = dto.maxStock;
     if (dto.reorderPoint !== undefined) fields['reorderPoint'] = dto.reorderPoint;
+    if (dto.locationId !== undefined) fields['locationId'] = dto.locationId;
     return this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      if (dto.locationId !== undefined && dto.locationId !== existing.locationId) {
+        const conflict = await tx.stockLevel.findFirst({
+          where: {
+            tenantId: auth.tenantId!,
+            vesselId,
+            partId: existing.partId,
+            locationId: dto.locationId,
+            deletedAt: null,
+            NOT: { id },
+          },
+        });
+        if (conflict)
+          throw new ConflictException('StockLevel for this part+location already exists');
+      }
       const { hlc } = await this.recorder.recordUpsert(
         tx as unknown as Prisma.TransactionClient,
         { tenantId: auth.tenantId!, vesselId },
@@ -103,6 +118,7 @@ export class StockLevelService {
       return tx.stockLevel.update({
         where: { id },
         data: {
+          ...(dto.locationId !== undefined && { locationId: dto.locationId }),
           ...(dto.minStock !== undefined && { minStock: new Prisma.Decimal(dto.minStock) }),
           ...(dto.maxStock !== undefined && {
             maxStock: dto.maxStock != null ? new Prisma.Decimal(dto.maxStock) : null,

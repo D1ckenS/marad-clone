@@ -64,6 +64,7 @@ export function CreateSupplierModal({ open, onClose, onCreated }: Props) {
       open={open}
       title={t('purchase.new_supplier')}
       onClose={handleClose}
+      onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>
