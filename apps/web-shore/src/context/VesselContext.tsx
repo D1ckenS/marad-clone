@@ -29,9 +29,9 @@ export function VesselProvider({ children }: { children: ReactNode }) {
   const [selectedVesselId, setSelectedVesselIdState] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
 
-  // Allow switching vessels even when the JWT binds the user to a specific vessel —
-  // the JWT vesselId only drives the initial auto-selection, not permanent lock-in.
-  const isVesselLocked = false;
+  // TENANT_ADMIN can switch vessels (manages multiple ships).
+  // Other vessel-bound roles (CREW, OFFICER, MASTER, etc.) are locked to their JWT vessel.
+  const isVesselLocked = user?.role !== 'TENANT_ADMIN' && Boolean(user?.vesselId);
 
   const load = useCallback(() => {
     if (!user) return;
@@ -48,12 +48,14 @@ export function VesselProvider({ children }: { children: ReactNode }) {
       .get<Vessel[]>('/vessels')
       .then((vs) => {
         setVessels(vs);
-        if (user.vesselId) {
+        if (user.vesselId && user.role !== 'TENANT_ADMIN') {
+          // Non-admin vessel-bound users are locked to their JWT vessel.
           setSelectedVesselIdState(user.vesselId);
         } else {
+          // TENANT_ADMIN (and shore users with no JWT vessel) restore their last selection.
           const stored = localStorage.getItem(STORAGE_KEY);
           const stillExists = stored && vs.some((v) => v.id === stored);
-          setSelectedVesselIdState(stillExists ? stored : null);
+          setSelectedVesselIdState(stillExists ? stored : (user.vesselId ?? null));
         }
         setLoaded(true);
       })
