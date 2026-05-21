@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { newId } from '@fleetops/domain';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, or } from 'drizzle-orm';
 import type { AuthContext } from '../auth/auth-context';
 import { requireVesselId } from '../auth/vessel-bound';
 import { DrizzleService } from '../db/drizzle.service';
@@ -37,7 +37,7 @@ export class PartCategoryService {
       .where(
         and(
           eq(partCategories.tenantId, auth.tenantId!),
-          eq(partCategories.vesselId, vesselId),
+          or(eq(partCategories.vesselId, vesselId), isNull(partCategories.vesselId)),
           isNull(partCategories.deletedAt),
         ),
       )
@@ -54,7 +54,7 @@ export class PartCategoryService {
         and(
           eq(partCategories.id, id),
           eq(partCategories.tenantId, auth.tenantId!),
-          eq(partCategories.vesselId, vesselId),
+          or(eq(partCategories.vesselId, vesselId), isNull(partCategories.vesselId)),
           isNull(partCategories.deletedAt),
         ),
       )
