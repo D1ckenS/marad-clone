@@ -8,7 +8,7 @@
     "dev": "tsc -p tsconfig.build.json && electron .",
     "build": "tsc -p tsconfig.build.json",
     "prepare-bundle": "node scripts/prepare-bundle.mjs",
-    "dist": "pnpm run build && pnpm run prepare-bundle && electron-builder",
+    "dist": "pnpm --filter web-shore run build && pnpm run build && pnpm run prepare-bundle && electron-builder",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src"
   },
