@@ -20,11 +20,13 @@ export class PartService {
   constructor(private readonly prisma: PrismaService) {}
 
   create(auth: AuthContext, dto: CreatePartDto) {
+    const vesselId = requireVesselId(auth);
     return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.part.create({
         data: {
           id: newId(),
           tenantId: auth.tenantId!,
+          vesselId,
           name: dto.name,
           description: dto.description ?? null,
           partNumber: dto.partNumber ?? null,
@@ -36,17 +38,21 @@ export class PartService {
   }
 
   findAll(auth: AuthContext) {
+    const vesselId = requireVesselId(auth);
     return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.part.findMany({
-        where: { tenantId: auth.tenantId!, deletedAt: null },
+        where: { tenantId: auth.tenantId!, vesselId, deletedAt: null },
         orderBy: { name: 'asc' },
       }),
     );
   }
 
   async findOne(auth: AuthContext, id: string) {
+    const vesselId = requireVesselId(auth);
     const row = await this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.part.findFirst({ where: { id, tenantId: auth.tenantId!, deletedAt: null } }),
+      tx.part.findFirst({
+        where: { id, tenantId: auth.tenantId!, vesselId, deletedAt: null },
+      }),
     );
     if (row === null) throw new NotFoundException(`Part ${id} not found`);
     return row;
