@@ -27,9 +27,11 @@ beforeAll(async () => {
     });
   created.tenantId = tenantRes.body.tenant.id as string;
 
-  const adminLogin = await request(app.getHttpServer())
-    .post('/api/v1/auth/login')
-    .send({ tenantId: created.tenantId, identifier: 'admin@inv-vessel.test', password: 'AdminP@ss1' });
+  const adminLogin = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
+    tenantId: created.tenantId,
+    identifier: 'admin@inv-vessel.test',
+    password: 'AdminP@ss1',
+  });
   const adminToken = adminLogin.body.access_token as string;
 
   const vesselRes = await request(app.getHttpServer())
@@ -48,9 +50,11 @@ beforeAll(async () => {
       vesselId: created.vesselId,
     });
 
-  const chiefLogin = await request(app.getHttpServer())
-    .post('/api/v1/auth/login')
-    .send({ tenantId: created.tenantId, identifier: 'chief@inv-vessel.test', password: 'TestP@ss!1' });
+  const chiefLogin = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
+    tenantId: created.tenantId,
+    identifier: 'chief@inv-vessel.test',
+    password: 'TestP@ss!1',
+  });
   chiefToken = chiefLogin.body.access_token as string;
 });
 

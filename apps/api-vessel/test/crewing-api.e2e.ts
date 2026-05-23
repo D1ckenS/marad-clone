@@ -52,9 +52,11 @@ beforeAll(async () => {
     });
   ctx.userId = (userRes.body as { id: string }).id;
 
-  const login = await request(app.getHttpServer())
-    .post('/api/v1/auth/login')
-    .send({ tenantId: ctx.tenantId, identifier: 'officer@crew-vessel.test', password: 'TestP@ss!1' });
+  const login = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
+    tenantId: ctx.tenantId,
+    identifier: 'officer@crew-vessel.test',
+    password: 'TestP@ss!1',
+  });
   token = (login.body as { access_token: string }).access_token;
 });
 
