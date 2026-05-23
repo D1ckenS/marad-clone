@@ -51,7 +51,7 @@ describe('P0-8 + P1-2c e2e — bootstrap → JWT → CRUD (SQLite)', () => {
       .post('/api/v1/auth/login')
       .send({
         tenantId: created.tenantId,
-        email: 'admin@acme-shipping.test',
+        identifier: 'admin@acme-shipping.test',
         password: 'AdminP@ss1',
       })
       .expect(200);
@@ -104,7 +104,7 @@ describe('P0-8 + P1-2c e2e — bootstrap → JWT → CRUD (SQLite)', () => {
       .post('/api/v1/auth/login')
       .send({
         tenantId: created.tenantId,
-        email: 'chief@acme-shipping.test',
+        identifier: 'chief@acme-shipping.test',
         password: 'S3cur3P@ss!',
       })
       .expect(200);
@@ -123,7 +123,7 @@ describe('P0-8 + P1-2c e2e — bootstrap → JWT → CRUD (SQLite)', () => {
       .post('/api/v1/auth/login')
       .send({
         tenantId: created.tenantId,
-        email: 'chief@acme-shipping.test',
+        identifier: 'chief@acme-shipping.test',
         password: 'wrong-password',
       })
       .expect(401);

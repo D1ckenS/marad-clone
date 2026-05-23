@@ -273,7 +273,6 @@ export const partCategories = sqliteTable(
     tenantId: text('tenant_id')
       .notNull()
       .references(() => tenants.id),
-    vesselId: text('vessel_id').references(() => vessels.id),
     parentId: text('parent_id'), // soft self-FK — SQLite cannot enforce circular FK
     name: text('name').notNull(),
     description: text('description'),
@@ -282,7 +281,7 @@ export const partCategories = sqliteTable(
     hlc: text('hlc'),
     deletedAt: text('deleted_at'),
   },
-  (t) => [index('part_categories_tenant_vessel_idx').on(t.tenantId, t.vesselId)],
+  (t) => [index('part_categories_tenant_idx').on(t.tenantId)],
 );
 
 export const parts = sqliteTable(
@@ -1576,6 +1575,353 @@ export const projectTasks = sqliteTable(
     deletedAt: text('deleted_at'),
   },
   (t) => [index('project_tasks_tenant_vessel_project_idx').on(t.tenantId, t.vesselId, t.projectId)],
+);
+
+// ── Deferred-stub schemas (P2/P3 follow-up — vessel mirror) ─────────────────
+// Mirrors the shore Prisma tables created by the
+// 20260523000000_add_deferred_stub_schemas migration. Vessel-scoped entries
+// flow through OutboxRecorder; tenant-scoped catalogs do not.
+
+export const SURVEY_STATUSES = [
+  'SCHEDULED',
+  'IN_PROGRESS',
+  'COMPLETED',
+  'POSTPONED',
+  'CANCELLED',
+] as const;
+export type SurveyStatus = (typeof SURVEY_STATUSES)[number];
+
+export const surveys = sqliteTable(
+  'surveys',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    vesselId: text('vessel_id')
+      .notNull()
+      .references(() => vessels.id),
+    scheduledAt: text('scheduled_at').notNull(),
+    kind: text('kind').notNull(),
+    scope: text('scope').notNull(),
+    surveyor: text('surveyor').notNull(),
+    location: text('location').notNull(),
+    status: text('status', { enum: SURVEY_STATUSES }).notNull().default('SCHEDULED'),
+    certificateId: text('certificate_id'),
+    notes: text('notes'),
+    createdAt: text('created_at').notNull().default(nowIso),
+    updatedAt: text('updated_at').notNull().default(nowIso),
+    hlc: text('hlc'),
+    deletedAt: text('deleted_at'),
+  },
+  (t) => [index('surveys_tenant_vessel_idx').on(t.tenantId, t.vesselId, t.scheduledAt)],
+);
+
+export const COC_SEVERITIES = ['CONDITION', 'RECOMMENDATION', 'MEMORANDUM', 'CLOSED'] as const;
+export type CocSeverity = (typeof COC_SEVERITIES)[number];
+
+export const conditionsOfClass = sqliteTable(
+  'conditions_of_class',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    vesselId: text('vessel_id')
+      .notNull()
+      .references(() => vessels.id),
+    severity: text('severity', { enum: COC_SEVERITIES }).notNull(),
+    title: text('title').notNull(),
+    detail: text('detail').notNull(),
+    raisedAt: text('raised_at').notNull(),
+    openedAt: text('opened_at').notNull(),
+    dueAt: text('due_at'),
+    closedAt: text('closed_at'),
+    linkedCertificateId: text('linked_certificate_id'),
+    createdAt: text('created_at').notNull().default(nowIso),
+    updatedAt: text('updated_at').notNull().default(nowIso),
+    hlc: text('hlc'),
+    deletedAt: text('deleted_at'),
+  },
+  (t) => [index('coc_tenant_vessel_idx').on(t.tenantId, t.vesselId, t.severity)],
+);
+
+export const INSPECTION_KINDS = ['PSC', 'VETTING', 'FLAG'] as const;
+export type InspectionKind = (typeof INSPECTION_KINDS)[number];
+
+export const inspections = sqliteTable(
+  'inspections',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    vesselId: text('vessel_id')
+      .notNull()
+      .references(() => vessels.id),
+    inspectedAt: text('inspected_at').notNull(),
+    kind: text('kind', { enum: INSPECTION_KINDS }).notNull(),
+    mou: text('mou'),
+    port: text('port').notNull(),
+    inspector: text('inspector').notNull(),
+    deficiencies: integer('deficiencies').notNull().default(0),
+    detained: integer('detained', { mode: 'boolean' }).notNull().default(false),
+    status: text('status').notNull(),
+    findings: text('findings'),
+    createdAt: text('created_at').notNull().default(nowIso),
+    updatedAt: text('updated_at').notNull().default(nowIso),
+    hlc: text('hlc'),
+    deletedAt: text('deleted_at'),
+  },
+  (t) => [index('inspections_tenant_vessel_idx').on(t.tenantId, t.vesselId, t.inspectedAt)],
+);
+
+export const jhas = sqliteTable(
+  'jhas',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    ref: text('ref').notNull(),
+    title: text('title').notNull(),
+    activity: text('activity'),
+    hazards: text('hazards').notNull(), // JSON array
+    controls: text('controls').notNull(), // JSON array
+    residualL: integer('residual_l').notNull().default(1),
+    residualS: integer('residual_s').notNull().default(1),
+    reviewedAt: text('reviewed_at'),
+    reviewedBy: text('reviewed_by'),
+    createdAt: text('created_at').notNull().default(nowIso),
+    updatedAt: text('updated_at').notNull().default(nowIso),
+    hlc: text('hlc'),
+    deletedAt: text('deleted_at'),
+  },
+  (t) => [index('jhas_tenant_ref_idx').on(t.tenantId, t.ref)],
+);
+
+export const SAFETY_EQUIPMENT_CATEGORIES = ['FFA', 'LSA', 'OTH'] as const;
+export type SafetyEquipmentCategory = (typeof SAFETY_EQUIPMENT_CATEGORIES)[number];
+export const SAFETY_EQUIPMENT_STATUSES = ['GREEN', 'AMBER', 'RED'] as const;
+export type SafetyEquipmentStatus = (typeof SAFETY_EQUIPMENT_STATUSES)[number];
+
+export const safetyEquipment = sqliteTable(
+  'safety_equipment',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    vesselId: text('vessel_id')
+      .notNull()
+      .references(() => vessels.id),
+    category: text('category', { enum: SAFETY_EQUIPMENT_CATEGORIES }).notNull(),
+    name: text('name').notNull(),
+    location: text('location').notNull(),
+    quantity: text('quantity').notNull(),
+    lastCheck: text('last_check'),
+    nextCheck: text('next_check'),
+    status: text('status', { enum: SAFETY_EQUIPMENT_STATUSES }).notNull().default('GREEN'),
+    flag: text('flag'),
+    createdAt: text('created_at').notNull().default(nowIso),
+    updatedAt: text('updated_at').notNull().default(nowIso),
+    hlc: text('hlc'),
+    deletedAt: text('deleted_at'),
+  },
+  (t) => [index('safety_equipment_tenant_vessel_idx').on(t.tenantId, t.vesselId, t.category)],
+);
+
+export const QHSE_OBJECTIVE_CATEGORIES = ['Q', 'H', 'S', 'E'] as const;
+export type QhseObjectiveCategory = (typeof QHSE_OBJECTIVE_CATEGORIES)[number];
+export const QHSE_OBJECTIVE_STATUSES = ['GREEN', 'AMBER', 'RED'] as const;
+export type QhseObjectiveStatus = (typeof QHSE_OBJECTIVE_STATUSES)[number];
+
+export const qhseObjectives = sqliteTable(
+  'qhse_objectives',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    category: text('category', { enum: QHSE_OBJECTIVE_CATEGORIES }).notNull(),
+    label: text('label').notNull(),
+    target: text('target').notNull(),
+    actual: text('actual').notNull(),
+    unit: text('unit').notNull(),
+    status: text('status', { enum: QHSE_OBJECTIVE_STATUSES }).notNull().default('GREEN'),
+    delta: text('delta'),
+    trend: text('trend'), // JSON array of numbers
+    periodFrom: text('period_from'),
+    periodTo: text('period_to'),
+    createdAt: text('created_at').notNull().default(nowIso),
+    updatedAt: text('updated_at').notNull().default(nowIso),
+    hlc: text('hlc'),
+    deletedAt: text('deleted_at'),
+  },
+  (t) => [index('qhse_objectives_tenant_cat_idx').on(t.tenantId, t.category)],
+);
+
+export const AUDIT_KINDS = ['INTERNAL', 'EXTERNAL', 'CLASS', 'FLAG'] as const;
+export type AuditKind = (typeof AUDIT_KINDS)[number];
+export const AUDIT_STATUSES = ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] as const;
+export type AuditStatus = (typeof AUDIT_STATUSES)[number];
+
+export const audits = sqliteTable(
+  'audits',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    vesselId: text('vessel_id').references(() => vessels.id),
+    kind: text('kind', { enum: AUDIT_KINDS }).notNull(),
+    scope: text('scope').notNull(),
+    scheduledAt: text('scheduled_at').notNull(),
+    auditor: text('auditor').notNull(),
+    status: text('status', { enum: AUDIT_STATUSES }).notNull().default('SCHEDULED'),
+    findings: integer('findings').notNull().default(0),
+    notes: text('notes'),
+    createdAt: text('created_at').notNull().default(nowIso),
+    updatedAt: text('updated_at').notNull().default(nowIso),
+    hlc: text('hlc'),
+    deletedAt: text('deleted_at'),
+  },
+  (t) => [index('audits_tenant_vessel_idx').on(t.tenantId, t.vesselId, t.scheduledAt)],
+);
+
+export const auditFindings = sqliteTable(
+  'audit_findings',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    vesselId: text('vessel_id')
+      .notNull()
+      .references(() => vessels.id),
+    auditId: text('audit_id'),
+    classification: text('classification').notNull(),
+    smsRef: text('sms_ref'),
+    title: text('title').notNull(),
+    detail: text('detail'),
+    owner: text('owner'),
+    openedAt: text('opened_at').notNull(),
+    dueAt: text('due_at'),
+    closedAt: text('closed_at'),
+    createdAt: text('created_at').notNull().default(nowIso),
+    updatedAt: text('updated_at').notNull().default(nowIso),
+    hlc: text('hlc'),
+    deletedAt: text('deleted_at'),
+  },
+  (t) => [index('audit_findings_tenant_vessel_idx').on(t.tenantId, t.vesselId, t.dueAt)],
+);
+
+export const VOYAGE_MODES = ['LADEN', 'BALLAST'] as const;
+export type VoyageMode = (typeof VOYAGE_MODES)[number];
+
+export const voyageLegs = sqliteTable(
+  'voyage_legs',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    vesselId: text('vessel_id')
+      .notNull()
+      .references(() => vessels.id),
+    route: text('route').notNull(),
+    departureAt: text('departure_at').notNull(),
+    arrivalAt: text('arrival_at').notNull(),
+    nm: numeric('nm').notNull(),
+    fuelTonnes: numeric('fuel_tonnes').notNull(),
+    co2Tonnes: numeric('co2_tonnes').notNull(),
+    soxTonnes: numeric('sox_tonnes').notNull(),
+    noxTonnes: numeric('nox_tonnes').notNull(),
+    hours: numeric('hours').notNull(),
+    mode: text('mode', { enum: VOYAGE_MODES }).notNull(),
+    cargo: text('cargo'),
+    createdAt: text('created_at').notNull().default(nowIso),
+    updatedAt: text('updated_at').notNull().default(nowIso),
+    hlc: text('hlc'),
+    deletedAt: text('deleted_at'),
+  },
+  (t) => [index('voyage_legs_tenant_vessel_idx').on(t.tenantId, t.vesselId, t.departureAt)],
+);
+
+export const dischargeLogs = sqliteTable(
+  'discharge_logs',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    vesselId: text('vessel_id')
+      .notNull()
+      .references(() => vessels.id),
+    kind: text('kind').notNull(),
+    occurredAt: text('occurred_at').notNull(),
+    location: text('location').notNull(),
+    volume: text('volume').notNull(),
+    notes: text('notes'),
+    compliant: integer('compliant', { mode: 'boolean' }).notNull().default(true),
+    createdAt: text('created_at').notNull().default(nowIso),
+    updatedAt: text('updated_at').notNull().default(nowIso),
+    hlc: text('hlc'),
+    deletedAt: text('deleted_at'),
+  },
+  (t) => [index('discharge_logs_tenant_vessel_idx').on(t.tenantId, t.vesselId, t.occurredAt)],
+);
+
+export const drybmsElements = sqliteTable(
+  'drybms_elements',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    chapter: text('chapter').notNull(),
+    chapterTitle: text('chapter_title').notNull(),
+    name: text('name').notNull(),
+    score: integer('score').notNull().default(1),
+    stage: text('stage'),
+    evidence: text('evidence'),
+    createdAt: text('created_at').notNull().default(nowIso),
+    updatedAt: text('updated_at').notNull().default(nowIso),
+    hlc: text('hlc'),
+    deletedAt: text('deleted_at'),
+  },
+  (t) => [index('drybms_elements_tenant_chapter_idx').on(t.tenantId, t.chapter)],
+);
+
+export const MANAGEMENT_REVIEW_STATUSES = [
+  'SCHEDULED',
+  'IN_PROGRESS',
+  'CLOSED',
+  'CANCELLED',
+] as const;
+export type ManagementReviewStatus = (typeof MANAGEMENT_REVIEW_STATUSES)[number];
+
+export const managementReviews = sqliteTable(
+  'management_reviews',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    kind: text('kind').notNull(),
+    scheduledAt: text('scheduled_at').notNull(),
+    chair: text('chair').notNull(),
+    attendees: integer('attendees').notNull().default(0),
+    status: text('status', { enum: MANAGEMENT_REVIEW_STATUSES }).notNull().default('SCHEDULED'),
+    actionsTotal: integer('actions_total').notNull().default(0),
+    actionsDone: integer('actions_done').notNull().default(0),
+    summary: text('summary'),
+    createdAt: text('created_at').notNull().default(nowIso),
+    updatedAt: text('updated_at').notNull().default(nowIso),
+    hlc: text('hlc'),
+    deletedAt: text('deleted_at'),
+  },
+  (t) => [index('management_reviews_tenant_idx').on(t.tenantId, t.scheduledAt)],
 );
 
 // Sync engine outbox. Pending entries have sent_at = null.

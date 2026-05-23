@@ -3,6 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { Badge, type BadgeColor, Select, Spinner } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
+import { useVessel } from '../context/useVessel.js';
+import { CreateSurveyModal } from '../components/CreateSurveyModal.js';
+import { CreateConditionOfClassModal } from '../components/CreateConditionOfClassModal.js';
+import { CreateInspectionModal } from '../components/CreateInspectionModal.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -37,6 +41,120 @@ function toCertCat(raw?: string | null): CertCat {
     FLAG: 'flag',
   };
   return (raw && map[raw.toUpperCase()]) || 'statutory';
+}
+
+// Raw shapes returned by the new shore endpoints (surveys / conditions-of-class / inspections).
+// Derived fields (daysOut, daysLeft, tone, lowercase status) are computed client-side below.
+
+interface RawSurvey {
+  id: string;
+  scheduledAt: string;
+  kind: string;
+  scope: string;
+  surveyor: string;
+  location: string;
+  status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'POSTPONED' | 'CANCELLED';
+}
+
+interface RawConditionOfClass {
+  id: string;
+  severity: 'CONDITION' | 'RECOMMENDATION' | 'MEMORANDUM' | 'CLOSED';
+  title: string;
+  detail: string;
+  raisedAt: string;
+  openedAt: string;
+  dueAt: string | null;
+  linkedCertificateId: string | null;
+}
+
+interface RawInspection {
+  id: string;
+  inspectedAt: string;
+  kind: 'PSC' | 'VETTING' | 'FLAG';
+  mou: string | null;
+  port: string;
+  inspector: string;
+  deficiencies: number;
+  detained: boolean;
+  status: string;
+  findings: string | null;
+}
+
+function normalizeSurveys(raw: RawSurvey[]): Survey[] {
+  const now = Date.now();
+  return raw.map((r) => {
+    const daysOut = Math.round((new Date(r.scheduledAt).getTime() - now) / 86_400_000);
+    const isOverdue = daysOut < 0 && r.status !== 'COMPLETED';
+    const status = isOverdue ? 'overdue' : r.status.toLowerCase().replace('_', ' ');
+    const tone = isOverdue ? 'red' : daysOut <= 30 ? 'amber' : 'green';
+    return {
+      id: r.id,
+      scheduledAt: r.scheduledAt,
+      kind: r.kind,
+      scope: r.scope,
+      surveyor: r.surveyor,
+      location: r.location,
+      status,
+      daysOut,
+      tone,
+    };
+  });
+}
+
+const COC_SEVERITY_MAP: Record<RawConditionOfClass['severity'], ConditionOfClass['severity']> = {
+  CONDITION: 'Condition',
+  RECOMMENDATION: 'Recommendation',
+  MEMORANDUM: 'Memorandum',
+  CLOSED: 'Closed',
+};
+
+function normalizeConditionsOfClass(raw: RawConditionOfClass[]): ConditionOfClass[] {
+  const now = Date.now();
+  return raw.map((r) => {
+    const daysLeft = r.dueAt ? Math.round((new Date(r.dueAt).getTime() - now) / 86_400_000) : null;
+    const tone =
+      r.severity === 'CLOSED'
+        ? 'slate'
+        : r.severity === 'CONDITION'
+          ? 'red'
+          : r.severity === 'RECOMMENDATION'
+            ? 'amber'
+            : 'blue';
+    return {
+      id: r.id,
+      severity: COC_SEVERITY_MAP[r.severity],
+      title: r.title,
+      detail: r.detail,
+      raisedAt: r.raisedAt,
+      openedAt: r.openedAt,
+      dueAt: r.dueAt,
+      daysLeft,
+      linkedCertId: r.linkedCertificateId,
+      tone,
+    };
+  });
+}
+
+const INSP_KIND_MAP: Record<RawInspection['kind'], Inspection['kind']> = {
+  PSC: 'PSC',
+  VETTING: 'Vetting',
+  FLAG: 'Flag',
+};
+
+function normalizeInspections(raw: RawInspection[]): Inspection[] {
+  return raw.map((r) => ({
+    id: r.id,
+    inspectedAt: r.inspectedAt,
+    kind: INSP_KIND_MAP[r.kind],
+    mou: r.mou ?? '—',
+    port: r.port,
+    inspector: r.inspector,
+    deficiencies: r.deficiencies,
+    detained: r.detained,
+    status: r.status,
+    tone: r.detained ? 'red' : r.deficiencies > 0 ? 'amber' : 'green',
+    findings: r.findings ?? '',
+  }));
 }
 
 /** Transform raw API response into the shape CertificatesPage renders. */
@@ -517,7 +635,17 @@ function RegisterTab({ certs, loading }: { certs: Certificate[]; loading: boolea
 
 // ─── Surveys tab ──────────────────────────────────────────────────────────────
 
-function SurveysTab({ surveys, loading }: { surveys: Survey[]; loading: boolean }) {
+function SurveysTab({
+  surveys,
+  loading,
+  onAdd,
+  canAdd,
+}: {
+  surveys: Survey[];
+  loading: boolean;
+  onAdd: () => void;
+  canAdd: boolean;
+}) {
   const { t } = useTranslation();
   if (loading)
     return (
@@ -547,9 +675,17 @@ function SurveysTab({ surveys, loading }: { surveys: Survey[]; loading: boolean 
         <div className="flex-1" />
         <button
           className="px-3 py-1 rounded-2 text-[12px] font-medium"
-          style={{ background: 'var(--navy)', color: '#fff', border: 'none', cursor: 'pointer' }}
+          style={{
+            background: canAdd ? 'var(--navy)' : 'var(--surface-2)',
+            color: canAdd ? '#fff' : 'var(--ink-3)',
+            border: 'none',
+            cursor: canAdd ? 'pointer' : 'not-allowed',
+          }}
+          onClick={canAdd ? onAdd : undefined}
+          disabled={!canAdd}
+          title={canAdd ? undefined : 'Select a vessel first'}
         >
-          {t('certificates.schedule_survey')}
+          + {t('certificates.schedule_survey')}
         </button>
       </div>
 
@@ -632,9 +768,13 @@ function SurveysTab({ surveys, loading }: { surveys: Survey[]; loading: boolean 
 function ConditionsTab({
   conditions,
   loading,
+  onAdd,
+  canAdd,
 }: {
   conditions: ConditionOfClass[];
   loading: boolean;
+  onAdd: () => void;
+  canAdd: boolean;
 }) {
   const { t } = useTranslation();
   if (loading)
@@ -666,9 +806,17 @@ function ConditionsTab({
         <div className="flex-1" />
         <button
           className="px-3 py-1 rounded-2 text-[12px] font-medium"
-          style={{ background: 'var(--navy)', color: '#fff', border: 'none', cursor: 'pointer' }}
+          style={{
+            background: canAdd ? 'var(--navy)' : 'var(--surface-2)',
+            color: canAdd ? '#fff' : 'var(--ink-3)',
+            border: 'none',
+            cursor: canAdd ? 'pointer' : 'not-allowed',
+          }}
+          onClick={canAdd ? onAdd : undefined}
+          disabled={!canAdd}
+          title={canAdd ? undefined : 'Select a vessel first'}
         >
-          {t('certificates.log_item')}
+          + {t('certificates.log_item')}
         </button>
       </div>
 
@@ -787,7 +935,17 @@ function ConditionsTab({
 
 // ─── Inspections tab ───────────────────────────────────────────────────────────
 
-function InspectionsTab({ inspections, loading }: { inspections: Inspection[]; loading: boolean }) {
+function InspectionsTab({
+  inspections,
+  loading,
+  onAdd,
+  canAdd,
+}: {
+  inspections: Inspection[];
+  loading: boolean;
+  onAdd: () => void;
+  canAdd: boolean;
+}) {
   const { t } = useTranslation();
   if (loading)
     return (
@@ -870,6 +1028,20 @@ function InspectionsTab({ inspections, loading }: { inspections: Inspection[]; l
               {t('certificates.inspection_history')}
             </span>
             <div className="flex-1" />
+            <button
+              className="px-3 py-1 rounded-2 text-[12px] font-medium mr-2"
+              style={{
+                background: canAdd ? 'var(--navy)' : 'var(--surface-2)',
+                color: canAdd ? '#fff' : 'var(--ink-3)',
+                border: 'none',
+                cursor: canAdd ? 'pointer' : 'not-allowed',
+              }}
+              onClick={canAdd ? onAdd : undefined}
+              disabled={!canAdd}
+              title={canAdd ? undefined : 'Select a vessel first'}
+            >
+              + Record inspection
+            </button>
             <button
               className="text-[11px] px-2 py-0.5 rounded-1 border"
               style={{
@@ -1167,6 +1339,12 @@ export function CertificatesPage() {
   const [loadCoc, setLoadCoc] = useState(true);
   const [loadInsp, setLoadInsp] = useState(true);
 
+  const { selectedVesselId } = useVessel();
+  const [addSurvey, setAddSurvey] = useState(false);
+  const [addCoc, setAddCoc] = useState(false);
+  const [addInsp, setAddInsp] = useState(false);
+  const canAddVessel = Boolean(selectedVesselId);
+
   const fetchAll = useCallback(() => {
     api
       .get<RawCertificate[]>('/certificates')
@@ -1174,18 +1352,18 @@ export function CertificatesPage() {
       .catch(() => setCerts([]))
       .finally(() => setLoadCerts(false));
     api
-      .get<Survey[]>('/surveys')
-      .then(setSurveys)
+      .get<RawSurvey[]>('/surveys')
+      .then((raw) => setSurveys(normalizeSurveys(raw)))
       .catch(() => setSurveys([]))
       .finally(() => setLoadSurveys(false));
     api
-      .get<ConditionOfClass[]>('/conditions-of-class')
-      .then(setConditions)
+      .get<RawConditionOfClass[]>('/conditions-of-class')
+      .then((raw) => setConditions(normalizeConditionsOfClass(raw)))
       .catch(() => setConditions([]))
       .finally(() => setLoadCoc(false));
     api
-      .get<Inspection[]>('/inspections')
-      .then(setInspections)
+      .get<RawInspection[]>('/inspections')
+      .then((raw) => setInspections(normalizeInspections(raw)))
       .catch(() => setInspections([]))
       .finally(() => setLoadInsp(false));
   }, []);
@@ -1296,10 +1474,63 @@ export function CertificatesPage() {
       </div>
 
       {tab === 'reg' && <RegisterTab certs={certs} loading={loadCerts} />}
-      {tab === 'surv' && <SurveysTab surveys={surveys} loading={loadSurveys} />}
-      {tab === 'coc' && <ConditionsTab conditions={conditions} loading={loadCoc} />}
-      {tab === 'insp' && <InspectionsTab inspections={inspections} loading={loadInsp} />}
+      {tab === 'surv' && (
+        <SurveysTab
+          surveys={surveys}
+          loading={loadSurveys}
+          onAdd={() => setAddSurvey(true)}
+          canAdd={canAddVessel}
+        />
+      )}
+      {tab === 'coc' && (
+        <ConditionsTab
+          conditions={conditions}
+          loading={loadCoc}
+          onAdd={() => setAddCoc(true)}
+          canAdd={canAddVessel}
+        />
+      )}
+      {tab === 'insp' && (
+        <InspectionsTab
+          inspections={inspections}
+          loading={loadInsp}
+          onAdd={() => setAddInsp(true)}
+          canAdd={canAddVessel}
+        />
+      )}
       {tab === 'renew' && <RenewalTimelineTab certs={certs} loading={loadCerts} />}
+
+      {selectedVesselId && (
+        <>
+          <CreateSurveyModal
+            open={addSurvey}
+            vesselId={selectedVesselId}
+            onClose={() => setAddSurvey(false)}
+            onCreated={() => {
+              setAddSurvey(false);
+              fetchAll();
+            }}
+          />
+          <CreateConditionOfClassModal
+            open={addCoc}
+            vesselId={selectedVesselId}
+            onClose={() => setAddCoc(false)}
+            onCreated={() => {
+              setAddCoc(false);
+              fetchAll();
+            }}
+          />
+          <CreateInspectionModal
+            open={addInsp}
+            vesselId={selectedVesselId}
+            onClose={() => setAddInsp(false)}
+            onCreated={() => {
+              setAddInsp(false);
+              fetchAll();
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }
