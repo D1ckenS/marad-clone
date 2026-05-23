@@ -32,7 +32,7 @@ beforeAll(async () => {
 
   const adminLogin = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
     tenantId: created.tenantId,
-    email: 'admin@purchase-vessel.test',
+    identifier: 'admin@purchase-vessel.test',
     password: 'AdminP@ss1',
   });
   const adminToken = adminLogin.body.access_token as string;
@@ -55,7 +55,7 @@ beforeAll(async () => {
 
   const pmLogin = await request(app.getHttpServer())
     .post('/api/v1/auth/login')
-    .send({ tenantId: created.tenantId, email: 'pm@purchase-vessel.test', password: 'TestP@ss!1' });
+    .send({ tenantId: created.tenantId, identifier: 'pm@purchase-vessel.test', password: 'TestP@ss!1' });
   pmToken = pmLogin.body.access_token as string;
 });
 

@@ -45,7 +45,7 @@ beforeAll(async () => {
 
   const adminLogin = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
     tenantId: created.tenantId,
-    email: 'admin@vessel-crud.test',
+    identifier: 'admin@vessel-crud.test',
     password: 'AdminP@ss1',
   });
   adminToken = adminLogin.body.access_token as string;
@@ -68,7 +68,7 @@ beforeAll(async () => {
 
   const chiefLogin = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
     tenantId: created.tenantId,
-    email: 'chief@vessel-crud.test',
+    identifier: 'chief@vessel-crud.test',
     password: 'TestP@ss!1',
   });
   chiefToken = chiefLogin.body.access_token as string;

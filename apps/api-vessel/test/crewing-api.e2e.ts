@@ -32,7 +32,7 @@ beforeAll(async () => {
 
   const adminLogin = await request(app.getHttpServer())
     .post('/api/v1/auth/login')
-    .send({ tenantId: ctx.tenantId, email: 'admin@crew-vessel.test', password: 'AdminP@ss1' });
+    .send({ tenantId: ctx.tenantId, identifier: 'admin@crew-vessel.test', password: 'AdminP@ss1' });
   const adminToken = (adminLogin.body as { access_token: string }).access_token;
 
   const vesselRes = await request(app.getHttpServer())
@@ -54,7 +54,7 @@ beforeAll(async () => {
 
   const login = await request(app.getHttpServer())
     .post('/api/v1/auth/login')
-    .send({ tenantId: ctx.tenantId, email: 'officer@crew-vessel.test', password: 'TestP@ss!1' });
+    .send({ tenantId: ctx.tenantId, identifier: 'officer@crew-vessel.test', password: 'TestP@ss!1' });
   token = (login.body as { access_token: string }).access_token;
 });
 
