@@ -1,6 +1,18 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
+import { SurveyModule } from './survey/survey.module';
+import { ConditionOfClassModule } from './condition-of-class/condition-of-class.module';
+import { InspectionModule } from './inspection/inspection.module';
+import { JhaModule } from './jha/jha.module';
+import { SafetyEquipmentModule } from './safety-equipment/safety-equipment.module';
+import { QhseObjectiveModule } from './qhse-objective/qhse-objective.module';
+import { AuditModule } from './audit/audit.module';
+import { AuditFindingModule } from './audit-finding/audit-finding.module';
+import { VoyageLegModule } from './voyage-leg/voyage-leg.module';
+import { DischargeLogModule } from './discharge-log/discharge-log.module';
+import { DrybmsElementModule } from './drybms-element/drybms-element.module';
+import { ManagementReviewModule } from './management-review/management-review.module';
 import { CapaModule } from './capa/capa.module';
 import { ChecklistInstanceModule } from './checklist-instance/checklist-instance.module';
 import { ChecklistTemplateModule } from './checklist-template/checklist-template.module';
@@ -103,6 +115,18 @@ import { VesselModule } from './vessel/vessel.module';
     BunkerDeliveryNoteModule,
     ConsumptionLogModule,
     ProjectModule,
+    SurveyModule,
+    ConditionOfClassModule,
+    InspectionModule,
+    JhaModule,
+    SafetyEquipmentModule,
+    QhseObjectiveModule,
+    AuditModule,
+    AuditFindingModule,
+    VoyageLegModule,
+    DischargeLogModule,
+    DrybmsElementModule,
+    ManagementReviewModule,
   ],
 })
 export class AppModule {}

@@ -3,6 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { Badge, type BadgeColor, Spinner } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
+import { useVessel } from '../context/useVessel.js';
+import { CreateQhseObjectiveModal } from '../components/CreateQhseObjectiveModal.js';
+import { CreateAuditModal } from '../components/CreateAuditModal.js';
+import { CreateAuditFindingModal } from '../components/CreateAuditFindingModal.js';
+import { CreateVoyageLegModal } from '../components/CreateVoyageLegModal.js';
+import { CreateDischargeLogModal } from '../components/CreateDischargeLogModal.js';
+import { CreateDrybmsElementModal } from '../components/CreateDrybmsElementModal.js';
+import { CreateManagementReviewModal } from '../components/CreateManagementReviewModal.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -94,6 +102,222 @@ interface ManagementReview {
   actionsDone: number;
   summary: string;
   tone: string;
+}
+
+// ─── Normalizers: shore API → page-local shapes ──────────────────────────────
+// The QHSE shore endpoints return uppercase enum values and a few fewer fields
+// than this page renders (e.g. AuditKind 'CLASS'/'FLAG' collapse to 'External';
+// VoyageLeg numerics arrive as Prisma Decimal strings). These mappers do the
+// translation in one place so the rendering code stays untouched.
+
+interface RawQhseObjective {
+  id: string;
+  category: 'Q' | 'H' | 'S' | 'E';
+  label: string;
+  target: string;
+  actual: string;
+  unit: string;
+  status: 'GREEN' | 'AMBER' | 'RED';
+  delta: string | null;
+  trend: number[] | null;
+}
+
+interface RawAudit {
+  id: string;
+  kind: 'INTERNAL' | 'EXTERNAL' | 'CLASS' | 'FLAG';
+  scope: string;
+  scheduledAt: string;
+  auditor: string;
+  status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  findings: number;
+}
+
+interface RawAuditFinding {
+  id: string;
+  auditId: string | null;
+  classification: string;
+  smsRef: string | null;
+  title: string;
+  detail: string | null;
+  owner: string | null;
+  openedAt: string;
+  dueAt: string | null;
+  closedAt: string | null;
+}
+
+interface RawVoyageLeg {
+  id: string;
+  route: string;
+  departureAt: string;
+  arrivalAt: string;
+  nm: string;
+  fuelTonnes: string;
+  co2Tonnes: string;
+  soxTonnes: string;
+  noxTonnes: string;
+  hours: string;
+  mode: 'LADEN' | 'BALLAST';
+  cargo: string | null;
+}
+
+interface RawDischargeLog {
+  id: string;
+  kind: string;
+  occurredAt: string;
+  location: string;
+  volume: string;
+  notes: string | null;
+  compliant: boolean;
+}
+
+interface RawDrybmsElement {
+  id: string;
+  chapter: string;
+  chapterTitle: string;
+  name: string;
+  score: number;
+  stage: string | null;
+  evidence: string | null;
+}
+
+interface RawManagementReview {
+  id: string;
+  kind: string;
+  scheduledAt: string;
+  chair: string;
+  attendees: number;
+  status: 'SCHEDULED' | 'IN_PROGRESS' | 'CLOSED' | 'CANCELLED';
+  actionsTotal: number;
+  actionsDone: number;
+  summary: string | null;
+}
+
+const OBJ_CAT_MAP: Record<RawQhseObjective['category'], ObjCategory> = {
+  Q: 'quality',
+  H: 'health',
+  S: 'safety',
+  E: 'env',
+};
+
+const AUDIT_KIND_MAP: Record<RawAudit['kind'], AuditKind> = {
+  INTERNAL: 'Internal',
+  EXTERNAL: 'External',
+  CLASS: 'External',
+  FLAG: 'External',
+};
+
+function normalizeQhseObjectives(raw: RawQhseObjective[]): QhseObjective[] {
+  return raw.map((r) => ({
+    id: r.id,
+    category: OBJ_CAT_MAP[r.category],
+    label: r.label,
+    target: r.target,
+    actual: r.actual,
+    unit: r.unit,
+    status: r.status.toLowerCase() as QhseObjective['status'],
+    delta: r.delta ?? '',
+    trend: r.trend ?? [],
+  }));
+}
+
+function normalizeAudits(raw: RawAudit[]): Audit[] {
+  const now = Date.now();
+  return raw.map((r) => {
+    const daysOut = Math.round((new Date(r.scheduledAt).getTime() - now) / 86_400_000);
+    const status: AuditStatus =
+      r.status === 'COMPLETED' ? 'closed' : daysOut < 0 ? 'overdue' : 'scheduled';
+    const tone = status === 'overdue' ? 'red' : status === 'closed' ? 'green' : 'amber';
+    return {
+      id: r.id,
+      kind: AUDIT_KIND_MAP[r.kind],
+      scope: r.scope,
+      scheduledAt: r.scheduledAt,
+      auditor: r.auditor,
+      status,
+      findings: String(r.findings),
+      daysOut,
+      tone,
+    };
+  });
+}
+
+function normalizeAuditFindings(raw: RawAuditFinding[]): AuditFinding[] {
+  const now = Date.now();
+  return raw.map((r) => {
+    const daysLeft = r.dueAt ? Math.round((new Date(r.dueAt).getTime() - now) / 86_400_000) : 0;
+    return {
+      id: r.id,
+      auditRef: r.auditId ?? '—',
+      classification: r.classification,
+      smsRef: r.smsRef ?? '—',
+      title: r.title,
+      detail: r.detail ?? '',
+      owner: r.owner ?? '—',
+      openedAt: r.openedAt,
+      dueAt: r.dueAt ?? '',
+      daysLeft,
+      tone: daysLeft < 0 ? 'red' : daysLeft <= 14 ? 'amber' : 'green',
+    };
+  });
+}
+
+function normalizeVoyageLegs(raw: RawVoyageLeg[]): VoyageLeg[] {
+  return raw.map((r) => ({
+    id: r.id,
+    route: r.route,
+    departureAt: r.departureAt,
+    arrivalAt: r.arrivalAt,
+    nm: Number(r.nm),
+    fuelTonnes: Number(r.fuelTonnes),
+    co2Tonnes: Number(r.co2Tonnes),
+    soxTonnes: Number(r.soxTonnes),
+    noxTonnes: Number(r.noxTonnes),
+    hours: Number(r.hours),
+    mode: r.mode.toLowerCase() as VoyageLeg['mode'],
+    cargo: r.cargo ?? '—',
+  }));
+}
+
+function normalizeDischargeLogs(raw: RawDischargeLog[]): DischargeLog[] {
+  return raw.map((r) => ({
+    id: r.id,
+    kind: r.kind,
+    when: r.occurredAt,
+    where: r.location,
+    volume: r.volume,
+    notes: r.notes ?? '',
+    compliant: r.compliant,
+  }));
+}
+
+function normalizeDrybms(raw: RawDrybmsElement[]): DryBmsElement[] {
+  return raw.map((r) => ({
+    id: r.id,
+    chapter: r.chapter,
+    chapterTitle: r.chapterTitle,
+    name: r.name,
+    score: r.score,
+    target: 4, // DryBMS aspirational maturity is always 4 (Excellent)
+    evidence: r.evidence ?? '',
+  }));
+}
+
+function normalizeManagementReviews(raw: RawManagementReview[]): ManagementReview[] {
+  return raw.map((r) => {
+    const status: ManagementReview['status'] = r.status === 'CLOSED' ? 'closed' : 'scheduled';
+    return {
+      id: r.id,
+      kind: r.kind,
+      scheduledAt: r.scheduledAt,
+      chair: r.chair,
+      attendees: r.attendees,
+      status,
+      actionsTotal: r.actionsTotal,
+      actionsDone: r.actionsDone,
+      summary: r.summary ?? '',
+      tone: status === 'closed' ? 'green' : 'amber',
+    };
+  });
 }
 
 // ─── Metadata ─────────────────────────────────────────────────────────────────
@@ -198,7 +422,15 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
 
 // ─── Objectives tab ───────────────────────────────────────────────────────────
 
-function ObjectivesTab({ objectives, loading }: { objectives: QhseObjective[]; loading: boolean }) {
+function ObjectivesTab({
+  objectives,
+  loading,
+  onAdd,
+}: {
+  objectives: QhseObjective[];
+  loading: boolean;
+  onAdd: () => void;
+}) {
   const { t } = useTranslation();
   const [catFilter, setCatFilter] = useState<'all' | ObjCategory>('all');
   if (loading)
@@ -274,6 +506,13 @@ function ObjectivesTab({ objectives, loading }: { objectives: QhseObjective[]; l
           {visible.filter((o) => o.status === 'green').length} {t('qhse.on_target')} ·{' '}
           {visible.filter((o) => o.status !== 'green').length} {t('qhse.attention')}
         </span>
+        <button
+          onClick={onAdd}
+          className="px-3 py-1 rounded-2 text-[12px] font-medium"
+          style={{ background: 'var(--navy)', color: '#fff', border: 'none', cursor: 'pointer' }}
+        >
+          + Objective
+        </button>
       </div>
 
       {visible.length === 0 ? (
@@ -367,10 +606,16 @@ function AuditsTab({
   audits,
   auditFindings,
   loading,
+  onAddAudit,
+  onAddFinding,
+  canAddFinding,
 }: {
   audits: Audit[];
   auditFindings: AuditFinding[];
   loading: boolean;
+  onAddAudit: () => void;
+  onAddFinding: () => void;
+  canAddFinding: boolean;
 }) {
   const { t } = useTranslation();
   if (loading)
@@ -425,6 +670,7 @@ function AuditsTab({
             </span>
             <div className="flex-1" />
             <button
+              onClick={onAddAudit}
               className="px-2 py-0.5 rounded-1 text-[11px]"
               style={{
                 background: 'var(--navy)',
@@ -433,7 +679,7 @@ function AuditsTab({
                 cursor: 'pointer',
               }}
             >
-              {t('qhse.schedule_audit')}
+              + {t('qhse.schedule_audit')}
             </button>
           </div>
           <div
@@ -507,13 +753,28 @@ function AuditsTab({
             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           >
             <div
-              className="px-4 py-2.5 text-[12px] font-semibold"
+              className="flex items-center gap-3 px-4 py-2.5 text-[12px] font-semibold"
               style={{
                 borderBottom: '1px solid var(--hairline)',
                 background: 'var(--surface-sunk)',
               }}
             >
-              {t('qhse.open_sms_findings')}
+              <span>{t('qhse.open_sms_findings')}</span>
+              <div className="flex-1" />
+              <button
+                onClick={canAddFinding ? onAddFinding : undefined}
+                disabled={!canAddFinding}
+                className="px-2 py-0.5 rounded-1 text-[11px]"
+                style={{
+                  background: canAddFinding ? 'var(--navy)' : 'var(--surface-2)',
+                  color: canAddFinding ? '#fff' : 'var(--ink-3)',
+                  border: 'none',
+                  cursor: canAddFinding ? 'pointer' : 'not-allowed',
+                }}
+                title={canAddFinding ? undefined : 'Select a vessel first'}
+              >
+                + Raise finding
+              </button>
             </div>
             <div
               className="grid gap-2 px-4 py-2 text-[10.5px] font-semibold uppercase tracking-widest"
@@ -675,10 +936,16 @@ function EnvironmentalTab({
   legs,
   discharges,
   loading,
+  onAddLeg,
+  onAddDischarge,
+  canAdd,
 }: {
   legs: VoyageLeg[];
   discharges: DischargeLog[];
   loading: boolean;
+  onAddLeg: () => void;
+  onAddDischarge: () => void;
+  canAdd: boolean;
 }) {
   const { t } = useTranslation();
   if (loading)
@@ -692,8 +959,45 @@ function EnvironmentalTab({
   const totalCO2 = legs.reduce((a, l) => a + l.co2Tonnes, 0);
   const totalNm = legs.reduce((a, l) => a + l.nm, 0);
 
+  const addBtnStyle = (enabled: boolean): React.CSSProperties => ({
+    background: enabled ? 'var(--navy)' : 'var(--surface-2)',
+    color: enabled ? '#fff' : 'var(--ink-3)',
+    border: 'none',
+    cursor: enabled ? 'pointer' : 'not-allowed',
+  });
+
   return (
     <div className="flex-1 overflow-y-auto min-h-0" style={{ background: 'var(--bg)' }}>
+      <div
+        className="flex items-center gap-3 px-4 py-2.5 flex-shrink-0"
+        style={{ background: 'var(--surface)', borderBottom: '1px solid var(--hairline)' }}
+      >
+        <span
+          className="text-[10.5px] font-semibold uppercase tracking-widest"
+          style={{ color: 'var(--ink-3)' }}
+        >
+          Environmental log
+        </span>
+        <div className="flex-1" />
+        <button
+          onClick={canAdd ? onAddLeg : undefined}
+          disabled={!canAdd}
+          className="px-3 py-1 rounded-2 text-[12px] font-medium"
+          style={addBtnStyle(canAdd)}
+          title={canAdd ? undefined : 'Select a vessel first'}
+        >
+          + Voyage leg
+        </button>
+        <button
+          onClick={canAdd ? onAddDischarge : undefined}
+          disabled={!canAdd}
+          className="px-3 py-1 rounded-2 text-[12px] font-medium"
+          style={addBtnStyle(canAdd)}
+          title={canAdd ? undefined : 'Select a vessel first'}
+        >
+          + Discharge
+        </button>
+      </div>
       <div className="grid gap-2 p-4" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
         <KpiTile
           label={t('qhse.cii_rating')}
@@ -918,7 +1222,15 @@ function EnvironmentalTab({
 
 // ─── DryBMS tab ───────────────────────────────────────────────────────────────
 
-function DryBmsTab({ elements, loading }: { elements: DryBmsElement[]; loading: boolean }) {
+function DryBmsTab({
+  elements,
+  loading,
+  onAdd,
+}: {
+  elements: DryBmsElement[];
+  loading: boolean;
+  onAdd: () => void;
+}) {
   const { t } = useTranslation();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   if (loading)
@@ -943,6 +1255,25 @@ function DryBmsTab({ elements, loading }: { elements: DryBmsElement[]; loading: 
 
   return (
     <div className="flex-1 overflow-y-auto min-h-0" style={{ background: 'var(--bg)' }}>
+      <div
+        className="flex items-center gap-3 px-4 py-2.5 flex-shrink-0"
+        style={{ background: 'var(--surface)', borderBottom: '1px solid var(--hairline)' }}
+      >
+        <span
+          className="text-[10.5px] font-semibold uppercase tracking-widest"
+          style={{ color: 'var(--ink-3)' }}
+        >
+          DryBMS maturity
+        </span>
+        <div className="flex-1" />
+        <button
+          onClick={onAdd}
+          className="px-3 py-1 rounded-2 text-[12px] font-medium"
+          style={{ background: 'var(--navy)', color: '#fff', border: 'none', cursor: 'pointer' }}
+        >
+          + Element
+        </button>
+      </div>
       <div className="grid gap-2 p-4" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
         <KpiTile
           label={t('qhse.avg_maturity')}
@@ -1231,7 +1562,15 @@ function DryBmsTab({ elements, loading }: { elements: DryBmsElement[]; loading: 
 
 // ─── Management review tab ────────────────────────────────────────────────────
 
-function MgmtReviewTab({ reviews, loading }: { reviews: ManagementReview[]; loading: boolean }) {
+function MgmtReviewTab({
+  reviews,
+  loading,
+  onAdd,
+}: {
+  reviews: ManagementReview[];
+  loading: boolean;
+  onAdd: () => void;
+}) {
   const { t } = useTranslation();
   if (loading)
     return (
@@ -1256,10 +1595,11 @@ function MgmtReviewTab({ reviews, loading }: { reviews: ManagementReview[]; load
           {t('qhse.management_reviews')}
         </span>
         <button
+          onClick={onAdd}
           className="px-3 py-1 rounded-2 text-[12px] font-medium"
           style={{ background: 'var(--navy)', color: '#fff', border: 'none', cursor: 'pointer' }}
         >
-          {t('qhse.schedule_review')}
+          + {t('qhse.schedule_review')}
         </button>
       </div>
 
@@ -1411,38 +1751,48 @@ export function QHSEPage() {
   const [loadD, setLoadD] = useState(true);
   const [loadR, setLoadR] = useState(true);
 
+  const { selectedVesselId } = useVessel();
+  const canAddVessel = Boolean(selectedVesselId);
+  const [addObjective, setAddObjective] = useState(false);
+  const [addAudit, setAddAudit] = useState(false);
+  const [addFinding, setAddFinding] = useState(false);
+  const [addLeg, setAddLeg] = useState(false);
+  const [addDischarge, setAddDischarge] = useState(false);
+  const [addElement, setAddElement] = useState(false);
+  const [addReview, setAddReview] = useState(false);
+
   const fetchAll = useCallback(() => {
     api
-      .get<QhseObjective[]>('/qhse-objectives')
-      .then(setObjectives)
+      .get<RawQhseObjective[]>('/qhse-objectives')
+      .then((raw) => setObjectives(normalizeQhseObjectives(raw)))
       .catch(() => setObjectives([]))
       .finally(() => setLoadO(false));
     Promise.all([
-      api.get<Audit[]>('/audits').catch(() => [] as Audit[]),
-      api.get<AuditFinding[]>('/audit-findings').catch(() => [] as AuditFinding[]),
+      api.get<RawAudit[]>('/audits').catch(() => [] as RawAudit[]),
+      api.get<RawAuditFinding[]>('/audit-findings').catch(() => [] as RawAuditFinding[]),
     ])
       .then(([a, f]) => {
-        setAudits(a);
-        setAuditFindings(f);
+        setAudits(normalizeAudits(a));
+        setAuditFindings(normalizeAuditFindings(f));
       })
       .finally(() => setLoadA(false));
     Promise.all([
-      api.get<VoyageLeg[]>('/voyage-legs').catch(() => [] as VoyageLeg[]),
-      api.get<DischargeLog[]>('/discharge-logs').catch(() => [] as DischargeLog[]),
+      api.get<RawVoyageLeg[]>('/voyage-legs').catch(() => [] as RawVoyageLeg[]),
+      api.get<RawDischargeLog[]>('/discharge-logs').catch(() => [] as RawDischargeLog[]),
     ])
       .then(([l, d]) => {
-        setLegs(l);
-        setDischarges(d);
+        setLegs(normalizeVoyageLegs(l));
+        setDischarges(normalizeDischargeLogs(d));
       })
       .finally(() => setLoadE(false));
     api
-      .get<DryBmsElement[]>('/drybms-elements')
-      .then(setElements)
+      .get<RawDrybmsElement[]>('/drybms-elements')
+      .then((raw) => setElements(normalizeDrybms(raw)))
       .catch(() => setElements([]))
       .finally(() => setLoadD(false));
     api
-      .get<ManagementReview[]>('/management-reviews')
-      .then(setReviews)
+      .get<RawManagementReview[]>('/management-reviews')
+      .then((raw) => setReviews(normalizeManagementReviews(raw)))
       .catch(() => setReviews([]))
       .finally(() => setLoadR(false));
   }, []);
@@ -1560,13 +1910,104 @@ export function QHSEPage() {
         ))}
       </div>
 
-      {tab === 'obj' && <ObjectivesTab objectives={objectives} loading={loadO} />}
-      {tab === 'audit' && (
-        <AuditsTab audits={audits} auditFindings={auditFindings} loading={loadA} />
+      {tab === 'obj' && (
+        <ObjectivesTab
+          objectives={objectives}
+          loading={loadO}
+          onAdd={() => setAddObjective(true)}
+        />
       )}
-      {tab === 'env' && <EnvironmentalTab legs={legs} discharges={discharges} loading={loadE} />}
-      {tab === 'dryb' && <DryBmsTab elements={elements} loading={loadD} />}
-      {tab === 'review' && <MgmtReviewTab reviews={reviews} loading={loadR} />}
+      {tab === 'audit' && (
+        <AuditsTab
+          audits={audits}
+          auditFindings={auditFindings}
+          loading={loadA}
+          onAddAudit={() => setAddAudit(true)}
+          onAddFinding={() => setAddFinding(true)}
+          canAddFinding={canAddVessel}
+        />
+      )}
+      {tab === 'env' && (
+        <EnvironmentalTab
+          legs={legs}
+          discharges={discharges}
+          loading={loadE}
+          onAddLeg={() => setAddLeg(true)}
+          onAddDischarge={() => setAddDischarge(true)}
+          canAdd={canAddVessel}
+        />
+      )}
+      {tab === 'dryb' && (
+        <DryBmsTab elements={elements} loading={loadD} onAdd={() => setAddElement(true)} />
+      )}
+      {tab === 'review' && (
+        <MgmtReviewTab reviews={reviews} loading={loadR} onAdd={() => setAddReview(true)} />
+      )}
+
+      <CreateQhseObjectiveModal
+        open={addObjective}
+        onClose={() => setAddObjective(false)}
+        onCreated={() => {
+          setAddObjective(false);
+          fetchAll();
+        }}
+      />
+      <CreateAuditModal
+        open={addAudit}
+        vesselId={selectedVesselId}
+        onClose={() => setAddAudit(false)}
+        onCreated={() => {
+          setAddAudit(false);
+          fetchAll();
+        }}
+      />
+      <CreateDrybmsElementModal
+        open={addElement}
+        onClose={() => setAddElement(false)}
+        onCreated={() => {
+          setAddElement(false);
+          fetchAll();
+        }}
+      />
+      <CreateManagementReviewModal
+        open={addReview}
+        onClose={() => setAddReview(false)}
+        onCreated={() => {
+          setAddReview(false);
+          fetchAll();
+        }}
+      />
+      {selectedVesselId && (
+        <>
+          <CreateAuditFindingModal
+            open={addFinding}
+            vesselId={selectedVesselId}
+            onClose={() => setAddFinding(false)}
+            onCreated={() => {
+              setAddFinding(false);
+              fetchAll();
+            }}
+          />
+          <CreateVoyageLegModal
+            open={addLeg}
+            vesselId={selectedVesselId}
+            onClose={() => setAddLeg(false)}
+            onCreated={() => {
+              setAddLeg(false);
+              fetchAll();
+            }}
+          />
+          <CreateDischargeLogModal
+            open={addDischarge}
+            vesselId={selectedVesselId}
+            onClose={() => setAddDischarge(false)}
+            onCreated={() => {
+              setAddDischarge(false);
+              fetchAll();
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }

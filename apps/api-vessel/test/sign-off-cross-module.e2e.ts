@@ -54,7 +54,7 @@ beforeAll(async () => {
 
   const adminLogin = await request(app.getHttpServer())
     .post('/api/v1/auth/login')
-    .send({ tenantId, email: 'admin@xmod.vessel', password: 'AdminP@ss1' });
+    .send({ tenantId, identifier: 'admin@xmod.vessel', password: 'AdminP@ss1' });
   const adminToken = (adminLogin.body as { access_token: string }).access_token;
 
   const vRes = await request(app.getHttpServer())
@@ -70,7 +70,7 @@ beforeAll(async () => {
 
   const chiefLogin = await request(app.getHttpServer())
     .post('/api/v1/auth/login')
-    .send({ tenantId, email: 'chief@xmod.vessel', password: 'TestP@ss1' });
+    .send({ tenantId, identifier: 'chief@xmod.vessel', password: 'TestP@ss1' });
   token = (chiefLogin.body as { access_token: string }).access_token;
 
   // Component + Job

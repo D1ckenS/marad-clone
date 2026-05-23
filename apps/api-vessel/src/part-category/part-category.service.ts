@@ -1,8 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { newId } from '@fleetops/domain';
-import { and, eq, isNull, or } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import type { AuthContext } from '../auth/auth-context';
-import { requireVesselId } from '../auth/vessel-bound';
 import { DrizzleService } from '../db/drizzle.service';
 import { partCategories } from '../db/schema';
 import type { CreatePartCategoryDto } from './dto/create-part-category.dto';
@@ -13,13 +12,11 @@ export class PartCategoryService {
   constructor(private readonly drizzle: DrizzleService) {}
 
   create(auth: AuthContext, dto: CreatePartCategoryDto) {
-    const vesselId = requireVesselId(auth);
     const [row] = this.drizzle.db
       .insert(partCategories)
       .values({
         id: newId(),
         tenantId: auth.tenantId!,
-        vesselId,
         name: dto.name,
         description: dto.description ?? null,
         parentId: dto.parentId ?? null,
@@ -30,23 +27,15 @@ export class PartCategoryService {
   }
 
   findAll(auth: AuthContext) {
-    const vesselId = requireVesselId(auth);
     return this.drizzle.db
       .select()
       .from(partCategories)
-      .where(
-        and(
-          eq(partCategories.tenantId, auth.tenantId!),
-          or(eq(partCategories.vesselId, vesselId), isNull(partCategories.vesselId)),
-          isNull(partCategories.deletedAt),
-        ),
-      )
+      .where(and(eq(partCategories.tenantId, auth.tenantId!), isNull(partCategories.deletedAt)))
       .orderBy(partCategories.name)
       .all();
   }
 
   findOne(auth: AuthContext, id: string) {
-    const vesselId = requireVesselId(auth);
     const row = this.drizzle.db
       .select()
       .from(partCategories)
@@ -54,7 +43,6 @@ export class PartCategoryService {
         and(
           eq(partCategories.id, id),
           eq(partCategories.tenantId, auth.tenantId!),
-          or(eq(partCategories.vesselId, vesselId), isNull(partCategories.vesselId)),
           isNull(partCategories.deletedAt),
         ),
       )

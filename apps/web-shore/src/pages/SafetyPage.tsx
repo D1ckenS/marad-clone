@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { Badge, type BadgeColor, Spinner } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
+import { useVessel } from '../context/useVessel.js';
+import { CreateJhaModal } from '../components/CreateJhaModal.js';
+import { CreateSafetyEquipmentModal } from '../components/CreateSafetyEquipmentModal.js';
 
 const fmtPermitDate = (s: string | null | undefined): string => {
   if (!s) return '—';
@@ -213,6 +216,75 @@ interface Capa {
   doneActions: number;
   stage: CapaStage;
   tone: string;
+}
+
+// ─── Normalizers: shore API → page-local shapes ──────────────────────────────
+// The /jhas and /safety-equipment endpoints return the persisted columns; the
+// UI carries extra display-only fields (category, owner, useCount, derived
+// status casing). These map one to the other without persisting placeholders.
+
+interface RawJha {
+  id: string;
+  ref: string;
+  title: string;
+  activity: string | null;
+  hazards: unknown;
+  controls: unknown;
+  residualL: number;
+  residualS: number;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
+}
+
+interface RawSafetyEquipment {
+  id: string;
+  category: 'FFA' | 'LSA' | 'OTH';
+  name: string;
+  location: string;
+  quantity: string;
+  lastCheck: string | null;
+  nextCheck: string | null;
+  status: 'GREEN' | 'AMBER' | 'RED';
+  flag: string | null;
+}
+
+function toDateOnly(iso: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '—' : d.toISOString().split('T')[0]!;
+}
+
+function normalizeJhas(raw: RawJha[]): JHA[] {
+  return raw.map((r) => ({
+    id: r.id,
+    title: r.title,
+    category: r.activity ?? '—',
+    owner: r.reviewedBy ?? '—',
+    revision: r.ref,
+    inherentL: 0,
+    inherentS: 0,
+    residualL: r.residualL,
+    residualS: r.residualS,
+    lastUsed: toDateOnly(r.reviewedAt),
+    useCount: 0,
+    keyControls: Array.isArray(r.controls)
+      ? (r.controls as unknown[]).map((c) => (typeof c === 'string' ? c : String(c)))
+      : [],
+  }));
+}
+
+function normalizeSafetyEquipment(raw: RawSafetyEquipment[]): SafetyEquipment[] {
+  return raw.map((r) => ({
+    id: r.id,
+    category: r.category,
+    name: r.name,
+    location: r.location,
+    quantity: r.quantity,
+    lastCheck: toDateOnly(r.lastCheck),
+    nextCheck: toDateOnly(r.nextCheck),
+    status: r.status.toLowerCase() as SafetyEquipment['status'],
+    flag: r.flag,
+  }));
 }
 
 // ─── Metadata ─────────────────────────────────────────────────────────────────
@@ -921,7 +993,7 @@ function RiskMatrix({ l, s }: { l: number; s: number }) {
   );
 }
 
-function JhaTab({ jhas, loading }: { jhas: JHA[]; loading: boolean }) {
+function JhaTab({ jhas, loading, onAdd }: { jhas: JHA[]; loading: boolean; onAdd: () => void }) {
   const { t } = useTranslation();
   const [selected, setSelected] = useState<string | null>(null);
   const sel = jhas.find((j) => j.id === selected) ?? jhas[0] ?? null;
@@ -957,13 +1029,15 @@ function JhaTab({ jhas, loading }: { jhas: JHA[]; loading: boolean }) {
             {t('safety.jha_library')} {jhas.length} {t('safety.assessments')}
           </span>
           <button
+            onClick={onAdd}
             className="w-6 h-6 flex items-center justify-center rounded-1 text-[13px]"
             style={{
-              background: 'transparent',
+              background: 'var(--navy)',
               border: 'none',
               cursor: 'pointer',
-              color: 'var(--ink-3)',
+              color: '#fff',
             }}
+            title="Add JHA"
           >
             +
           </button>
@@ -1144,7 +1218,17 @@ function JhaTab({ jhas, loading }: { jhas: JHA[]; loading: boolean }) {
 
 // ─── Equipment tab ────────────────────────────────────────────────────────────
 
-function EquipmentTab({ equipment, loading }: { equipment: SafetyEquipment[]; loading: boolean }) {
+function EquipmentTab({
+  equipment,
+  loading,
+  onAdd,
+  canAdd,
+}: {
+  equipment: SafetyEquipment[];
+  loading: boolean;
+  onAdd: () => void;
+  canAdd: boolean;
+}) {
   const { t } = useTranslation();
   if (loading)
     return (
@@ -1163,6 +1247,32 @@ function EquipmentTab({ equipment, loading }: { equipment: SafetyEquipment[]; lo
 
   return (
     <div className="flex-1 overflow-y-auto min-h-0" style={{ background: 'var(--bg)' }}>
+      <div
+        className="flex items-center gap-3 px-4 py-2.5 flex-shrink-0"
+        style={{ background: 'var(--surface)', borderBottom: '1px solid var(--hairline)' }}
+      >
+        <span
+          className="text-[10.5px] font-semibold uppercase tracking-widest"
+          style={{ color: 'var(--ink-3)' }}
+        >
+          Safety equipment
+        </span>
+        <div className="flex-1" />
+        <button
+          className="px-3 py-1 rounded-2 text-[12px] font-medium"
+          style={{
+            background: canAdd ? 'var(--navy)' : 'var(--surface-2)',
+            color: canAdd ? '#fff' : 'var(--ink-3)',
+            border: 'none',
+            cursor: canAdd ? 'pointer' : 'not-allowed',
+          }}
+          onClick={canAdd ? onAdd : undefined}
+          disabled={!canAdd}
+          title={canAdd ? undefined : 'Select a vessel first'}
+        >
+          + Add equipment
+        </button>
+      </div>
       <div className="grid gap-2 p-4" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
         {[
           {
@@ -1535,6 +1645,11 @@ export function SafetyPage() {
   const [loadE, setLoadE] = useState(true);
   const [loadC, setLoadC] = useState(true);
 
+  const { selectedVesselId } = useVessel();
+  const [addJha, setAddJha] = useState(false);
+  const [addEquipment, setAddEquipment] = useState(false);
+  const canAddVessel = Boolean(selectedVesselId);
+
   const fetchAll = useCallback(() => {
     api
       .get<RawWorkPermit[]>('/work-permits')
@@ -1547,13 +1662,13 @@ export function SafetyPage() {
       .catch(() => setFindings([]))
       .finally(() => setLoadF(false));
     api
-      .get<JHA[]>('/jhas')
-      .then(setJhas)
+      .get<RawJha[]>('/jhas')
+      .then((raw) => setJhas(normalizeJhas(raw)))
       .catch(() => setJhas([]))
       .finally(() => setLoadJ(false));
     api
-      .get<SafetyEquipment[]>('/safety-equipment')
-      .then(setEquipment)
+      .get<RawSafetyEquipment[]>('/safety-equipment')
+      .then((raw) => setEquipment(normalizeSafetyEquipment(raw)))
       .catch(() => setEquipment([]))
       .finally(() => setLoadE(false));
     api
@@ -1681,9 +1796,36 @@ export function SafetyPage() {
 
       {tab === 'permit' && <PermitsTab permits={permits} loading={loadP} />}
       {tab === 'find' && <FindingsTab findings={findings} loading={loadF} />}
-      {tab === 'jha' && <JhaTab jhas={jhas} loading={loadJ} />}
-      {tab === 'eq' && <EquipmentTab equipment={equipment} loading={loadE} />}
+      {tab === 'jha' && <JhaTab jhas={jhas} loading={loadJ} onAdd={() => setAddJha(true)} />}
+      {tab === 'eq' && (
+        <EquipmentTab
+          equipment={equipment}
+          loading={loadE}
+          onAdd={() => setAddEquipment(true)}
+          canAdd={canAddVessel}
+        />
+      )}
       {tab === 'capa' && <CapaTab capas={capas} loading={loadC} />}
+
+      <CreateJhaModal
+        open={addJha}
+        onClose={() => setAddJha(false)}
+        onCreated={() => {
+          setAddJha(false);
+          fetchAll();
+        }}
+      />
+      {selectedVesselId && (
+        <CreateSafetyEquipmentModal
+          open={addEquipment}
+          vesselId={selectedVesselId}
+          onClose={() => setAddEquipment(false)}
+          onCreated={() => {
+            setAddEquipment(false);
+            fetchAll();
+          }}
+        />
+      )}
     </div>
   );
 }

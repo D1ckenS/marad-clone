@@ -186,6 +186,18 @@ model Tenant {
   classSocietyConnectors  ClassSocietyConnector[]
   classSocietySubmissions ClassSocietySubmission[]
   biDashboards            BiDashboard[]
+  surveys                 Survey[]
+  conditionsOfClass       ConditionOfClass[]
+  inspections             Inspection[]
+  jhas                    Jha[]
+  safetyEquipment         SafetyEquipment[]
+  qhseObjectives          QhseObjective[]
+  audits                  Audit[]
+  auditFindings           AuditFinding[]
+  voyageLegs              VoyageLeg[]
+  dischargeLogs           DischargeLog[]
+  drybmsElements          DrybmsElement[]
+  managementReviews       ManagementReview[]
 
   @@map("tenants")
 }
@@ -204,7 +216,6 @@ model Vessel {
   deletedAt DateTime? @map("deleted_at")
 
   tenant               Tenant               @relation(fields: [tenantId], references: [id])
-  partCategories       PartCategory[]
   users                User[]
   components           Component[]
   jobs                 Job[]
@@ -246,6 +257,14 @@ model Vessel {
   ocimfInspections         OcimfInspection[]
   classSocietySubmissions  ClassSocietySubmission[]
   parts                    Part[]
+  surveys                  Survey[]
+  conditionsOfClass        ConditionOfClass[]
+  inspections              Inspection[]
+  safetyEquipment          SafetyEquipment[]
+  audits                   Audit[]
+  auditFindings            AuditFinding[]
+  voyageLegs               VoyageLeg[]
+  dischargeLogs            DischargeLog[]
 
   @@map("vessels")
 }
@@ -467,11 +486,10 @@ model RunningHourReading {
 
 // ── Inventory (P1-5) ─────────────────────────────────────────────────────────
 
-// PartCategory — vessel-scoped part classification.
+// PartCategory — hierarchical part classification (fleet-wide, tenant-scoped).
 model PartCategory {
   id          String    @id
   tenantId    String    @map("tenant_id")
-  vesselId    String?   @map("vessel_id")
   parentId    String?   @map("parent_id")
   name        String
   description String?
@@ -481,12 +499,11 @@ model PartCategory {
   deletedAt   DateTime? @map("deleted_at")
 
   tenant   Tenant         @relation(fields: [tenantId], references: [id])
-  vessel   Vessel?        @relation(fields: [vesselId], references: [id])
   parent   PartCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
   children PartCategory[] @relation("CategoryHierarchy")
   parts    Part[]
 
-  @@index([tenantId, vesselId])
+  @@index([tenantId])
   @@map("part_categories")
 }
 
@@ -1987,6 +2004,358 @@ model BiDashboard {
 
   @@index([tenantId, enabled])
   @@map("bi_dashboards")
+}
+
+// ── Certificates: Surveys / Conditions of Class / Inspections ────────────────
+// Vessel-scoped operational records that hang off the Certificates module.
+
+enum SurveyStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  POSTPONED
+  CANCELLED
+}
+
+model Survey {
+  id            String       @id
+  tenantId      String       @map("tenant_id")
+  vesselId      String       @map("vessel_id")
+  scheduledAt   DateTime     @map("scheduled_at")
+  kind          String
+  scope         String
+  surveyor      String
+  location      String
+  status        SurveyStatus @default(SCHEDULED)
+  certificateId String?      @map("certificate_id")
+  notes         String?
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  deletedAt     DateTime?    @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  vessel Vessel @relation(fields: [vesselId], references: [id])
+
+  @@index([tenantId, vesselId, scheduledAt])
+  @@map("surveys")
+}
+
+enum CocSeverity {
+  CONDITION
+  RECOMMENDATION
+  MEMORANDUM
+  CLOSED
+}
+
+model ConditionOfClass {
+  id                  String      @id
+  tenantId            String      @map("tenant_id")
+  vesselId            String      @map("vessel_id")
+  severity            CocSeverity
+  title               String
+  detail              String
+  raisedAt            DateTime    @map("raised_at")
+  openedAt            DateTime    @map("opened_at")
+  dueAt               DateTime?   @map("due_at")
+  closedAt            DateTime?   @map("closed_at")
+  linkedCertificateId String?     @map("linked_certificate_id")
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+  deletedAt           DateTime?   @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  vessel Vessel @relation(fields: [vesselId], references: [id])
+
+  @@index([tenantId, vesselId, severity])
+  @@map("conditions_of_class")
+}
+
+enum InspectionKind {
+  PSC
+  VETTING
+  FLAG
+}
+
+model Inspection {
+  id           String         @id
+  tenantId     String         @map("tenant_id")
+  vesselId     String         @map("vessel_id")
+  inspectedAt  DateTime       @map("inspected_at")
+  kind         InspectionKind
+  mou          String?
+  port         String
+  inspector    String
+  deficiencies Int            @default(0)
+  detained     Boolean        @default(false)
+  status       String
+  findings     String?
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+  deletedAt    DateTime?      @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  vessel Vessel @relation(fields: [vesselId], references: [id])
+
+  @@index([tenantId, vesselId, inspectedAt])
+  @@map("inspections")
+}
+
+// ── Safety: Job Hazard Analyses (JHA) / Safety Equipment ─────────────────────
+
+model Jha {
+  id         String    @id
+  tenantId   String    @map("tenant_id")
+  ref        String
+  title      String
+  activity   String?
+  hazards    Json
+  controls   Json
+  residualL  Int       @default(1) @map("residual_l")
+  residualS  Int       @default(1) @map("residual_s")
+  reviewedAt DateTime? @map("reviewed_at")
+  reviewedBy String?   @map("reviewed_by")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, ref])
+  @@map("jhas")
+}
+
+enum SafetyEquipmentCategory {
+  FFA
+  LSA
+  OTH
+}
+
+enum SafetyEquipmentStatus {
+  GREEN
+  AMBER
+  RED
+}
+
+model SafetyEquipment {
+  id        String                  @id
+  tenantId  String                  @map("tenant_id")
+  vesselId  String                  @map("vessel_id")
+  category  SafetyEquipmentCategory
+  name      String
+  location  String
+  quantity  String
+  lastCheck DateTime?               @map("last_check")
+  nextCheck DateTime?               @map("next_check")
+  status    SafetyEquipmentStatus   @default(GREEN)
+  flag      String?
+  createdAt DateTime                @default(now()) @map("created_at")
+  updatedAt DateTime                @updatedAt @map("updated_at")
+  deletedAt DateTime?               @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  vessel Vessel @relation(fields: [vesselId], references: [id])
+
+  @@index([tenantId, vesselId, category])
+  @@map("safety_equipment")
+}
+
+// ── QHSE: Objectives / Audits / Audit Findings / DryBMS / Management Reviews ─
+
+enum QhseObjectiveCategory {
+  Q
+  H
+  S
+  E
+}
+
+enum QhseObjectiveStatus {
+  GREEN
+  AMBER
+  RED
+}
+
+model QhseObjective {
+  id         String                @id
+  tenantId   String                @map("tenant_id")
+  category   QhseObjectiveCategory
+  label      String
+  target     String
+  actual     String
+  unit       String
+  status     QhseObjectiveStatus   @default(GREEN)
+  delta      String?
+  trend      Json?
+  periodFrom DateTime?             @map("period_from")
+  periodTo   DateTime?             @map("period_to")
+  createdAt  DateTime              @default(now()) @map("created_at")
+  updatedAt  DateTime              @updatedAt @map("updated_at")
+  deletedAt  DateTime?             @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, category])
+  @@map("qhse_objectives")
+}
+
+enum AuditKind {
+  INTERNAL
+  EXTERNAL
+  CLASS
+  FLAG
+}
+
+enum AuditStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model Audit {
+  id          String      @id
+  tenantId    String      @map("tenant_id")
+  vesselId    String?     @map("vessel_id")
+  kind        AuditKind
+  scope       String
+  scheduledAt DateTime    @map("scheduled_at")
+  auditor     String
+  status      AuditStatus @default(SCHEDULED)
+  findings    Int         @default(0)
+  notes       String?
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  deletedAt   DateTime?   @map("deleted_at")
+
+  tenant         Tenant         @relation(fields: [tenantId], references: [id])
+  vessel         Vessel?        @relation(fields: [vesselId], references: [id])
+  auditFindings  AuditFinding[]
+
+  @@index([tenantId, vesselId, scheduledAt])
+  @@map("audits")
+}
+
+model AuditFinding {
+  id             String    @id
+  tenantId       String    @map("tenant_id")
+  vesselId       String    @map("vessel_id")
+  auditId        String?   @map("audit_id")
+  classification String
+  smsRef         String?   @map("sms_ref")
+  title          String
+  detail         String?
+  owner          String?
+  openedAt       DateTime  @map("opened_at")
+  dueAt          DateTime? @map("due_at")
+  closedAt       DateTime? @map("closed_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  vessel Vessel @relation(fields: [vesselId], references: [id])
+  audit  Audit? @relation(fields: [auditId], references: [id])
+
+  @@index([tenantId, vesselId, dueAt])
+  @@map("audit_findings")
+}
+
+enum VoyageMode {
+  LADEN
+  BALLAST
+}
+
+model VoyageLeg {
+  id          String     @id
+  tenantId    String     @map("tenant_id")
+  vesselId    String     @map("vessel_id")
+  route       String
+  departureAt DateTime   @map("departure_at")
+  arrivalAt   DateTime   @map("arrival_at")
+  nm          Decimal    @db.Decimal(12, 2)
+  fuelTonnes  Decimal    @map("fuel_tonnes") @db.Decimal(12, 3)
+  co2Tonnes   Decimal    @map("co2_tonnes")  @db.Decimal(12, 3)
+  soxTonnes   Decimal    @map("sox_tonnes")  @db.Decimal(12, 3)
+  noxTonnes   Decimal    @map("nox_tonnes")  @db.Decimal(12, 3)
+  hours       Decimal    @db.Decimal(8, 2)
+  mode        VoyageMode
+  cargo       String?
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  deletedAt   DateTime?  @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  vessel Vessel @relation(fields: [vesselId], references: [id])
+
+  @@index([tenantId, vesselId, departureAt])
+  @@map("voyage_legs")
+}
+
+model DischargeLog {
+  id         String    @id
+  tenantId   String    @map("tenant_id")
+  vesselId   String    @map("vessel_id")
+  kind       String
+  occurredAt DateTime  @map("occurred_at")
+  location   String
+  volume     String
+  notes      String?
+  compliant  Boolean   @default(true)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  vessel Vessel @relation(fields: [vesselId], references: [id])
+
+  @@index([tenantId, vesselId, occurredAt])
+  @@map("discharge_logs")
+}
+
+model DrybmsElement {
+  id           String    @id
+  tenantId     String    @map("tenant_id")
+  chapter      String
+  chapterTitle String    @map("chapter_title")
+  name         String
+  score        Int       @default(1)
+  stage        String?
+  evidence     String?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, chapter])
+  @@map("drybms_elements")
+}
+
+enum ManagementReviewStatus {
+  SCHEDULED
+  IN_PROGRESS
+  CLOSED
+  CANCELLED
+}
+
+model ManagementReview {
+  id           String                 @id
+  tenantId     String                 @map("tenant_id")
+  kind         String
+  scheduledAt  DateTime               @map("scheduled_at")
+  chair        String
+  attendees    Int                    @default(0)
+  status       ManagementReviewStatus @default(SCHEDULED)
+  actionsTotal Int                    @default(0) @map("actions_total")
+  actionsDone  Int                    @default(0) @map("actions_done")
+  summary      String?
+  createdAt    DateTime               @default(now()) @map("created_at")
+  updatedAt    DateTime               @updatedAt @map("updated_at")
+  deletedAt    DateTime?              @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, scheduledAt])
+  @@map("management_reviews")
 }
 
 // ── Outbox / SyncRecord ───────────────────────────────────────────────────────
