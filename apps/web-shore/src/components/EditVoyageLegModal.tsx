@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, Select } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -23,11 +24,6 @@ interface Props {
   onSaved: () => void;
 }
 
-const MODE_OPTIONS = [
-  { value: 'LADEN', label: 'Laden' },
-  { value: 'BALLAST', label: 'Ballast' },
-];
-
 function toLocalInput(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
@@ -36,6 +32,7 @@ function toLocalInput(iso: string): string {
 }
 
 export function EditVoyageLegModal({ leg, onClose, onSaved }: Props) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(() => ({
     route: leg.route,
     departureAt: toLocalInput(leg.departureAt),
@@ -51,6 +48,14 @@ export function EditVoyageLegModal({ leg, onClose, onSaved }: Props) {
   }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const modeOptions = useMemo(
+    () => [
+      { value: 'LADEN', label: t('qhse.voyage_modal.mode_laden') },
+      { value: 'BALLAST', label: t('qhse.voyage_modal.mode_ballast') },
+    ],
+    [t],
+  );
 
   useEffect(() => {
     setForm({
@@ -85,7 +90,7 @@ export function EditVoyageLegModal({ leg, onClose, onSaved }: Props) {
       !form.noxTonnes ||
       !form.hours
     ) {
-      setError('Route, dates, distance, fuel, emissions and hours are all required.');
+      setError(t('qhse.voyage_modal.error_required'));
       return;
     }
     setSaving(true);
@@ -106,7 +111,7 @@ export function EditVoyageLegModal({ leg, onClose, onSaved }: Props) {
       });
       onSaved();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to update voyage leg.');
+      setError(e instanceof Error ? e.message : t('qhse.voyage_modal.error_update'));
     } finally {
       setSaving(false);
     }
@@ -115,16 +120,16 @@ export function EditVoyageLegModal({ leg, onClose, onSaved }: Props) {
   return (
     <Modal
       open
-      title="Edit voyage leg"
+      title={t('qhse.voyage_modal.title_edit')}
       onClose={onClose}
       onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Save
+            {t('common.save')}
           </Button>
         </>
       }
@@ -136,28 +141,28 @@ export function EditVoyageLegModal({ leg, onClose, onSaved }: Props) {
         <div className="grid grid-cols-2 gap-3">
           <Input
             id="vl-route"
-            label="Route *"
+            label={`${t('qhse.voyage_modal.field_route')} *`}
             value={form.route}
             onChange={set('route')}
             autoFocus
           />
           <Select
             id="vl-mode"
-            label="Mode"
-            options={MODE_OPTIONS}
+            label={t('qhse.voyage_modal.field_mode')}
+            options={modeOptions}
             value={form.mode}
             onChange={(v) => setForm((f) => ({ ...f, mode: v as typeof f.mode }))}
           />
           <Input
             id="vl-dep"
-            label="Departure *"
+            label={`${t('qhse.voyage_modal.field_departure')} *`}
             type="datetime-local"
             value={form.departureAt}
             onChange={set('departureAt')}
           />
           <Input
             id="vl-arr"
-            label="Arrival *"
+            label={`${t('qhse.voyage_modal.field_arrival')} *`}
             type="datetime-local"
             value={form.arrivalAt}
             onChange={set('arrivalAt')}
@@ -166,7 +171,7 @@ export function EditVoyageLegModal({ leg, onClose, onSaved }: Props) {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Input
             id="vl-nm"
-            label="Distance (nm) *"
+            label={`${t('qhse.voyage_modal.field_distance_nm')} *`}
             type="number"
             step="0.01"
             value={form.nm}
@@ -174,7 +179,7 @@ export function EditVoyageLegModal({ leg, onClose, onSaved }: Props) {
           />
           <Input
             id="vl-hours"
-            label="Hours *"
+            label={`${t('qhse.voyage_modal.field_hours')} *`}
             type="number"
             step="0.01"
             value={form.hours}
@@ -182,7 +187,7 @@ export function EditVoyageLegModal({ leg, onClose, onSaved }: Props) {
           />
           <Input
             id="vl-fuel"
-            label="Fuel (t) *"
+            label={`${t('qhse.voyage_modal.field_fuel')} *`}
             type="number"
             step="0.001"
             value={form.fuelTonnes}
@@ -190,7 +195,7 @@ export function EditVoyageLegModal({ leg, onClose, onSaved }: Props) {
           />
           <Input
             id="vl-co2"
-            label="CO₂ (t) *"
+            label={`${t('qhse.voyage_modal.field_co2')} *`}
             type="number"
             step="0.001"
             value={form.co2Tonnes}
@@ -198,7 +203,7 @@ export function EditVoyageLegModal({ leg, onClose, onSaved }: Props) {
           />
           <Input
             id="vl-sox"
-            label="SOx (t) *"
+            label={`${t('qhse.voyage_modal.field_sox')} *`}
             type="number"
             step="0.001"
             value={form.soxTonnes}
@@ -206,14 +211,19 @@ export function EditVoyageLegModal({ leg, onClose, onSaved }: Props) {
           />
           <Input
             id="vl-nox"
-            label="NOx (t) *"
+            label={`${t('qhse.voyage_modal.field_nox')} *`}
             type="number"
             step="0.001"
             value={form.noxTonnes}
             onChange={set('noxTonnes')}
           />
         </div>
-        <Input id="vl-cargo" label="Cargo" value={form.cargo} onChange={set('cargo')} />
+        <Input
+          id="vl-cargo"
+          label={t('qhse.voyage_modal.field_cargo')}
+          value={form.cargo}
+          onChange={set('cargo')}
+        />
       </div>
     </Modal>
   );

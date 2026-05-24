@@ -467,10 +467,7 @@ function PermitsTab({ permits, loading }: { permits: WorkPermit[]; loading: bool
             style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}
           >
             <div className="flex items-center gap-2 mb-1.5 min-w-0">
-              <span
-                className="font-mono text-[11px] truncate"
-                style={{ color: 'var(--ink-3)' }}
-              >
+              <span className="font-mono text-[11px] truncate" style={{ color: 'var(--ink-3)' }}>
                 {sel.id.slice(0, 8)}
               </span>
               <Badge color={PERMIT_KIND_META[sel.kind]?.color ?? 'slate'}>
@@ -892,17 +889,11 @@ function FindingsTab({ findings, loading }: { findings: SafetyFinding[]; loading
                 </Badge>
                 <div className="min-w-0">
                   <div className="text-[12.5px] font-medium truncate">{f.title}</div>
-                  <div
-                    className="text-[10.5px] truncate"
-                    style={{ color: 'var(--ink-3)' }}
-                  >
+                  <div className="text-[10.5px] truncate" style={{ color: 'var(--ink-3)' }}>
                     {f.where}
                   </div>
                 </div>
-                <span
-                  className="text-[11.5px] truncate min-w-0"
-                  style={{ color: 'var(--ink-2)' }}
-                >
+                <span className="text-[11.5px] truncate min-w-0" style={{ color: 'var(--ink-2)' }}>
                   {f.raisedBy}
                 </span>
                 <Badge

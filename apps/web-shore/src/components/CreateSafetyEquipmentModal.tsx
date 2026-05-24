@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, Select } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -8,18 +9,6 @@ interface Props {
   onClose: () => void;
   onCreated: () => void;
 }
-
-const CATEGORY_OPTIONS = [
-  { value: 'FFA', label: 'Fire-fighting (FFA)' },
-  { value: 'LSA', label: 'Life-saving (LSA)' },
-  { value: 'OTH', label: 'Other' },
-];
-
-const STATUS_OPTIONS = [
-  { value: 'GREEN', label: 'Green' },
-  { value: 'AMBER', label: 'Amber' },
-  { value: 'RED', label: 'Red' },
-];
 
 const EMPTY = {
   category: 'FFA',
@@ -33,9 +22,28 @@ const EMPTY = {
 };
 
 export function CreateSafetyEquipmentModal({ open, vesselId, onClose, onCreated }: Props) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const categoryOptions = useMemo(
+    () => [
+      { value: 'FFA', label: t('safety.equipment_modal.category_ffa') },
+      { value: 'LSA', label: t('safety.equipment_modal.category_lsa') },
+      { value: 'OTH', label: t('safety.equipment_modal.category_oth') },
+    ],
+    [t],
+  );
+
+  const statusOptions = useMemo(
+    () => [
+      { value: 'GREEN', label: t('safety.equipment_modal.status_green') },
+      { value: 'AMBER', label: t('safety.equipment_modal.status_amber') },
+      { value: 'RED', label: t('safety.equipment_modal.status_red') },
+    ],
+    [t],
+  );
 
   const set =
     (field: keyof typeof EMPTY) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -49,7 +57,7 @@ export function CreateSafetyEquipmentModal({ open, vesselId, onClose, onCreated 
 
   const handleSubmit = async () => {
     if (!form.name.trim() || !form.location.trim() || !form.quantity.trim()) {
-      setError('Name, location and quantity are required.');
+      setError(t('safety.equipment_modal.error_required'));
       return;
     }
     setSaving(true);
@@ -69,7 +77,7 @@ export function CreateSafetyEquipmentModal({ open, vesselId, onClose, onCreated 
       setForm(EMPTY);
       onCreated();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to add safety equipment.');
+      setError(e instanceof Error ? e.message : t('safety.equipment_modal.error_create'));
     } finally {
       setSaving(false);
     }
@@ -78,16 +86,16 @@ export function CreateSafetyEquipmentModal({ open, vesselId, onClose, onCreated 
   return (
     <Modal
       open={open}
-      title="Add safety equipment"
+      title={t('safety.equipment_modal.title_create')}
       onClose={handleClose}
       onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Create
+            {t('common.create')}
           </Button>
         </>
       }
@@ -99,22 +107,22 @@ export function CreateSafetyEquipmentModal({ open, vesselId, onClose, onCreated 
         <div className="grid grid-cols-2 gap-3">
           <Select
             id="se-category"
-            label="Category"
-            options={CATEGORY_OPTIONS}
+            label={t('safety.equipment_modal.field_category')}
+            options={categoryOptions}
             value={form.category}
             onChange={(v) => setForm((f) => ({ ...f, category: v }))}
           />
           <Select
             id="se-status"
-            label="Status"
-            options={STATUS_OPTIONS}
+            label={t('safety.equipment_modal.field_status')}
+            options={statusOptions}
             value={form.status}
             onChange={(v) => setForm((f) => ({ ...f, status: v }))}
           />
         </div>
         <Input
           id="se-name"
-          label="Name *"
+          label={`${t('safety.equipment_modal.field_name')} *`}
           value={form.name}
           onChange={set('name')}
           autoFocus
@@ -123,34 +131,39 @@ export function CreateSafetyEquipmentModal({ open, vesselId, onClose, onCreated 
         <div className="grid grid-cols-2 gap-3">
           <Input
             id="se-loc"
-            label="Location *"
+            label={`${t('safety.equipment_modal.field_location')} *`}
             value={form.location}
             onChange={set('location')}
             placeholder="Engine room fwd"
           />
           <Input
             id="se-qty"
-            label="Quantity *"
+            label={`${t('safety.equipment_modal.field_quantity')} *`}
             value={form.quantity}
             onChange={set('quantity')}
             placeholder="4 / 2 sets"
           />
           <Input
             id="se-last"
-            label="Last check"
+            label={t('safety.equipment_modal.field_last_check')}
             type="date"
             value={form.lastCheck}
             onChange={set('lastCheck')}
           />
           <Input
             id="se-next"
-            label="Next check"
+            label={t('safety.equipment_modal.field_next_check')}
             type="date"
             value={form.nextCheck}
             onChange={set('nextCheck')}
           />
         </div>
-        <Input id="se-flag" label="Flag / note" value={form.flag} onChange={set('flag')} />
+        <Input
+          id="se-flag"
+          label={t('safety.equipment_modal.field_flag')}
+          value={form.flag}
+          onChange={set('flag')}
+        />
       </div>
     </Modal>
   );

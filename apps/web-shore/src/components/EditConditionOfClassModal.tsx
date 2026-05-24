@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, Select, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -18,13 +19,6 @@ interface Props {
   onSaved: () => void;
 }
 
-const SEVERITY_OPTIONS = [
-  { value: 'CONDITION', label: 'Condition' },
-  { value: 'RECOMMENDATION', label: 'Recommendation' },
-  { value: 'MEMORANDUM', label: 'Memorandum' },
-  { value: 'CLOSED', label: 'Closed' },
-];
-
 function toLocalInput(iso: string | null): string {
   if (!iso) return '';
   const d = new Date(iso);
@@ -34,6 +28,7 @@ function toLocalInput(iso: string | null): string {
 }
 
 export function EditConditionOfClassModal({ condition, onClose, onSaved }: Props) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(() => ({
     severity: condition.severity,
     title: condition.title,
@@ -44,6 +39,16 @@ export function EditConditionOfClassModal({ condition, onClose, onSaved }: Props
   }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const severityOptions = useMemo(
+    () => [
+      { value: 'CONDITION', label: t('certificates.coc_modal.severity_condition') },
+      { value: 'RECOMMENDATION', label: t('certificates.coc_modal.severity_recommendation') },
+      { value: 'MEMORANDUM', label: t('certificates.coc_modal.severity_memorandum') },
+      { value: 'CLOSED', label: t('certificates.coc_modal.severity_closed') },
+    ],
+    [t],
+  );
 
   useEffect(() => {
     setForm({
@@ -63,7 +68,7 @@ export function EditConditionOfClassModal({ condition, onClose, onSaved }: Props
 
   const handleSubmit = async () => {
     if (!form.title.trim() || !form.detail.trim() || !form.raisedAt || !form.openedAt) {
-      setError('Title, detail, raised-at and opened-at are required.');
+      setError(t('certificates.coc_modal.error_required'));
       return;
     }
     setSaving(true);
@@ -79,7 +84,7 @@ export function EditConditionOfClassModal({ condition, onClose, onSaved }: Props
       });
       onSaved();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to update condition of class.');
+      setError(e instanceof Error ? e.message : t('certificates.coc_modal.error_update'));
     } finally {
       setSaving(false);
     }
@@ -88,16 +93,16 @@ export function EditConditionOfClassModal({ condition, onClose, onSaved }: Props
   return (
     <Modal
       open
-      title="Edit condition of class"
+      title={t('certificates.coc_modal.title_edit')}
       onClose={onClose}
       onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Save
+            {t('common.save')}
           </Button>
         </>
       }
@@ -108,21 +113,21 @@ export function EditConditionOfClassModal({ condition, onClose, onSaved }: Props
         )}
         <Select
           id="coc-severity"
-          label="Severity"
-          options={SEVERITY_OPTIONS}
+          label={t('certificates.coc_modal.field_severity')}
+          options={severityOptions}
           value={form.severity}
           onChange={(v) => setForm((f) => ({ ...f, severity: v as typeof f.severity }))}
         />
         <Input
           id="coc-title"
-          label="Title *"
+          label={`${t('certificates.coc_modal.field_title')} *`}
           value={form.title}
           onChange={set('title')}
           autoFocus
         />
         <TextArea
           id="coc-detail"
-          label="Detail *"
+          label={`${t('certificates.coc_modal.field_detail')} *`}
           rows={3}
           value={form.detail}
           onChange={set('detail')}
@@ -130,21 +135,21 @@ export function EditConditionOfClassModal({ condition, onClose, onSaved }: Props
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input
             id="coc-raised"
-            label="Raised at *"
+            label={`${t('certificates.coc_modal.field_raised_at')} *`}
             type="datetime-local"
             value={form.raisedAt}
             onChange={set('raisedAt')}
           />
           <Input
             id="coc-opened"
-            label="Opened at *"
+            label={`${t('certificates.coc_modal.field_opened_at')} *`}
             type="datetime-local"
             value={form.openedAt}
             onChange={set('openedAt')}
           />
           <Input
             id="coc-due"
-            label="Due at"
+            label={t('certificates.coc_modal.field_due_at')}
             type="datetime-local"
             value={form.dueAt}
             onChange={set('dueAt')}

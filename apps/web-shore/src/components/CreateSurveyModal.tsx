@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, Select, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -8,14 +9,6 @@ interface Props {
   onClose: () => void;
   onCreated: () => void;
 }
-
-const STATUS_OPTIONS = [
-  { value: 'SCHEDULED', label: 'Scheduled' },
-  { value: 'IN_PROGRESS', label: 'In progress' },
-  { value: 'COMPLETED', label: 'Completed' },
-  { value: 'POSTPONED', label: 'Postponed' },
-  { value: 'CANCELLED', label: 'Cancelled' },
-];
 
 const EMPTY = {
   scheduledAt: '',
@@ -28,9 +21,21 @@ const EMPTY = {
 };
 
 export function CreateSurveyModal({ open, vesselId, onClose, onCreated }: Props) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const statusOptions = useMemo(
+    () => [
+      { value: 'SCHEDULED', label: t('certificates.survey_modal.status_scheduled') },
+      { value: 'IN_PROGRESS', label: t('certificates.survey_modal.status_in_progress') },
+      { value: 'COMPLETED', label: t('certificates.survey_modal.status_completed') },
+      { value: 'POSTPONED', label: t('certificates.survey_modal.status_postponed') },
+      { value: 'CANCELLED', label: t('certificates.survey_modal.status_cancelled') },
+    ],
+    [t],
+  );
 
   const set =
     (field: keyof typeof EMPTY) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -50,7 +55,7 @@ export function CreateSurveyModal({ open, vesselId, onClose, onCreated }: Props)
       !form.surveyor.trim() ||
       !form.location.trim()
     ) {
-      setError('Scheduled date, kind, scope, surveyor and location are required.');
+      setError(t('certificates.survey_modal.error_required'));
       return;
     }
     setSaving(true);
@@ -69,7 +74,7 @@ export function CreateSurveyModal({ open, vesselId, onClose, onCreated }: Props)
       setForm(EMPTY);
       onCreated();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to create survey.');
+      setError(e instanceof Error ? e.message : t('certificates.survey_modal.error_create'));
     } finally {
       setSaving(false);
     }
@@ -78,16 +83,16 @@ export function CreateSurveyModal({ open, vesselId, onClose, onCreated }: Props)
   return (
     <Modal
       open={open}
-      title="Schedule survey"
+      title={t('certificates.survey_modal.title_create')}
       onClose={handleClose}
       onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Create
+            {t('common.create')}
           </Button>
         </>
       }
@@ -98,7 +103,7 @@ export function CreateSurveyModal({ open, vesselId, onClose, onCreated }: Props)
         )}
         <Input
           id="sv-scheduled"
-          label="Scheduled at *"
+          label={`${t('certificates.survey_modal.field_scheduled_at')} *`}
           type="datetime-local"
           value={form.scheduledAt}
           onChange={set('scheduledAt')}
@@ -107,28 +112,28 @@ export function CreateSurveyModal({ open, vesselId, onClose, onCreated }: Props)
         <div className="grid grid-cols-2 gap-3">
           <Input
             id="sv-kind"
-            label="Kind *"
+            label={`${t('certificates.survey_modal.field_kind')} *`}
             value={form.kind}
             onChange={set('kind')}
             placeholder="Annual / Intermediate / Renewal"
           />
           <Input
             id="sv-scope"
-            label="Scope *"
+            label={`${t('certificates.survey_modal.field_scope')} *`}
             value={form.scope}
             onChange={set('scope')}
             placeholder="Hull / Machinery / Class"
           />
           <Input
             id="sv-surveyor"
-            label="Surveyor *"
+            label={`${t('certificates.survey_modal.field_surveyor')} *`}
             value={form.surveyor}
             onChange={set('surveyor')}
             placeholder="DNV / ABS / LR"
           />
           <Input
             id="sv-location"
-            label="Location *"
+            label={`${t('certificates.survey_modal.field_location')} *`}
             value={form.location}
             onChange={set('location')}
             placeholder="Port / yard"
@@ -136,12 +141,18 @@ export function CreateSurveyModal({ open, vesselId, onClose, onCreated }: Props)
         </div>
         <Select
           id="sv-status"
-          label="Status"
-          options={STATUS_OPTIONS}
+          label={t('certificates.survey_modal.field_status')}
+          options={statusOptions}
           value={form.status}
           onChange={(v) => setForm((f) => ({ ...f, status: v }))}
         />
-        <TextArea id="sv-notes" label="Notes" rows={2} value={form.notes} onChange={set('notes')} />
+        <TextArea
+          id="sv-notes"
+          label={t('certificates.survey_modal.field_notes')}
+          rows={2}
+          value={form.notes}
+          onChange={set('notes')}
+        />
       </div>
     </Modal>
   );

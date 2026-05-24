@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, Select, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -8,12 +9,6 @@ interface Props {
   onClose: () => void;
   onCreated: () => void;
 }
-
-const KIND_OPTIONS = [
-  { value: 'PSC', label: 'Port State Control' },
-  { value: 'VETTING', label: 'Vetting' },
-  { value: 'FLAG', label: 'Flag' },
-];
 
 const EMPTY = {
   inspectedAt: '',
@@ -28,9 +23,19 @@ const EMPTY = {
 };
 
 export function CreateInspectionModal({ open, vesselId, onClose, onCreated }: Props) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const kindOptions = useMemo(
+    () => [
+      { value: 'PSC', label: t('certificates.inspection_modal.kind_psc') },
+      { value: 'VETTING', label: t('certificates.inspection_modal.kind_vetting') },
+      { value: 'FLAG', label: t('certificates.inspection_modal.kind_flag') },
+    ],
+    [t],
+  );
 
   const set =
     (field: keyof typeof EMPTY) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -44,7 +49,7 @@ export function CreateInspectionModal({ open, vesselId, onClose, onCreated }: Pr
 
   const handleSubmit = async () => {
     if (!form.inspectedAt || !form.port.trim() || !form.inspector.trim() || !form.status.trim()) {
-      setError('Inspected-at, port, inspector and status are required.');
+      setError(t('certificates.inspection_modal.error_required'));
       return;
     }
     setSaving(true);
@@ -65,7 +70,7 @@ export function CreateInspectionModal({ open, vesselId, onClose, onCreated }: Pr
       setForm(EMPTY);
       onCreated();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to record inspection.');
+      setError(e instanceof Error ? e.message : t('certificates.inspection_modal.error_create'));
     } finally {
       setSaving(false);
     }
@@ -74,16 +79,16 @@ export function CreateInspectionModal({ open, vesselId, onClose, onCreated }: Pr
   return (
     <Modal
       open={open}
-      title="Record inspection"
+      title={t('certificates.inspection_modal.title_create')}
       onClose={handleClose}
       onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Create
+            {t('common.create')}
           </Button>
         </>
       }
@@ -95,7 +100,7 @@ export function CreateInspectionModal({ open, vesselId, onClose, onCreated }: Pr
         <div className="grid grid-cols-2 gap-3">
           <Input
             id="ins-when"
-            label="Inspected at *"
+            label={`${t('certificates.inspection_modal.field_inspected_at')} *`}
             type="datetime-local"
             value={form.inspectedAt}
             onChange={set('inspectedAt')}
@@ -103,42 +108,42 @@ export function CreateInspectionModal({ open, vesselId, onClose, onCreated }: Pr
           />
           <Select
             id="ins-kind"
-            label="Kind"
-            options={KIND_OPTIONS}
+            label={t('certificates.inspection_modal.field_kind')}
+            options={kindOptions}
             value={form.kind}
             onChange={(v) => setForm((f) => ({ ...f, kind: v }))}
           />
           <Input
             id="ins-port"
-            label="Port *"
+            label={`${t('certificates.inspection_modal.field_port')} *`}
             value={form.port}
             onChange={set('port')}
             placeholder="Singapore"
           />
           <Input
             id="ins-inspector"
-            label="Inspector *"
+            label={`${t('certificates.inspection_modal.field_inspector')} *`}
             value={form.inspector}
             onChange={set('inspector')}
             placeholder="MPA / USCG / ABS"
           />
           <Input
             id="ins-mou"
-            label="MOU"
+            label={t('certificates.inspection_modal.field_mou')}
             value={form.mou}
             onChange={set('mou')}
             placeholder="Tokyo / Paris"
           />
           <Input
             id="ins-status"
-            label="Status *"
+            label={`${t('certificates.inspection_modal.field_status')} *`}
             value={form.status}
             onChange={set('status')}
             placeholder="Open / Closed"
           />
           <Input
             id="ins-def"
-            label="Deficiencies"
+            label={t('certificates.inspection_modal.field_deficiencies')}
             type="number"
             min="0"
             value={form.deficiencies}
@@ -150,12 +155,12 @@ export function CreateInspectionModal({ open, vesselId, onClose, onCreated }: Pr
               checked={form.detained}
               onChange={(e) => setForm((f) => ({ ...f, detained: e.target.checked }))}
             />
-            Detained
+            {t('certificates.inspection_modal.field_detained')}
           </label>
         </div>
         <TextArea
           id="ins-findings"
-          label="Findings"
+          label={t('certificates.inspection_modal.field_findings')}
           rows={3}
           value={form.findings}
           onChange={set('findings')}

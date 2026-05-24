@@ -427,10 +427,7 @@ function RegisterTab({ certs, loading }: { certs: Certificate[]; loading: boolea
                     {c.acronym}
                   </div>
                 </div>
-                <span
-                  className="text-[11.5px] truncate min-w-0"
-                  style={{ color: 'var(--ink-2)' }}
-                >
+                <span className="text-[11.5px] truncate min-w-0" style={{ color: 'var(--ink-2)' }}>
                   {c.authority}
                 </span>
                 <span
@@ -1145,10 +1142,7 @@ function InspectionsTab({
                     {i.mou}
                   </div>
                 </div>
-                <span
-                  className="text-[11.5px] truncate min-w-0"
-                  style={{ color: 'var(--ink-2)' }}
-                >
+                <span className="text-[11.5px] truncate min-w-0" style={{ color: 'var(--ink-2)' }}>
                   {i.port}
                 </span>
                 <span

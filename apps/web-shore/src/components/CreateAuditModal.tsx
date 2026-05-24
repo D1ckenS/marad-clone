@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, Select, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -10,20 +11,6 @@ interface Props {
   onCreated: () => void;
 }
 
-const KIND_OPTIONS = [
-  { value: 'INTERNAL', label: 'Internal' },
-  { value: 'EXTERNAL', label: 'External' },
-  { value: 'CLASS', label: 'Class society' },
-  { value: 'FLAG', label: 'Flag state' },
-];
-
-const STATUS_OPTIONS = [
-  { value: 'SCHEDULED', label: 'Scheduled' },
-  { value: 'IN_PROGRESS', label: 'In progress' },
-  { value: 'COMPLETED', label: 'Completed' },
-  { value: 'CANCELLED', label: 'Cancelled' },
-];
-
 const EMPTY = {
   kind: 'INTERNAL',
   scope: '',
@@ -34,9 +21,30 @@ const EMPTY = {
 };
 
 export function CreateAuditModal({ open, vesselId, onClose, onCreated }: Props) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const kindOptions = useMemo(
+    () => [
+      { value: 'INTERNAL', label: t('qhse.audit_modal.kind_internal') },
+      { value: 'EXTERNAL', label: t('qhse.audit_modal.kind_external') },
+      { value: 'CLASS', label: t('qhse.audit_modal.kind_class') },
+      { value: 'FLAG', label: t('qhse.audit_modal.kind_flag') },
+    ],
+    [t],
+  );
+
+  const statusOptions = useMemo(
+    () => [
+      { value: 'SCHEDULED', label: t('qhse.audit_modal.status_scheduled') },
+      { value: 'IN_PROGRESS', label: t('qhse.audit_modal.status_in_progress') },
+      { value: 'COMPLETED', label: t('qhse.audit_modal.status_completed') },
+      { value: 'CANCELLED', label: t('qhse.audit_modal.status_cancelled') },
+    ],
+    [t],
+  );
 
   const set =
     (field: keyof typeof EMPTY) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -50,7 +58,7 @@ export function CreateAuditModal({ open, vesselId, onClose, onCreated }: Props) 
 
   const handleSubmit = async () => {
     if (!form.scope.trim() || !form.scheduledAt || !form.auditor.trim()) {
-      setError('Scope, scheduled-at and auditor are required.');
+      setError(t('qhse.audit_modal.error_required'));
       return;
     }
     setSaving(true);
@@ -68,7 +76,7 @@ export function CreateAuditModal({ open, vesselId, onClose, onCreated }: Props) 
       setForm(EMPTY);
       onCreated();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to schedule audit.');
+      setError(e instanceof Error ? e.message : t('qhse.audit_modal.error_create'));
     } finally {
       setSaving(false);
     }
@@ -77,16 +85,16 @@ export function CreateAuditModal({ open, vesselId, onClose, onCreated }: Props) 
   return (
     <Modal
       open={open}
-      title="Schedule audit"
+      title={t('qhse.audit_modal.title_create')}
       onClose={handleClose}
       onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Create
+            {t('common.create')}
           </Button>
         </>
       }
@@ -98,22 +106,22 @@ export function CreateAuditModal({ open, vesselId, onClose, onCreated }: Props) 
         <div className="grid grid-cols-2 gap-3">
           <Select
             id="aud-kind"
-            label="Kind"
-            options={KIND_OPTIONS}
+            label={t('qhse.audit_modal.field_kind')}
+            options={kindOptions}
             value={form.kind}
             onChange={(v) => setForm((f) => ({ ...f, kind: v }))}
           />
           <Select
             id="aud-status"
-            label="Status"
-            options={STATUS_OPTIONS}
+            label={t('qhse.audit_modal.field_status')}
+            options={statusOptions}
             value={form.status}
             onChange={(v) => setForm((f) => ({ ...f, status: v }))}
           />
         </div>
         <Input
           id="aud-scope"
-          label="Scope *"
+          label={`${t('qhse.audit_modal.field_scope')} *`}
           value={form.scope}
           onChange={set('scope')}
           autoFocus
@@ -122,14 +130,14 @@ export function CreateAuditModal({ open, vesselId, onClose, onCreated }: Props) 
         <div className="grid grid-cols-2 gap-3">
           <Input
             id="aud-when"
-            label="Scheduled at *"
+            label={`${t('qhse.audit_modal.field_scheduled_at')} *`}
             type="datetime-local"
             value={form.scheduledAt}
             onChange={set('scheduledAt')}
           />
           <Input
             id="aud-auditor"
-            label="Auditor *"
+            label={`${t('qhse.audit_modal.field_auditor')} *`}
             value={form.auditor}
             onChange={set('auditor')}
             placeholder="Name / org"
@@ -137,14 +145,14 @@ export function CreateAuditModal({ open, vesselId, onClose, onCreated }: Props) 
         </div>
         <TextArea
           id="aud-notes"
-          label="Notes"
+          label={t('qhse.audit_modal.field_notes')}
           rows={2}
           value={form.notes}
           onChange={set('notes')}
         />
         {!vesselId && (
           <div className="text-xs italic" style={{ color: 'var(--ink-3)' }}>
-            No vessel selected — audit will be created at fleet level.
+            {t('qhse.audit_modal.hint_no_vessel')}
           </div>
         )}
       </div>

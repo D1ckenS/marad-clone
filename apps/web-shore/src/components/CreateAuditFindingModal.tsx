@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -21,6 +22,7 @@ const EMPTY = {
 };
 
 export function CreateAuditFindingModal({ open, vesselId, onClose, onCreated }: Props) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +39,7 @@ export function CreateAuditFindingModal({ open, vesselId, onClose, onCreated }: 
 
   const handleSubmit = async () => {
     if (!form.classification.trim() || !form.title.trim() || !form.openedAt) {
-      setError('Classification, title and opened-at are required.');
+      setError(t('qhse.finding_modal.error_required'));
       return;
     }
     setSaving(true);
@@ -57,7 +59,7 @@ export function CreateAuditFindingModal({ open, vesselId, onClose, onCreated }: 
       setForm(EMPTY);
       onCreated();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to raise finding.');
+      setError(e instanceof Error ? e.message : t('qhse.finding_modal.error_create'));
     } finally {
       setSaving(false);
     }
@@ -66,16 +68,16 @@ export function CreateAuditFindingModal({ open, vesselId, onClose, onCreated }: 
   return (
     <Modal
       open={open}
-      title="Raise audit finding"
+      title={t('qhse.finding_modal.title_create')}
       onClose={handleClose}
       onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Create
+            {t('common.create')}
           </Button>
         </>
       }
@@ -86,16 +88,21 @@ export function CreateAuditFindingModal({ open, vesselId, onClose, onCreated }: 
         )}
         <Input
           id="af-class"
-          label="Classification *"
+          label={`${t('qhse.finding_modal.field_classification')} *`}
           value={form.classification}
           onChange={set('classification')}
           placeholder="Major NC / Minor NC / Observation"
           autoFocus
         />
-        <Input id="af-title" label="Title *" value={form.title} onChange={set('title')} />
+        <Input
+          id="af-title"
+          label={`${t('qhse.finding_modal.field_title')} *`}
+          value={form.title}
+          onChange={set('title')}
+        />
         <TextArea
           id="af-detail"
-          label="Detail"
+          label={t('qhse.finding_modal.field_detail')}
           rows={3}
           value={form.detail}
           onChange={set('detail')}
@@ -103,35 +110,35 @@ export function CreateAuditFindingModal({ open, vesselId, onClose, onCreated }: 
         <div className="grid grid-cols-2 gap-3">
           <Input
             id="af-audit"
-            label="Audit ID"
+            label={t('qhse.finding_modal.field_audit_id')}
             value={form.auditId}
             onChange={set('auditId')}
             placeholder="Optional"
           />
           <Input
             id="af-sms"
-            label="SMS ref"
+            label={t('qhse.finding_modal.field_sms_ref')}
             value={form.smsRef}
             onChange={set('smsRef')}
             placeholder="SMS-1.2.3"
           />
           <Input
             id="af-owner"
-            label="Owner"
+            label={t('qhse.finding_modal.field_owner')}
             value={form.owner}
             onChange={set('owner')}
             placeholder="Chief Officer"
           />
           <Input
             id="af-opened"
-            label="Opened at *"
+            label={`${t('qhse.finding_modal.field_opened_at')} *`}
             type="datetime-local"
             value={form.openedAt}
             onChange={set('openedAt')}
           />
           <Input
             id="af-due"
-            label="Due at"
+            label={t('qhse.finding_modal.field_due_at')}
             type="datetime-local"
             value={form.dueAt}
             onChange={set('dueAt')}

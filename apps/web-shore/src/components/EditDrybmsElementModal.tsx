@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export function EditDrybmsElementModal({ element, onClose, onSaved }: Props) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(() => ({
     chapter: element.chapter,
     chapterTitle: element.chapterTitle,
@@ -48,7 +50,7 @@ export function EditDrybmsElementModal({ element, onClose, onSaved }: Props) {
 
   const handleSubmit = async () => {
     if (!form.chapter.trim() || !form.chapterTitle.trim() || !form.name.trim()) {
-      setError('Chapter, chapter title and name are required.');
+      setError(t('qhse.drybms_modal.error_required'));
       return;
     }
     setSaving(true);
@@ -64,7 +66,7 @@ export function EditDrybmsElementModal({ element, onClose, onSaved }: Props) {
       });
       onSaved();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to update element.');
+      setError(e instanceof Error ? e.message : t('qhse.drybms_modal.error_update'));
     } finally {
       setSaving(false);
     }
@@ -73,16 +75,16 @@ export function EditDrybmsElementModal({ element, onClose, onSaved }: Props) {
   return (
     <Modal
       open
-      title="Edit DryBMS element"
+      title={t('qhse.drybms_modal.title_edit')}
       onClose={onClose}
       onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Save
+            {t('common.save')}
           </Button>
         </>
       }
@@ -94,20 +96,20 @@ export function EditDrybmsElementModal({ element, onClose, onSaved }: Props) {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Input
             id="db-chap"
-            label="Chapter *"
+            label={`${t('qhse.drybms_modal.field_chapter')} *`}
             value={form.chapter}
             onChange={set('chapter')}
             autoFocus
           />
           <Input
             id="db-chap-title"
-            label="Chapter title *"
+            label={`${t('qhse.drybms_modal.field_chapter_title')} *`}
             value={form.chapterTitle}
             onChange={set('chapterTitle')}
           />
           <Input
             id="db-score"
-            label="Score (1-4)"
+            label={t('qhse.drybms_modal.field_score')}
             type="number"
             min="1"
             max="4"
@@ -115,17 +117,22 @@ export function EditDrybmsElementModal({ element, onClose, onSaved }: Props) {
             onChange={set('score')}
           />
         </div>
-        <Input id="db-name" label="Name *" value={form.name} onChange={set('name')} />
+        <Input
+          id="db-name"
+          label={`${t('qhse.drybms_modal.field_name')} *`}
+          value={form.name}
+          onChange={set('name')}
+        />
         <Input
           id="db-stage"
-          label="Maturity stage"
+          label={t('qhse.drybms_modal.field_stage')}
           value={form.stage}
           onChange={set('stage')}
           placeholder="Reactive / Compliant / Proactive / Resilient"
         />
         <TextArea
           id="db-evidence"
-          label="Evidence"
+          label={t('qhse.drybms_modal.field_evidence')}
           rows={3}
           value={form.evidence}
           onChange={set('evidence')}

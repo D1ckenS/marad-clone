@@ -848,18 +848,12 @@ function AuditsTab({
                 </span>
                 <div className="min-w-0">
                   <div className="text-[12.5px] font-medium truncate">{f.title}</div>
-                  <div
-                    className="text-[10.5px] truncate"
-                    style={{ color: 'var(--ink-3)' }}
-                  >
+                  <div className="text-[10.5px] truncate" style={{ color: 'var(--ink-3)' }}>
                     {f.smsRef}
                   </div>
                 </div>
                 <div className="min-w-0">
-                  <div
-                    className="text-[11.5px] truncate"
-                    style={{ color: 'var(--ink-2)' }}
-                  >
+                  <div className="text-[11.5px] truncate" style={{ color: 'var(--ink-2)' }}>
                     {f.owner}
                   </div>
                   <div className="font-mono text-[10.5px]" style={{ color: 'var(--ink-3)' }}>
@@ -1132,27 +1126,18 @@ function EnvironmentalTab({
                 }}
               >
                 <div className="min-w-0">
-                  <div
-                    className="font-mono text-[11px] truncate"
-                    style={{ color: 'var(--ink-2)' }}
-                  >
+                  <div className="font-mono text-[11px] truncate" style={{ color: 'var(--ink-2)' }}>
                     {l.id.slice(0, 8)}
                   </div>
                   <Badge color="slate">{l.mode.toUpperCase()}</Badge>
                 </div>
                 <div className="min-w-0">
                   <div className="text-[12.5px] font-medium truncate">{l.route}</div>
-                  <div
-                    className="text-[10.5px] truncate"
-                    style={{ color: 'var(--ink-3)' }}
-                  >
+                  <div className="text-[10.5px] truncate" style={{ color: 'var(--ink-3)' }}>
                     {l.cargo}
                   </div>
                 </div>
-                <div
-                  className="font-mono text-[10.5px] min-w-0"
-                  style={{ color: 'var(--ink-3)' }}
-                >
+                <div className="font-mono text-[10.5px] min-w-0" style={{ color: 'var(--ink-3)' }}>
                   {l.departureAt.slice(0, 10)} → {l.arrivalAt.slice(0, 10)}
                 </div>
                 <span className="font-mono text-[11.5px]">{l.nm.toLocaleString()}</span>
@@ -1224,10 +1209,7 @@ function EnvironmentalTab({
                   cursor: 'pointer',
                 }}
               >
-                <span
-                  className="font-mono text-[11px] truncate"
-                  style={{ color: 'var(--ink-2)' }}
-                >
+                <span className="font-mono text-[11px] truncate" style={{ color: 'var(--ink-2)' }}>
                   {d.id.slice(0, 8)}
                 </span>
                 <Badge
