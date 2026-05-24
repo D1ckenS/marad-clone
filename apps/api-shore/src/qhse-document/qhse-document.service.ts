@@ -2,19 +2,63 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { newId } from '@fleetops/domain';
 import type { AuthContext } from '../auth/auth-context';
 import { PrismaService } from '../prisma/prisma.service';
+import { TenantBroadcastRecorder } from '../sync/tenant-broadcast-recorder';
 import type {
   CreateDocumentRevisionDto,
   CreateQhseDocumentDto,
   UpdateQhseDocumentDto,
 } from './dto/create-qhse-document.dto';
 
+function docFields(row: {
+  tenantId: string;
+  title: string;
+  category: string | null;
+  description: string | null;
+  isControlled: boolean;
+  currentRevisionId: string | null;
+}): Record<string, unknown> {
+  return {
+    tenantId: row.tenantId,
+    title: row.title,
+    category: row.category,
+    description: row.description,
+    isControlled: row.isControlled,
+    currentRevisionId: row.currentRevisionId,
+  };
+}
+
+function revisionFields(row: {
+  tenantId: string;
+  documentId: string;
+  revisionNumber: number;
+  summary: string | null;
+  s3Key: string;
+  authoredByUserId: string | null;
+  approvedByUserId: string | null;
+  approvedAt: Date | null;
+}): Record<string, unknown> {
+  return {
+    tenantId: row.tenantId,
+    documentId: row.documentId,
+    revisionNumber: row.revisionNumber,
+    summary: row.summary,
+    s3Key: row.s3Key,
+    authoredByUserId: row.authoredByUserId,
+    approvedByUserId: row.approvedByUserId,
+    approvedAt: row.approvedAt?.toISOString() ?? null,
+  };
+}
+
 @Injectable()
 export class QhseDocumentService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly broadcaster: TenantBroadcastRecorder,
+  ) {}
 
   create(auth: AuthContext, dto: CreateQhseDocumentDto) {
-    return this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.qhseDocument.create({
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      const row = await tx.qhseDocument.create({
         data: {
           id: newId(),
           tenantId: auth.tenantId!,
@@ -24,8 +68,16 @@ export class QhseDocumentService {
           isControlled: dto.isControlled ?? false,
         },
         include: { revisions: { where: { deletedAt: null }, orderBy: { revisionNumber: 'desc' } } },
-      }),
-    );
+      });
+      await this.broadcaster.broadcastUpsert(
+        tx,
+        auth.tenantId!,
+        'QhseDocument',
+        row.id,
+        docFields(row),
+      );
+      return row;
+    });
   }
 
   findAll(auth: AuthContext) {
@@ -53,8 +105,8 @@ export class QhseDocumentService {
 
   async update(auth: AuthContext, id: string, dto: UpdateQhseDocumentDto) {
     await this.findOne(auth, id);
-    return this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.qhseDocument.update({
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      const row = await tx.qhseDocument.update({
         where: { id },
         data: {
           ...(dto.title !== undefined && { title: dto.title }),
@@ -63,15 +115,24 @@ export class QhseDocumentService {
           ...(dto.isControlled !== undefined && { isControlled: dto.isControlled }),
         },
         include: { revisions: { where: { deletedAt: null }, orderBy: { revisionNumber: 'desc' } } },
-      }),
-    );
+      });
+      await this.broadcaster.broadcastUpsert(
+        tx,
+        auth.tenantId!,
+        'QhseDocument',
+        row.id,
+        docFields(row),
+      );
+      return row;
+    });
   }
 
   async softDelete(auth: AuthContext, id: string) {
     await this.findOne(auth, id);
-    await this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.qhseDocument.update({ where: { id }, data: { deletedAt: new Date() } }),
-    );
+    await this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      await tx.qhseDocument.update({ where: { id }, data: { deletedAt: new Date() } });
+      await this.broadcaster.broadcastDelete(tx, auth.tenantId!, 'QhseDocument', id);
+    });
   }
 
   async addRevision(auth: AuthContext, documentId: string, dto: CreateDocumentRevisionDto) {
@@ -93,10 +154,24 @@ export class QhseDocumentService {
           approvedAt: dto.approvedAt ? new Date(dto.approvedAt) : null,
         },
       });
-      await tx.qhseDocument.update({
+      const updatedDoc = await tx.qhseDocument.update({
         where: { id: documentId },
         data: { currentRevisionId: revisionId },
       });
+      await this.broadcaster.broadcastUpsert(
+        tx,
+        auth.tenantId!,
+        'DocumentRevision',
+        revision.id,
+        revisionFields(revision),
+      );
+      await this.broadcaster.broadcastUpsert(
+        tx,
+        auth.tenantId!,
+        'QhseDocument',
+        documentId,
+        docFields(updatedDoc),
+      );
       return revision;
     });
   }
@@ -119,11 +194,19 @@ export class QhseDocumentService {
     );
     if (!revision) throw new NotFoundException(`DocumentRevision ${revisionId} not found`);
     if (revision.approvedAt) throw new BadRequestException('Revision already approved');
-    return this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.documentRevision.update({
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      const row = await tx.documentRevision.update({
         where: { id: revisionId },
         data: { approvedByUserId, approvedAt: new Date() },
-      }),
-    );
+      });
+      await this.broadcaster.broadcastUpsert(
+        tx,
+        auth.tenantId!,
+        'DocumentRevision',
+        row.id,
+        revisionFields(row),
+      );
+      return row;
+    });
   }
 }
