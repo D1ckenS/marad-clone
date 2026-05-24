@@ -701,7 +701,7 @@ function AuditsTab({
           <div
             className="grid gap-2 px-4 py-2 text-[10.5px] font-semibold uppercase tracking-widest"
             style={{
-              gridTemplateColumns: '90px 100px 1fr 180px 110px 130px 80px',
+              gridTemplateColumns: '80px 90px minmax(80px, 1fr) 130px 90px 60px 80px',
               background: 'var(--surface-sunk)',
               color: 'var(--ink-3)',
               borderBottom: '1px solid var(--hairline)',
@@ -724,28 +724,31 @@ function AuditsTab({
                 onClick={() => onEditAudit(a.id)}
                 className="grid gap-2 px-4 py-2.5 items-center"
                 style={{
-                  gridTemplateColumns: '90px 100px 1fr 180px 110px 130px 80px',
+                  gridTemplateColumns: '80px 90px minmax(80px, 1fr) 130px 90px 60px 80px',
                   borderTop: '1px solid var(--hairline)',
                   cursor: 'pointer',
                 }}
               >
-                <span className="font-mono text-[11px]" style={{ color: 'var(--ink-2)' }}>
-                  {a.id}
+                <span
+                  className="font-mono text-[11px] truncate min-w-0"
+                  style={{ color: 'var(--ink-2)' }}
+                >
+                  {a.id.slice(0, 8)}
                 </span>
                 <Badge
                   color={a.kind === 'External' ? 'slate' : a.kind === 'Vetting' ? 'purple' : 'blue'}
                 >
                   {a.kind.toUpperCase()}
                 </Badge>
-                <span className="text-[12.5px] font-medium truncate">{a.scope}</span>
-                <span className="text-[11.5px]" style={{ color: 'var(--ink-2)' }}>
+                <span className="text-[12.5px] font-medium truncate min-w-0">{a.scope}</span>
+                <span className="text-[11.5px] truncate min-w-0" style={{ color: 'var(--ink-2)' }}>
                   {a.auditor}
                 </span>
                 <span
                   className="font-mono text-[11px]"
                   style={{ color: a.tone === 'red' ? 'var(--sig-red)' : 'var(--ink-2)' }}
                 >
-                  {a.scheduledAt}
+                  {a.scheduledAt.slice(0, 10)}
                 </span>
                 <span className="text-[11.5px]" style={{ color: 'var(--ink-2)' }}>
                   {a.findings}
@@ -797,7 +800,7 @@ function AuditsTab({
             <div
               className="grid gap-2 px-4 py-2 text-[10.5px] font-semibold uppercase tracking-widest"
               style={{
-                gridTemplateColumns: '90px 100px 110px 1fr 150px 100px 70px',
+                gridTemplateColumns: '80px 80px 80px minmax(80px, 1fr) 130px 70px 60px',
                 background: 'var(--surface-sunk)',
                 color: 'var(--ink-3)',
                 borderBottom: '1px solid var(--hairline)',
@@ -816,12 +819,15 @@ function AuditsTab({
                 key={f.id}
                 className="grid gap-2 px-4 py-2.5 items-center"
                 style={{
-                  gridTemplateColumns: '90px 100px 110px 1fr 150px 100px 70px',
+                  gridTemplateColumns: '80px 80px 80px minmax(80px, 1fr) 130px 70px 60px',
                   borderTop: '1px solid var(--hairline)',
                 }}
               >
-                <span className="font-mono text-[11px]" style={{ color: 'var(--ink-2)' }}>
-                  {f.id}
+                <span
+                  className="font-mono text-[11px] truncate min-w-0"
+                  style={{ color: 'var(--ink-2)' }}
+                >
+                  {f.id.slice(0, 8)}
                 </span>
                 <Badge
                   color={
@@ -835,23 +841,29 @@ function AuditsTab({
                   {f.classification.toUpperCase()}
                 </Badge>
                 <span
-                  className="font-mono text-[11px]"
+                  className="font-mono text-[11px] truncate min-w-0"
                   style={{ color: 'var(--sig-blue)', fontWeight: 500 }}
                 >
-                  {f.auditRef}
+                  {f.auditRef === '—' ? '—' : f.auditRef.slice(0, 8)}
                 </span>
                 <div className="min-w-0">
                   <div className="text-[12.5px] font-medium truncate">{f.title}</div>
-                  <div className="text-[10.5px]" style={{ color: 'var(--ink-3)' }}>
+                  <div
+                    className="text-[10.5px] truncate"
+                    style={{ color: 'var(--ink-3)' }}
+                  >
                     {f.smsRef}
                   </div>
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[11.5px]" style={{ color: 'var(--ink-2)' }}>
+                  <div
+                    className="text-[11.5px] truncate"
+                    style={{ color: 'var(--ink-2)' }}
+                  >
                     {f.owner}
                   </div>
                   <div className="font-mono text-[10.5px]" style={{ color: 'var(--ink-3)' }}>
-                    {f.dueAt}
+                    {f.dueAt ? f.dueAt.slice(0, 10) : '—'}
                   </div>
                 </div>
                 <Badge color={f.daysLeft < 0 ? 'red' : f.daysLeft < 14 ? 'amber' : 'green'}>

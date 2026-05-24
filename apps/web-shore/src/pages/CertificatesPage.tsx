@@ -378,7 +378,7 @@ function RegisterTab({ certs, loading }: { certs: Certificate[]; loading: boolea
         <div
           className="grid gap-2 px-4 py-2 text-[10.5px] font-semibold uppercase tracking-widest flex-shrink-0"
           style={{
-            gridTemplateColumns: '90px 65px 1fr 180px 110px 90px 70px',
+            gridTemplateColumns: '80px 60px minmax(80px, 1fr) 140px 90px 70px 60px',
             background: 'var(--surface-sunk)',
             color: 'var(--ink-3)',
             borderBottom: '1px solid var(--border)',
@@ -404,24 +404,33 @@ function RegisterTab({ certs, loading }: { certs: Certificate[]; loading: boolea
                 onClick={() => setSelected(c.id)}
                 className="grid gap-2 px-4 py-2.5 items-center cursor-pointer"
                 style={{
-                  gridTemplateColumns: '90px 65px 1fr 180px 110px 90px 70px',
+                  gridTemplateColumns: '80px 60px minmax(80px, 1fr) 140px 90px 70px 60px',
                   borderTop: '1px solid var(--hairline)',
                   background: sel?.id === c.id ? 'var(--surface-sunk)' : 'var(--surface)',
                 }}
               >
-                <span className="font-mono text-[11px]" style={{ color: 'var(--ink-2)' }}>
-                  {c.id}
+                <span
+                  className="font-mono text-[11px] truncate min-w-0"
+                  style={{ color: 'var(--ink-2)' }}
+                >
+                  {c.id.slice(0, 8)}
                 </span>
                 <Badge color={CAT_META[c.category]?.color ?? 'slate'}>
                   {CAT_META[c.category]?.short ?? c.category}
                 </Badge>
                 <div className="min-w-0">
                   <div className="text-[12.5px] font-medium truncate">{c.title}</div>
-                  <div className="font-mono text-[10.5px]" style={{ color: 'var(--ink-3)' }}>
+                  <div
+                    className="font-mono text-[10.5px] truncate"
+                    style={{ color: 'var(--ink-3)' }}
+                  >
                     {c.acronym}
                   </div>
                 </div>
-                <span className="text-[11.5px] truncate" style={{ color: 'var(--ink-2)' }}>
+                <span
+                  className="text-[11.5px] truncate min-w-0"
+                  style={{ color: 'var(--ink-2)' }}
+                >
                   {c.authority}
                 </span>
                 <span
@@ -453,7 +462,7 @@ function RegisterTab({ certs, loading }: { certs: Certificate[]; loading: boolea
       {/* Detail pane */}
       <aside
         style={{
-          width: 360,
+          width: 300,
           flexShrink: 0,
           background: 'var(--surface)',
           borderLeft: '1px solid var(--border)',
@@ -708,15 +717,18 @@ function SurveysTab({
               <div
                 className="grid gap-2 px-4 py-2.5 items-center"
                 style={{
-                  gridTemplateColumns: '80px 90px 100px 1fr 160px 110px 70px',
+                  gridTemplateColumns: '80px 80px 80px minmax(80px, 1fr) 130px 80px 60px',
                   borderBottom: '1px solid var(--hairline)',
                 }}
               >
                 <span className="font-mono text-[11px]" style={{ color: 'var(--ink-2)' }}>
-                  {s.scheduledAt}
+                  {s.scheduledAt.slice(0, 10)}
                 </span>
-                <span className="font-mono text-[11px]" style={{ color: 'var(--ink-3)' }}>
-                  {s.id}
+                <span
+                  className="font-mono text-[11px] truncate min-w-0"
+                  style={{ color: 'var(--ink-3)' }}
+                >
+                  {s.id.slice(0, 8)}
                 </span>
                 <Badge
                   color={
@@ -733,12 +745,15 @@ function SurveysTab({
                 >
                   {s.kind.toUpperCase()}
                 </Badge>
-                <span className="text-[12px] truncate">{s.scope}</span>
+                <span className="text-[12px] truncate min-w-0">{s.scope}</span>
                 <div className="min-w-0">
                   <div className="text-[11.5px] truncate" style={{ color: 'var(--ink-2)' }}>
                     {s.surveyor}
                   </div>
-                  <div className="font-mono text-[10.5px]" style={{ color: 'var(--ink-3)' }}>
+                  <div
+                    className="font-mono text-[10.5px] truncate"
+                    style={{ color: 'var(--ink-3)' }}
+                  >
                     {s.location}
                   </div>
                 </div>
@@ -1081,7 +1096,7 @@ function InspectionsTab({
           <div
             className="grid gap-2 px-4 py-2 text-[10.5px] font-semibold uppercase tracking-widest"
             style={{
-              gridTemplateColumns: '80px 100px 110px 130px 1fr 70px 90px 70px',
+              gridTemplateColumns: '80px 80px 80px 110px minmax(80px, 1fr) 50px 80px 60px',
               background: 'var(--surface-sunk)',
               color: 'var(--ink-3)',
               borderBottom: '1px solid var(--hairline)',
@@ -1104,30 +1119,42 @@ function InspectionsTab({
                 key={i.id}
                 className="grid gap-2 px-4 py-2.5 items-center"
                 style={{
-                  gridTemplateColumns: '80px 100px 110px 130px 1fr 70px 90px 70px',
+                  gridTemplateColumns: '80px 80px 80px 110px minmax(80px, 1fr) 50px 80px 60px',
                   borderTop: '1px solid var(--hairline)',
                 }}
               >
                 <span className="font-mono text-[11px]" style={{ color: 'var(--ink-2)' }}>
-                  {i.inspectedAt}
+                  {i.inspectedAt.slice(0, 10)}
                 </span>
-                <span className="font-mono text-[11px]" style={{ color: 'var(--ink-3)' }}>
-                  {i.id}
+                <span
+                  className="font-mono text-[11px] truncate min-w-0"
+                  style={{ color: 'var(--ink-3)' }}
+                >
+                  {i.id.slice(0, 8)}
                 </span>
-                <div>
+                <div className="min-w-0">
                   <Badge
                     color={i.kind === 'PSC' ? 'slate' : i.kind === 'Vetting' ? 'purple' : 'blue'}
                   >
                     {i.kind.toUpperCase()}
                   </Badge>
-                  <div className="font-mono text-[10px] mt-0.5" style={{ color: 'var(--ink-3)' }}>
+                  <div
+                    className="font-mono text-[10px] mt-0.5 truncate"
+                    style={{ color: 'var(--ink-3)' }}
+                  >
                     {i.mou}
                   </div>
                 </div>
-                <span className="text-[11.5px] truncate" style={{ color: 'var(--ink-2)' }}>
+                <span
+                  className="text-[11.5px] truncate min-w-0"
+                  style={{ color: 'var(--ink-2)' }}
+                >
                   {i.port}
                 </span>
-                <span className="text-[11.5px]" style={{ color: 'var(--ink-2)', lineHeight: 1.35 }}>
+                <span
+                  className="text-[11.5px] truncate min-w-0"
+                  style={{ color: 'var(--ink-2)', lineHeight: 1.35 }}
+                >
                   {i.findings}
                 </span>
                 <span

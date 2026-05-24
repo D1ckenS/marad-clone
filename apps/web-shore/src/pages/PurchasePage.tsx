@@ -1494,30 +1494,14 @@ function PurchaseOrdersTab() {
         </div>
       </section>
 
-      {/* Right: detail pane */}
-      {selectedId ? (
+      {/* Right: detail pane (only when selected) */}
+      {selectedId && (
         <PODetailPane
           key={selectedId}
           poId={selectedId}
           onClose={() => setSelectedId(null)}
           onUpdated={load}
         />
-      ) : (
-        <aside
-          style={{
-            width: 400,
-            flexShrink: 0,
-            background: 'var(--surface)',
-            borderLeft: '1px solid var(--border)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <p className="text-xs text-center px-8" style={{ color: 'var(--ink-3)' }}>
-            {t('purchase.select_po_hint')}
-          </p>
-        </aside>
       )}
     </div>
   );
