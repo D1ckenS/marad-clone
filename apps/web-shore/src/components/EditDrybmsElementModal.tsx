@@ -91,7 +91,7 @@ export function EditDrybmsElementModal({ element, onClose, onSaved }: Props) {
         {error && (
           <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">{error}</div>
         )}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Input
             id="db-chap"
             label="Chapter *"

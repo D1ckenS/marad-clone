@@ -123,7 +123,7 @@ export function CreateQhseObjectiveModal({ open, onClose, onCreated }: Props) {
           autoFocus
           placeholder="LTI rate"
         />
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Input
             id="obj-target"
             label="Target *"

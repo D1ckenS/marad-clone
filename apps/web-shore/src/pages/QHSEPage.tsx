@@ -1021,7 +1021,10 @@ function EnvironmentalTab({
           + Discharge
         </button>
       </div>
-      <div className="grid gap-2 p-4" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+      <div
+        className="grid gap-2 p-4"
+        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}
+      >
         <KpiTile
           label={t('qhse.cii_rating')}
           value="—"
@@ -1087,7 +1090,7 @@ function EnvironmentalTab({
           <div
             className="grid gap-2 px-4 py-2 text-[10.5px] font-semibold uppercase tracking-widest"
             style={{
-              gridTemplateColumns: '100px 1fr 130px 80px 90px 80px 70px 70px',
+              gridTemplateColumns: '80px minmax(80px, 1fr) 150px 50px 55px 60px 50px 50px',
               background: 'var(--surface-sunk)',
               color: 'var(--ink-3)',
               borderBottom: '1px solid var(--hairline)',
@@ -1096,11 +1099,11 @@ function EnvironmentalTab({
             <span>{t('qhse.col_leg')}</span>
             <span>{t('qhse.col_route')}</span>
             <span>{t('qhse.col_dates')}</span>
-            <span style={{ textAlign: 'right' }}>{t('qhse.col_nm')}</span>
-            <span style={{ textAlign: 'right' }}>{t('qhse.col_fuel_t')}</span>
-            <span style={{ textAlign: 'right' }}>{t('qhse.col_co2_t')}</span>
-            <span style={{ textAlign: 'right' }}>{t('qhse.col_sox')}</span>
-            <span style={{ textAlign: 'right' }}>{t('qhse.col_nox')}</span>
+            <span>{t('qhse.col_nm')}</span>
+            <span>{t('qhse.col_fuel_t')}</span>
+            <span>{t('qhse.col_co2_t')}</span>
+            <span>{t('qhse.col_sox')}</span>
+            <span>{t('qhse.col_nox')}</span>
           </div>
           {legs.length === 0 ? (
             <EmptyState msg="No voyage legs recorded. Log fuel consumption data to generate IMO DCS and EU MRV reports." />
@@ -1111,45 +1114,42 @@ function EnvironmentalTab({
                 onClick={() => onEditLeg(l.id)}
                 className="grid gap-2 px-4 py-2.5 items-center"
                 style={{
-                  gridTemplateColumns: '100px 1fr 130px 80px 90px 80px 70px 70px',
+                  gridTemplateColumns: '80px minmax(80px, 1fr) 150px 50px 55px 60px 50px 50px',
                   borderTop: '1px solid var(--hairline)',
                   cursor: 'pointer',
                 }}
               >
-                <div>
-                  <span className="font-mono text-[11px]" style={{ color: 'var(--ink-2)' }}>
-                    {l.id}
-                  </span>
-                  <Badge color={l.mode === 'laden' ? 'slate' : 'slate'}>
-                    {l.mode.toUpperCase()}
-                  </Badge>
+                <div className="min-w-0">
+                  <div
+                    className="font-mono text-[11px] truncate"
+                    style={{ color: 'var(--ink-2)' }}
+                  >
+                    {l.id.slice(0, 8)}
+                  </div>
+                  <Badge color="slate">{l.mode.toUpperCase()}</Badge>
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[12.5px] font-medium">{l.route}</div>
-                  <div className="text-[10.5px]" style={{ color: 'var(--ink-3)' }}>
+                  <div className="text-[12.5px] font-medium truncate">{l.route}</div>
+                  <div
+                    className="text-[10.5px] truncate"
+                    style={{ color: 'var(--ink-3)' }}
+                  >
                     {l.cargo}
                   </div>
                 </div>
-                <div className="font-mono text-[10.5px]" style={{ color: 'var(--ink-3)' }}>
-                  {l.departureAt} → {l.arrivalAt}
-                </div>
-                <span className="font-mono text-[11.5px] text-right">{l.nm.toLocaleString()}</span>
-                <span className="font-mono text-[11.5px] text-right">
-                  {l.fuelTonnes.toFixed(1)}
-                </span>
-                <span className="font-mono text-[11.5px] text-right">
-                  {l.co2Tonnes.toLocaleString()}
-                </span>
-                <span
-                  className="font-mono text-[11.5px] text-right"
+                <div
+                  className="font-mono text-[10.5px] min-w-0"
                   style={{ color: 'var(--ink-3)' }}
                 >
+                  {l.departureAt.slice(0, 10)} → {l.arrivalAt.slice(0, 10)}
+                </div>
+                <span className="font-mono text-[11.5px]">{l.nm.toLocaleString()}</span>
+                <span className="font-mono text-[11.5px]">{l.fuelTonnes.toFixed(1)}</span>
+                <span className="font-mono text-[11.5px]">{l.co2Tonnes.toLocaleString()}</span>
+                <span className="font-mono text-[11.5px]" style={{ color: 'var(--ink-3)' }}>
                   {l.soxTonnes.toFixed(1)}
                 </span>
-                <span
-                  className="font-mono text-[11.5px] text-right"
-                  style={{ color: 'var(--ink-3)' }}
-                >
+                <span className="font-mono text-[11.5px]" style={{ color: 'var(--ink-3)' }}>
                   {l.noxTonnes.toFixed(1)}
                 </span>
               </div>
@@ -1198,7 +1198,7 @@ function EnvironmentalTab({
               <span>{t('qhse.col_kind')}</span>
               <span>{t('common.date')}</span>
               <span>{t('common.notes')}</span>
-              <span style={{ textAlign: 'right' }}>{t('qhse.col_volume')}</span>
+              <span>{t('qhse.col_volume')}</span>
               <span />
             </div>
             {discharges.map((d) => (
@@ -1212,8 +1212,11 @@ function EnvironmentalTab({
                   cursor: 'pointer',
                 }}
               >
-                <span className="font-mono text-[11px]" style={{ color: 'var(--ink-2)' }}>
-                  {d.id}
+                <span
+                  className="font-mono text-[11px] truncate"
+                  style={{ color: 'var(--ink-2)' }}
+                >
+                  {d.id.slice(0, 8)}
                 </span>
                 <Badge
                   color={
@@ -1229,12 +1232,12 @@ function EnvironmentalTab({
                   {d.kind.toUpperCase()}
                 </Badge>
                 <span className="font-mono text-[11px]" style={{ color: 'var(--ink-2)' }}>
-                  {d.when}
+                  {d.when.slice(0, 10)}
                 </span>
                 <span className="text-[11.5px] truncate" style={{ color: 'var(--ink-3)' }}>
                   {d.notes}
                 </span>
-                <span className="font-mono text-[11.5px] text-right font-medium">{d.volume}</span>
+                <span className="font-mono text-[11.5px] font-medium">{d.volume}</span>
                 <Badge color={d.compliant ? 'green' : 'red'}>
                   {d.compliant ? 'COMPLIANT' : 'NON-COMPL'}
                 </Badge>

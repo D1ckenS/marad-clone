@@ -141,7 +141,7 @@ export function CreateVoyageLegModal({ open, vesselId, onClose, onCreated }: Pro
             onChange={set('arrivalAt')}
           />
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Input
             id="vl-nm"
             label="Distance (nm) *"

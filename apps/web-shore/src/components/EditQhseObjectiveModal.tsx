@@ -139,7 +139,7 @@ export function EditQhseObjectiveModal({ objective, onClose, onSaved }: Props) {
           onChange={set('label')}
           autoFocus
         />
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Input id="obj-target" label="Target *" value={form.target} onChange={set('target')} />
           <Input id="obj-actual" label="Actual *" value={form.actual} onChange={set('actual')} />
           <Input id="obj-unit" label="Unit *" value={form.unit} onChange={set('unit')} />
