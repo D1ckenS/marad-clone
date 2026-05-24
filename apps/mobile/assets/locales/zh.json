@@ -1,0 +1,40 @@
+{
+  "app": {
+    "name": "FleetOps",
+    "tagline": "船上助手"
+  },
+  "nav": {
+    "jobs": "任务",
+    "inventory": "库存",
+    "certs": "证书",
+    "drills": "演习",
+    "qhse": "QHSE",
+    "rest_hours": "休息时间",
+    "flgo": "FLGO"
+  },
+  "auth": {
+    "tenant_id": "租户 ID",
+    "email": "电子邮件",
+    "password": "密码",
+    "sign_in": "登录",
+    "sign_out": "退出登录",
+    "sign_out_confirm": "确定要退出登录吗？",
+    "advanced": "高级",
+    "vessel_api_url": "船舶 API 地址",
+    "login_failed": "登录失败"
+  },
+  "common": {
+    "cancel": "取消",
+    "save": "保存",
+    "retry": "重试",
+    "refresh": "刷新",
+    "loading": "加载中…",
+    "error": "错误",
+    "language": "语言"
+  },
+  "jobs": {
+    "no_jobs_assigned": "未分配任务。",
+    "could_not_reach": "无法连接到船舶 API。",
+    "due": "截止"
+  }
+}

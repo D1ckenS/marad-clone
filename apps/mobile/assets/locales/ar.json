@@ -1,0 +1,40 @@
+{
+  "app": {
+    "name": "FleetOps",
+    "tagline": "رفيق السفينة"
+  },
+  "nav": {
+    "jobs": "المهام",
+    "inventory": "المخزون",
+    "certs": "الشهادات",
+    "drills": "التدريبات",
+    "qhse": "QHSE",
+    "rest_hours": "ساعات الراحة",
+    "flgo": "FLGO"
+  },
+  "auth": {
+    "tenant_id": "معرّف المنظمة",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "sign_in": "تسجيل الدخول",
+    "sign_out": "تسجيل الخروج",
+    "sign_out_confirm": "هل أنت متأكد من تسجيل الخروج؟",
+    "advanced": "متقدم",
+    "vessel_api_url": "عنوان واجهة السفينة",
+    "login_failed": "فشل تسجيل الدخول"
+  },
+  "common": {
+    "cancel": "إلغاء",
+    "save": "حفظ",
+    "retry": "إعادة المحاولة",
+    "refresh": "تحديث",
+    "loading": "جارٍ التحميل…",
+    "error": "خطأ",
+    "language": "اللغة"
+  },
+  "jobs": {
+    "no_jobs_assigned": "لا توجد مهام مُعيَّنة.",
+    "could_not_reach": "تعذّر الاتصال بواجهة السفينة.",
+    "due": "موعد الاستحقاق"
+  }
+}

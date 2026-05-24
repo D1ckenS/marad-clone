@@ -1,0 +1,40 @@
+{
+  "app": {
+    "name": "FleetOps",
+    "tagline": "Kasamang Onboard"
+  },
+  "nav": {
+    "jobs": "Mga Trabaho",
+    "inventory": "Imbentaryo",
+    "certs": "Sertipiko",
+    "drills": "Pagsasanay",
+    "qhse": "QHSE",
+    "rest_hours": "Oras ng Pahinga",
+    "flgo": "FLGO"
+  },
+  "auth": {
+    "tenant_id": "Tenant ID",
+    "email": "Email",
+    "password": "Password",
+    "sign_in": "Mag-sign in",
+    "sign_out": "Mag-sign out",
+    "sign_out_confirm": "Sigurado ka bang gusto mong mag-sign out?",
+    "advanced": "Advanced",
+    "vessel_api_url": "Vessel API URL",
+    "login_failed": "Nabigo ang pag-login"
+  },
+  "common": {
+    "cancel": "Kanselahin",
+    "save": "I-save",
+    "retry": "Subukan muli",
+    "refresh": "I-refresh",
+    "loading": "Naglo-load…",
+    "error": "Error",
+    "language": "Wika"
+  },
+  "jobs": {
+    "no_jobs_assigned": "Walang nakatalagang trabaho.",
+    "could_not_reach": "Hindi maabot ang vessel API.",
+    "due": "Takdang petsa"
+  }
+}

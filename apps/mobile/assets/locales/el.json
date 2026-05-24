@@ -1,0 +1,40 @@
+{
+  "app": {
+    "name": "FleetOps",
+    "tagline": "Συνοδός Πλοίου"
+  },
+  "nav": {
+    "jobs": "Εργασίες",
+    "inventory": "Απόθεμα",
+    "certs": "Πιστοποιητικά",
+    "drills": "Ασκήσεις",
+    "qhse": "QHSE",
+    "rest_hours": "Ώρες Ανάπαυσης",
+    "flgo": "FLGO"
+  },
+  "auth": {
+    "tenant_id": "Αναγνωριστικό Οργανισμού",
+    "email": "Email",
+    "password": "Κωδικός",
+    "sign_in": "Σύνδεση",
+    "sign_out": "Αποσύνδεση",
+    "sign_out_confirm": "Είστε σίγουροι ότι θέλετε να αποσυνδεθείτε;",
+    "advanced": "Προχωρημένα",
+    "vessel_api_url": "URL API πλοίου",
+    "login_failed": "Η σύνδεση απέτυχε"
+  },
+  "common": {
+    "cancel": "Ακύρωση",
+    "save": "Αποθήκευση",
+    "retry": "Επανάληψη",
+    "refresh": "Ανανέωση",
+    "loading": "Φόρτωση…",
+    "error": "Σφάλμα",
+    "language": "Γλώσσα"
+  },
+  "jobs": {
+    "no_jobs_assigned": "Δεν έχουν ανατεθεί εργασίες.",
+    "could_not_reach": "Αδυναμία επικοινωνίας με το API πλοίου.",
+    "due": "Προθεσμία"
+  }
+}

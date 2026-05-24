@@ -1,0 +1,40 @@
+{
+  "app": {
+    "name": "FleetOps",
+    "tagline": "Bord-Begleiter"
+  },
+  "nav": {
+    "jobs": "Aufträge",
+    "inventory": "Inventar",
+    "certs": "Zertifikate",
+    "drills": "Übungen",
+    "qhse": "QHSE",
+    "rest_hours": "Ruhezeiten",
+    "flgo": "FLGO"
+  },
+  "auth": {
+    "tenant_id": "Mandanten-ID",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "sign_in": "Anmelden",
+    "sign_out": "Abmelden",
+    "sign_out_confirm": "Möchten Sie sich wirklich abmelden?",
+    "advanced": "Erweitert",
+    "vessel_api_url": "Schiffs-API-URL",
+    "login_failed": "Anmeldung fehlgeschlagen"
+  },
+  "common": {
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "retry": "Wiederholen",
+    "refresh": "Aktualisieren",
+    "loading": "Laden…",
+    "error": "Fehler",
+    "language": "Sprache"
+  },
+  "jobs": {
+    "no_jobs_assigned": "Keine Aufträge zugewiesen.",
+    "could_not_reach": "Schiffs-API nicht erreichbar.",
+    "due": "Fällig"
+  }
+}

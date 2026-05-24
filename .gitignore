@@ -56,11 +56,11 @@ $RECYCLE.BIN/
 # Claude Code per-user settings (not shared)
 .claude/settings.local.json
 
-# Flutter (uncomment when apps/mobile is added in P1-11)
-# **/.dart_tool/
-# **/.flutter-plugins
-# **/.flutter-plugins-dependencies
-# **/build/
+# Flutter (apps/mobile)
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/build/
 
 # Electron build artefacts
 release/

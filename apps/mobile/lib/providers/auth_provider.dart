@@ -11,6 +11,7 @@ class AuthProvider extends ChangeNotifier {
   final FlutterSecureStorage _storage;
 
   String? _token;
+  String? _userId;
   String? _tenantId;
   String? _vesselId;
   String? _email;
@@ -21,6 +22,7 @@ class AuthProvider extends ChangeNotifier {
 
   bool get isAuthenticated => _token != null;
   String? get token => _token;
+  String? get userId => _userId;
   String? get tenantId => _tenantId;
   ApiClient get client => _client;
   String? get vesselId => _vesselId;
@@ -47,7 +49,7 @@ class AuthProvider extends ChangeNotifier {
     _client.baseUrl = baseUrl.isEmpty ? 'http://localhost:3001' : baseUrl;
     final result = await _client.post('/auth/login', {
       'tenantId': tenantId,
-      'email': email,
+      'identifier': email,
       'password': password,
     }) as Map<String, dynamic>;
 
@@ -61,6 +63,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> logout() async {
     await _storage.delete(key: _tokenKey);
     _token = null;
+    _userId = null;
     _tenantId = null;
     _vesselId = null;
     _email = null;
@@ -74,6 +77,7 @@ class AuthProvider extends ChangeNotifier {
     _client.setToken(token);
     try {
       final payload = decodeJwtPayload(token);
+      _userId = payload['sub'] as String?;
       _tenantId = payload['tenantId'] as String?;
       _vesselId = payload['vesselId'] as String?;
       _email = payload['email'] as String?;

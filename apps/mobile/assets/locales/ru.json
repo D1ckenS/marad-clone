@@ -1,0 +1,40 @@
+{
+  "app": {
+    "name": "FleetOps",
+    "tagline": "Бортовой помощник"
+  },
+  "nav": {
+    "jobs": "Задания",
+    "inventory": "Запасы",
+    "certs": "Сертификаты",
+    "drills": "Учения",
+    "qhse": "QHSE",
+    "rest_hours": "Часы отдыха",
+    "flgo": "FLGO"
+  },
+  "auth": {
+    "tenant_id": "ID организации",
+    "email": "Эл. почта",
+    "password": "Пароль",
+    "sign_in": "Войти",
+    "sign_out": "Выйти",
+    "sign_out_confirm": "Вы уверены, что хотите выйти?",
+    "advanced": "Дополнительно",
+    "vessel_api_url": "URL API судна",
+    "login_failed": "Ошибка входа"
+  },
+  "common": {
+    "cancel": "Отмена",
+    "save": "Сохранить",
+    "retry": "Повторить",
+    "refresh": "Обновить",
+    "loading": "Загрузка…",
+    "error": "Ошибка",
+    "language": "Язык"
+  },
+  "jobs": {
+    "no_jobs_assigned": "Нет назначенных заданий.",
+    "could_not_reach": "Не удаётся подключиться к API судна.",
+    "due": "Срок"
+  }
+}

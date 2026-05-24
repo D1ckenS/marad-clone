@@ -1,6 +1,8 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/language_switcher.dart';
 import 'jobs_screen.dart';
 import 'inventory_screen.dart';
 import 'certificates_screen.dart';
@@ -8,6 +10,13 @@ import 'drills_screen.dart';
 import 'checklists_screen.dart';
 import 'rest_hours_screen.dart';
 import 'flgo_screen.dart';
+import 'discharge_logs_screen.dart';
+import 'jhas_screen.dart';
+import 'voyage_legs_screen.dart';
+import 'audit_findings_screen.dart';
+import 'safety_equipment_screen.dart';
+import 'conditions_of_class_screen.dart';
+import 'inspections_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -28,13 +37,19 @@ class _HomeScreenState extends State<HomeScreen> {
     FlgoScreen(),
   ];
 
+  void _openDrawerDestination(Widget screen) {
+    Navigator.of(context).pop(); // close drawer
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('FleetOps'),
+        title: Text('app.name'.tr()),
         actions: [
+          const LanguageSwitcher(),
           if (auth.email != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -47,21 +62,21 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: 'Sign out',
+            tooltip: 'auth.sign_out'.tr(),
             onPressed: () async {
               final confirmed = await showDialog<bool>(
                 context: context,
                 builder: (ctx) => AlertDialog(
-                  title: const Text('Sign out'),
-                  content: const Text('Are you sure you want to sign out?'),
+                  title: Text('auth.sign_out'.tr()),
+                  content: Text('auth.sign_out_confirm'.tr()),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(ctx).pop(false),
-                      child: const Text('Cancel'),
+                      child: Text('common.cancel'.tr()),
                     ),
                     FilledButton(
                       onPressed: () => Navigator.of(ctx).pop(true),
-                      child: const Text('Sign out'),
+                      child: Text('auth.sign_out'.tr()),
                     ),
                   ],
                 ),
@@ -73,49 +88,129 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: const BoxDecoration(color: Color(0xFF0A1F33)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text('app.name'.tr(),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold)),
+                  Text('app.tagline'.tr(),
+                      style: const TextStyle(color: Colors.white70)),
+                ],
+              ),
+            ),
+            const _DrawerSection('Quick logs'),
+            ListTile(
+              leading: const Icon(Icons.water_outlined),
+              title: const Text('Discharge logs (MARPOL)'),
+              onTap: () => _openDrawerDestination(const DischargeLogsScreen()),
+            ),
+            ListTile(
+              leading: const Icon(Icons.warning_amber_outlined),
+              title: const Text('JHA / risk assessments'),
+              onTap: () => _openDrawerDestination(const JhasScreen()),
+            ),
+            ListTile(
+              leading: const Icon(Icons.directions_boat_outlined),
+              title: const Text('Voyage legs'),
+              onTap: () => _openDrawerDestination(const VoyageLegsScreen()),
+            ),
+            ListTile(
+              leading: const Icon(Icons.security_outlined),
+              title: const Text('Inspections (PSC / Vetting)'),
+              onTap: () => _openDrawerDestination(const InspectionsScreen()),
+            ),
+            const Divider(),
+            const _DrawerSection('Records'),
+            ListTile(
+              leading: const Icon(Icons.flag_outlined),
+              title: const Text('Audit findings'),
+              onTap: () => _openDrawerDestination(const AuditFindingsScreen()),
+            ),
+            ListTile(
+              leading: const Icon(Icons.health_and_safety_outlined),
+              title: const Text('Safety equipment'),
+              onTap: () => _openDrawerDestination(const SafetyEquipmentScreen()),
+            ),
+            ListTile(
+              leading: const Icon(Icons.gavel_outlined),
+              title: const Text('Conditions of Class'),
+              onTap: () => _openDrawerDestination(const ConditionsOfClassScreen()),
+            ),
+          ],
+        ),
+      ),
       body: IndexedStack(index: _selectedTab, children: _screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedTab,
         onDestinationSelected: (i) => setState(() => _selectedTab = i),
         labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.build_outlined),
-            selectedIcon: Icon(Icons.build),
-            label: 'Jobs',
+            icon: const Icon(Icons.build_outlined),
+            selectedIcon: const Icon(Icons.build),
+            label: 'nav.jobs'.tr(),
           ),
           NavigationDestination(
-            icon: Icon(Icons.inventory_2_outlined),
-            selectedIcon: Icon(Icons.inventory_2),
-            label: 'Inventory',
+            icon: const Icon(Icons.inventory_2_outlined),
+            selectedIcon: const Icon(Icons.inventory_2),
+            label: 'nav.inventory'.tr(),
           ),
           NavigationDestination(
-            icon: Icon(Icons.verified_outlined),
-            selectedIcon: Icon(Icons.verified),
-            label: 'Certs',
+            icon: const Icon(Icons.verified_outlined),
+            selectedIcon: const Icon(Icons.verified),
+            label: 'nav.certs'.tr(),
           ),
           NavigationDestination(
-            icon: Icon(Icons.local_fire_department_outlined),
-            selectedIcon: Icon(Icons.local_fire_department),
-            label: 'Drills',
+            icon: const Icon(Icons.local_fire_department_outlined),
+            selectedIcon: const Icon(Icons.local_fire_department),
+            label: 'nav.drills'.tr(),
           ),
           NavigationDestination(
-            icon: Icon(Icons.checklist_outlined),
-            selectedIcon: Icon(Icons.checklist),
-            label: 'QHSE',
+            icon: const Icon(Icons.checklist_outlined),
+            selectedIcon: const Icon(Icons.checklist),
+            label: 'nav.qhse'.tr(),
           ),
           NavigationDestination(
-            icon: Icon(Icons.access_time_outlined),
-            selectedIcon: Icon(Icons.access_time_filled),
-            label: 'Rest Hours',
+            icon: const Icon(Icons.access_time_outlined),
+            selectedIcon: const Icon(Icons.access_time_filled),
+            label: 'nav.rest_hours'.tr(),
           ),
           NavigationDestination(
-            icon: Icon(Icons.water_drop_outlined),
-            selectedIcon: Icon(Icons.water_drop),
-            label: 'FLGO',
+            icon: const Icon(Icons.water_drop_outlined),
+            selectedIcon: const Icon(Icons.water_drop),
+            label: 'nav.flgo'.tr(),
           ),
         ],
       ),
     );
   }
+}
+
+class _DrawerSection extends StatelessWidget {
+  final String title;
+  const _DrawerSection(this.title);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+        child: Text(
+          title.toUpperCase(),
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.grey[600],
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
+          ),
+        ),
+      );
 }

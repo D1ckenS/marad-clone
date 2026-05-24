@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/job_instance.dart';
@@ -44,7 +45,7 @@ class _JobsScreenState extends State<JobsScreen> {
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {
-      setState(() => _error = 'Could not reach vessel API.\n$e');
+      setState(() => _error = '${'jobs.could_not_reach'.tr()}\n$e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -69,7 +70,7 @@ class _JobsScreenState extends State<JobsScreen> {
               FilledButton.icon(
                 onPressed: _load,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
+                label: Text('common.retry'.tr()),
               ),
             ],
           ),
@@ -84,12 +85,12 @@ class _JobsScreenState extends State<JobsScreen> {
           children: [
             const Icon(Icons.check_circle_outline, size: 64, color: Colors.green),
             const SizedBox(height: 12),
-            const Text('No jobs assigned.'),
+            Text('jobs.no_jobs_assigned'.tr()),
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: _load,
               icon: const Icon(Icons.refresh),
-              label: const Text('Refresh'),
+              label: Text('common.refresh'.tr()),
             ),
           ],
         ),
@@ -126,7 +127,7 @@ class _JobsScreenState extends State<JobsScreen> {
                         const SizedBox(width: 8),
                         Icon(Icons.event, size: 14, color: Colors.grey[600]),
                         const SizedBox(width: 2),
-                        Text(dueDateStr,
+                        Text('${'jobs.due'.tr()}: $dueDateStr',
                             style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                       ],
                     ],
