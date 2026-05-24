@@ -11,6 +11,13 @@ import { CreateVoyageLegModal } from '../components/CreateVoyageLegModal.js';
 import { CreateDischargeLogModal } from '../components/CreateDischargeLogModal.js';
 import { CreateDrybmsElementModal } from '../components/CreateDrybmsElementModal.js';
 import { CreateManagementReviewModal } from '../components/CreateManagementReviewModal.js';
+import { EditQhseObjectiveModal } from '../components/EditQhseObjectiveModal.js';
+import { EditAuditModal } from '../components/EditAuditModal.js';
+import { EditAuditFindingModal } from '../components/EditAuditFindingModal.js';
+import { EditVoyageLegModal } from '../components/EditVoyageLegModal.js';
+import { EditDischargeLogModal } from '../components/EditDischargeLogModal.js';
+import { EditDrybmsElementModal } from '../components/EditDrybmsElementModal.js';
+import { EditManagementReviewModal } from '../components/EditManagementReviewModal.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -130,6 +137,7 @@ interface RawAudit {
   auditor: string;
   status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   findings: number;
+  notes?: string | null;
 }
 
 interface RawAuditFinding {
@@ -426,10 +434,12 @@ function ObjectivesTab({
   objectives,
   loading,
   onAdd,
+  onEdit,
 }: {
   objectives: QhseObjective[];
   loading: boolean;
   onAdd: () => void;
+  onEdit: (id: string) => void;
 }) {
   const { t } = useTranslation();
   const [catFilter, setCatFilter] = useState<'all' | ObjCategory>('all');
@@ -546,6 +556,7 @@ function ObjectivesTab({
                     return (
                       <div
                         key={o.id}
+                        onClick={() => onEdit(o.id)}
                         className="rounded-2 p-3.5"
                         style={{
                           background: 'var(--surface)',
@@ -553,6 +564,7 @@ function ObjectivesTab({
                           display: 'flex',
                           flexDirection: 'column',
                           gap: 8,
+                          cursor: 'pointer',
                         }}
                       >
                         <div className="flex items-baseline justify-between gap-1.5">
@@ -608,6 +620,8 @@ function AuditsTab({
   loading,
   onAddAudit,
   onAddFinding,
+  onEditAudit,
+  onEditFinding,
   canAddFinding,
 }: {
   audits: Audit[];
@@ -615,6 +629,8 @@ function AuditsTab({
   loading: boolean;
   onAddAudit: () => void;
   onAddFinding: () => void;
+  onEditAudit: (id: string) => void;
+  onEditFinding: (id: string) => void;
   canAddFinding: boolean;
 }) {
   const { t } = useTranslation();
@@ -705,10 +721,12 @@ function AuditsTab({
             audits.map((a) => (
               <div
                 key={a.id}
+                onClick={() => onEditAudit(a.id)}
                 className="grid gap-2 px-4 py-2.5 items-center"
                 style={{
                   gridTemplateColumns: '90px 100px 1fr 180px 110px 130px 80px',
                   borderTop: '1px solid var(--hairline)',
+                  cursor: 'pointer',
                 }}
               >
                 <span className="font-mono text-[11px]" style={{ color: 'var(--ink-2)' }}>
@@ -847,8 +865,9 @@ function AuditsTab({
                     cursor: 'pointer',
                     color: 'var(--ink-2)',
                   }}
+                  onClick={() => onEditFinding(f.id)}
                 >
-                  {t('common.close_verb')}
+                  {t('common.edit')}
                 </button>
               </div>
             ))}
@@ -938,6 +957,8 @@ function EnvironmentalTab({
   loading,
   onAddLeg,
   onAddDischarge,
+  onEditLeg,
+  onEditDischarge,
   canAdd,
 }: {
   legs: VoyageLeg[];
@@ -945,6 +966,8 @@ function EnvironmentalTab({
   loading: boolean;
   onAddLeg: () => void;
   onAddDischarge: () => void;
+  onEditLeg: (id: string) => void;
+  onEditDischarge: (id: string) => void;
   canAdd: boolean;
 }) {
   const { t } = useTranslation();
@@ -1085,10 +1108,12 @@ function EnvironmentalTab({
             legs.map((l) => (
               <div
                 key={l.id}
+                onClick={() => onEditLeg(l.id)}
                 className="grid gap-2 px-4 py-2.5 items-center"
                 style={{
                   gridTemplateColumns: '100px 1fr 130px 80px 90px 80px 70px 70px',
                   borderTop: '1px solid var(--hairline)',
+                  cursor: 'pointer',
                 }}
               >
                 <div>
@@ -1179,10 +1204,12 @@ function EnvironmentalTab({
             {discharges.map((d) => (
               <div
                 key={d.id}
+                onClick={() => onEditDischarge(d.id)}
                 className="grid gap-2 px-4 py-2.5 items-center"
                 style={{
                   gridTemplateColumns: '90px 110px 150px 1fr 80px 90px',
                   borderTop: '1px solid var(--hairline)',
+                  cursor: 'pointer',
                 }}
               >
                 <span className="font-mono text-[11px]" style={{ color: 'var(--ink-2)' }}>
@@ -1226,10 +1253,12 @@ function DryBmsTab({
   elements,
   loading,
   onAdd,
+  onEdit,
 }: {
   elements: DryBmsElement[];
   loading: boolean;
   onAdd: () => void;
+  onEdit: (id: string) => void;
 }) {
   const { t } = useTranslation();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -1465,6 +1494,7 @@ function DryBmsTab({
                 </span>
                 <div className="flex-1" />
                 <button
+                  onClick={() => onEdit(sel.id)}
                   className="px-2 py-1 rounded-1 text-[11px]"
                   style={{
                     background: 'var(--navy)',
@@ -1566,10 +1596,12 @@ function MgmtReviewTab({
   reviews,
   loading,
   onAdd,
+  onEdit,
 }: {
   reviews: ManagementReview[];
   loading: boolean;
   onAdd: () => void;
+  onEdit: (id: string) => void;
 }) {
   const { t } = useTranslation();
   if (loading)
@@ -1617,7 +1649,7 @@ function MgmtReviewTab({
               </div>
               <div className="flex flex-col gap-2">
                 {upcoming.map((r) => (
-                  <ReviewCard key={r.id} r={r} />
+                  <ReviewCard key={r.id} r={r} onEdit={onEdit} />
                 ))}
               </div>
             </div>
@@ -1632,7 +1664,7 @@ function MgmtReviewTab({
               </div>
               <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
                 {past.map((r) => (
-                  <ReviewCard key={r.id} r={r} />
+                  <ReviewCard key={r.id} r={r} onEdit={onEdit} />
                 ))}
               </div>
             </div>
@@ -1643,7 +1675,7 @@ function MgmtReviewTab({
   );
 }
 
-function ReviewCard({ r }: { r: ManagementReview }) {
+function ReviewCard({ r, onEdit }: { r: ManagementReview; onEdit: (id: string) => void }) {
   const { t } = useTranslation();
   const borderColor =
     r.tone === 'red'
@@ -1715,6 +1747,7 @@ function ReviewCard({ r }: { r: ManagementReview }) {
             : t('qhse.invitations_pending')}
         </span>
         <button
+          onClick={() => onEdit(r.id)}
           className="text-[11px] px-2 py-0.5 rounded-1 border"
           style={{
             background: 'var(--surface)',
@@ -1723,7 +1756,7 @@ function ReviewCard({ r }: { r: ManagementReview }) {
             color: 'var(--ink-2)',
           }}
         >
-          {t('qhse.open_minutes')}
+          {t('common.edit')}
         </button>
       </div>
     </div>
@@ -1739,12 +1772,19 @@ export function QHSEPage() {
   const setTab = (tabId: Tab) => setParams(tabId === 'obj' ? {} : { tab: tabId });
 
   const [objectives, setObjectives] = useState<QhseObjective[]>([]);
+  const [rawObjectives, setRawObjectives] = useState<RawQhseObjective[]>([]);
   const [audits, setAudits] = useState<Audit[]>([]);
+  const [rawAudits, setRawAudits] = useState<RawAudit[]>([]);
   const [auditFindings, setAuditFindings] = useState<AuditFinding[]>([]);
+  const [rawAuditFindings, setRawAuditFindings] = useState<RawAuditFinding[]>([]);
   const [legs, setLegs] = useState<VoyageLeg[]>([]);
+  const [rawLegs, setRawLegs] = useState<RawVoyageLeg[]>([]);
   const [discharges, setDischarges] = useState<DischargeLog[]>([]);
+  const [rawDischarges, setRawDischarges] = useState<RawDischargeLog[]>([]);
   const [elements, setElements] = useState<DryBmsElement[]>([]);
+  const [rawElements, setRawElements] = useState<RawDrybmsElement[]>([]);
   const [reviews, setReviews] = useState<ManagementReview[]>([]);
+  const [rawReviews, setRawReviews] = useState<RawManagementReview[]>([]);
   const [loadO, setLoadO] = useState(true);
   const [loadA, setLoadA] = useState(true);
   const [loadE, setLoadE] = useState(true);
@@ -1760,19 +1800,34 @@ export function QHSEPage() {
   const [addDischarge, setAddDischarge] = useState(false);
   const [addElement, setAddElement] = useState(false);
   const [addReview, setAddReview] = useState(false);
+  const [editObjectiveId, setEditObjectiveId] = useState<string | null>(null);
+  const [editAuditId, setEditAuditId] = useState<string | null>(null);
+  const [editFindingId, setEditFindingId] = useState<string | null>(null);
+  const [editLegId, setEditLegId] = useState<string | null>(null);
+  const [editDischargeId, setEditDischargeId] = useState<string | null>(null);
+  const [editElementId, setEditElementId] = useState<string | null>(null);
+  const [editReviewId, setEditReviewId] = useState<string | null>(null);
 
   const fetchAll = useCallback(() => {
     api
       .get<RawQhseObjective[]>('/qhse-objectives')
-      .then((raw) => setObjectives(normalizeQhseObjectives(raw)))
-      .catch(() => setObjectives([]))
+      .then((raw) => {
+        setRawObjectives(raw);
+        setObjectives(normalizeQhseObjectives(raw));
+      })
+      .catch(() => {
+        setRawObjectives([]);
+        setObjectives([]);
+      })
       .finally(() => setLoadO(false));
     Promise.all([
       api.get<RawAudit[]>('/audits').catch(() => [] as RawAudit[]),
       api.get<RawAuditFinding[]>('/audit-findings').catch(() => [] as RawAuditFinding[]),
     ])
       .then(([a, f]) => {
+        setRawAudits(a);
         setAudits(normalizeAudits(a));
+        setRawAuditFindings(f);
         setAuditFindings(normalizeAuditFindings(f));
       })
       .finally(() => setLoadA(false));
@@ -1781,19 +1836,33 @@ export function QHSEPage() {
       api.get<RawDischargeLog[]>('/discharge-logs').catch(() => [] as RawDischargeLog[]),
     ])
       .then(([l, d]) => {
+        setRawLegs(l);
         setLegs(normalizeVoyageLegs(l));
+        setRawDischarges(d);
         setDischarges(normalizeDischargeLogs(d));
       })
       .finally(() => setLoadE(false));
     api
       .get<RawDrybmsElement[]>('/drybms-elements')
-      .then((raw) => setElements(normalizeDrybms(raw)))
-      .catch(() => setElements([]))
+      .then((raw) => {
+        setRawElements(raw);
+        setElements(normalizeDrybms(raw));
+      })
+      .catch(() => {
+        setRawElements([]);
+        setElements([]);
+      })
       .finally(() => setLoadD(false));
     api
       .get<RawManagementReview[]>('/management-reviews')
-      .then((raw) => setReviews(normalizeManagementReviews(raw)))
-      .catch(() => setReviews([]))
+      .then((raw) => {
+        setRawReviews(raw);
+        setReviews(normalizeManagementReviews(raw));
+      })
+      .catch(() => {
+        setRawReviews([]);
+        setReviews([]);
+      })
       .finally(() => setLoadR(false));
   }, []);
 
@@ -1915,6 +1984,7 @@ export function QHSEPage() {
           objectives={objectives}
           loading={loadO}
           onAdd={() => setAddObjective(true)}
+          onEdit={(id) => setEditObjectiveId(id)}
         />
       )}
       {tab === 'audit' && (
@@ -1924,6 +1994,8 @@ export function QHSEPage() {
           loading={loadA}
           onAddAudit={() => setAddAudit(true)}
           onAddFinding={() => setAddFinding(true)}
+          onEditAudit={(id) => setEditAuditId(id)}
+          onEditFinding={(id) => setEditFindingId(id)}
           canAddFinding={canAddVessel}
         />
       )}
@@ -1934,14 +2006,26 @@ export function QHSEPage() {
           loading={loadE}
           onAddLeg={() => setAddLeg(true)}
           onAddDischarge={() => setAddDischarge(true)}
+          onEditLeg={(id) => setEditLegId(id)}
+          onEditDischarge={(id) => setEditDischargeId(id)}
           canAdd={canAddVessel}
         />
       )}
       {tab === 'dryb' && (
-        <DryBmsTab elements={elements} loading={loadD} onAdd={() => setAddElement(true)} />
+        <DryBmsTab
+          elements={elements}
+          loading={loadD}
+          onAdd={() => setAddElement(true)}
+          onEdit={(id) => setEditElementId(id)}
+        />
       )}
       {tab === 'review' && (
-        <MgmtReviewTab reviews={reviews} loading={loadR} onAdd={() => setAddReview(true)} />
+        <MgmtReviewTab
+          reviews={reviews}
+          loading={loadR}
+          onAdd={() => setAddReview(true)}
+          onEdit={(id) => setEditReviewId(id)}
+        />
       )}
 
       <CreateQhseObjectiveModal
@@ -2008,6 +2092,104 @@ export function QHSEPage() {
           />
         </>
       )}
+      {(() => {
+        const obj = rawObjectives.find((r) => r.id === editObjectiveId);
+        if (!obj) return null;
+        return (
+          <EditQhseObjectiveModal
+            objective={obj}
+            onClose={() => setEditObjectiveId(null)}
+            onSaved={() => {
+              setEditObjectiveId(null);
+              fetchAll();
+            }}
+          />
+        );
+      })()}
+      {(() => {
+        const a = rawAudits.find((r) => r.id === editAuditId);
+        if (!a) return null;
+        return (
+          <EditAuditModal
+            audit={a}
+            onClose={() => setEditAuditId(null)}
+            onSaved={() => {
+              setEditAuditId(null);
+              fetchAll();
+            }}
+          />
+        );
+      })()}
+      {(() => {
+        const f = rawAuditFindings.find((r) => r.id === editFindingId);
+        if (!f) return null;
+        return (
+          <EditAuditFindingModal
+            finding={f}
+            onClose={() => setEditFindingId(null)}
+            onSaved={() => {
+              setEditFindingId(null);
+              fetchAll();
+            }}
+          />
+        );
+      })()}
+      {(() => {
+        const l = rawLegs.find((r) => r.id === editLegId);
+        if (!l) return null;
+        return (
+          <EditVoyageLegModal
+            leg={l}
+            onClose={() => setEditLegId(null)}
+            onSaved={() => {
+              setEditLegId(null);
+              fetchAll();
+            }}
+          />
+        );
+      })()}
+      {(() => {
+        const d = rawDischarges.find((r) => r.id === editDischargeId);
+        if (!d) return null;
+        return (
+          <EditDischargeLogModal
+            discharge={d}
+            onClose={() => setEditDischargeId(null)}
+            onSaved={() => {
+              setEditDischargeId(null);
+              fetchAll();
+            }}
+          />
+        );
+      })()}
+      {(() => {
+        const e = rawElements.find((r) => r.id === editElementId);
+        if (!e) return null;
+        return (
+          <EditDrybmsElementModal
+            element={e}
+            onClose={() => setEditElementId(null)}
+            onSaved={() => {
+              setEditElementId(null);
+              fetchAll();
+            }}
+          />
+        );
+      })()}
+      {(() => {
+        const r = rawReviews.find((x) => x.id === editReviewId);
+        if (!r) return null;
+        return (
+          <EditManagementReviewModal
+            review={r}
+            onClose={() => setEditReviewId(null)}
+            onSaved={() => {
+              setEditReviewId(null);
+              fetchAll();
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

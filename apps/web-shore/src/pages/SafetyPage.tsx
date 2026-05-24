@@ -6,6 +6,8 @@ import { api } from '../api/client.js';
 import { useVessel } from '../context/useVessel.js';
 import { CreateJhaModal } from '../components/CreateJhaModal.js';
 import { CreateSafetyEquipmentModal } from '../components/CreateSafetyEquipmentModal.js';
+import { EditJhaModal } from '../components/EditJhaModal.js';
+import { EditSafetyEquipmentModal } from '../components/EditSafetyEquipmentModal.js';
 
 const fmtPermitDate = (s: string | null | undefined): string => {
   if (!s) return '—';
@@ -993,7 +995,17 @@ function RiskMatrix({ l, s }: { l: number; s: number }) {
   );
 }
 
-function JhaTab({ jhas, loading, onAdd }: { jhas: JHA[]; loading: boolean; onAdd: () => void }) {
+function JhaTab({
+  jhas,
+  loading,
+  onAdd,
+  onEdit,
+}: {
+  jhas: JHA[];
+  loading: boolean;
+  onAdd: () => void;
+  onEdit: (id: string) => void;
+}) {
   const { t } = useTranslation();
   const [selected, setSelected] = useState<string | null>(null);
   const sel = jhas.find((j) => j.id === selected) ?? jhas[0] ?? null;
@@ -1106,6 +1118,7 @@ function JhaTab({ jhas, loading, onAdd }: { jhas: JHA[]; loading: boolean; onAdd
               </span>
               <div className="flex-1" />
               <button
+                onClick={() => onEdit(sel.id)}
                 className="px-2 py-1 rounded-1 text-[11px] border"
                 style={{
                   background: 'var(--surface)',
@@ -1114,7 +1127,7 @@ function JhaTab({ jhas, loading, onAdd }: { jhas: JHA[]; loading: boolean; onAdd
                   color: 'var(--ink)',
                 }}
               >
-                {t('safety.revise')}
+                {t('common.edit')}
               </button>
               <button
                 className="px-2 py-1 rounded-1 text-[11px]"
@@ -1222,11 +1235,13 @@ function EquipmentTab({
   equipment,
   loading,
   onAdd,
+  onEdit,
   canAdd,
 }: {
   equipment: SafetyEquipment[];
   loading: boolean;
   onAdd: () => void;
+  onEdit: (id: string) => void;
   canAdd: boolean;
 }) {
   const { t } = useTranslation();
@@ -1410,21 +1425,21 @@ function EquipmentTab({
                     <span className="font-mono text-[11px]" style={{ color: 'var(--ink-2)' }}>
                       {it.nextCheck}
                     </span>
-                    {it.flag ? (
-                      <Badge color="amber">FLAG</Badge>
-                    ) : (
+                    <div className="flex items-center gap-1 justify-self-end">
+                      {it.flag && <Badge color="amber">FLAG</Badge>}
                       <button
-                        className="text-[11px] px-2 py-0.5 rounded-1 border justify-self-end"
+                        className="text-[11px] px-2 py-0.5 rounded-1 border"
                         style={{
                           background: 'var(--surface)',
                           borderColor: 'var(--border)',
                           cursor: 'pointer',
                           color: 'var(--ink-2)',
                         }}
+                        onClick={() => onEdit(it.id)}
                       >
-                        {t('safety.check')}
+                        {t('common.edit')}
                       </button>
-                    )}
+                    </div>
                   </div>
                 ))
               )}
@@ -1637,7 +1652,9 @@ export function SafetyPage() {
   const [permits, setPermits] = useState<WorkPermit[]>([]);
   const [findings, setFindings] = useState<SafetyFinding[]>([]);
   const [jhas, setJhas] = useState<JHA[]>([]);
+  const [rawJhas, setRawJhas] = useState<RawJha[]>([]);
   const [equipment, setEquipment] = useState<SafetyEquipment[]>([]);
+  const [rawEquipment, setRawEquipment] = useState<RawSafetyEquipment[]>([]);
   const [capas, setCapas] = useState<Capa[]>([]);
   const [loadP, setLoadP] = useState(true);
   const [loadF, setLoadF] = useState(true);
@@ -1648,6 +1665,8 @@ export function SafetyPage() {
   const { selectedVesselId } = useVessel();
   const [addJha, setAddJha] = useState(false);
   const [addEquipment, setAddEquipment] = useState(false);
+  const [editJhaId, setEditJhaId] = useState<string | null>(null);
+  const [editEquipmentId, setEditEquipmentId] = useState<string | null>(null);
   const canAddVessel = Boolean(selectedVesselId);
 
   const fetchAll = useCallback(() => {
@@ -1663,13 +1682,25 @@ export function SafetyPage() {
       .finally(() => setLoadF(false));
     api
       .get<RawJha[]>('/jhas')
-      .then((raw) => setJhas(normalizeJhas(raw)))
-      .catch(() => setJhas([]))
+      .then((raw) => {
+        setRawJhas(raw);
+        setJhas(normalizeJhas(raw));
+      })
+      .catch(() => {
+        setRawJhas([]);
+        setJhas([]);
+      })
       .finally(() => setLoadJ(false));
     api
       .get<RawSafetyEquipment[]>('/safety-equipment')
-      .then((raw) => setEquipment(normalizeSafetyEquipment(raw)))
-      .catch(() => setEquipment([]))
+      .then((raw) => {
+        setRawEquipment(raw);
+        setEquipment(normalizeSafetyEquipment(raw));
+      })
+      .catch(() => {
+        setRawEquipment([]);
+        setEquipment([]);
+      })
       .finally(() => setLoadE(false));
     api
       .get<Capa[]>('/capas')
@@ -1796,12 +1827,20 @@ export function SafetyPage() {
 
       {tab === 'permit' && <PermitsTab permits={permits} loading={loadP} />}
       {tab === 'find' && <FindingsTab findings={findings} loading={loadF} />}
-      {tab === 'jha' && <JhaTab jhas={jhas} loading={loadJ} onAdd={() => setAddJha(true)} />}
+      {tab === 'jha' && (
+        <JhaTab
+          jhas={jhas}
+          loading={loadJ}
+          onAdd={() => setAddJha(true)}
+          onEdit={(id) => setEditJhaId(id)}
+        />
+      )}
       {tab === 'eq' && (
         <EquipmentTab
           equipment={equipment}
           loading={loadE}
           onAdd={() => setAddEquipment(true)}
+          onEdit={(id) => setEditEquipmentId(id)}
           canAdd={canAddVessel}
         />
       )}
@@ -1826,6 +1865,34 @@ export function SafetyPage() {
           }}
         />
       )}
+      {(() => {
+        const jha = rawJhas.find((r) => r.id === editJhaId);
+        if (!jha) return null;
+        return (
+          <EditJhaModal
+            jha={jha}
+            onClose={() => setEditJhaId(null)}
+            onSaved={() => {
+              setEditJhaId(null);
+              fetchAll();
+            }}
+          />
+        );
+      })()}
+      {(() => {
+        const eq = rawEquipment.find((r) => r.id === editEquipmentId);
+        if (!eq) return null;
+        return (
+          <EditSafetyEquipmentModal
+            equipment={eq}
+            onClose={() => setEditEquipmentId(null)}
+            onSaved={() => {
+              setEditEquipmentId(null);
+              fetchAll();
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

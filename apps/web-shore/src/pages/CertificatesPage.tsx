@@ -7,6 +7,9 @@ import { useVessel } from '../context/useVessel.js';
 import { CreateSurveyModal } from '../components/CreateSurveyModal.js';
 import { CreateConditionOfClassModal } from '../components/CreateConditionOfClassModal.js';
 import { CreateInspectionModal } from '../components/CreateInspectionModal.js';
+import { EditSurveyModal } from '../components/EditSurveyModal.js';
+import { EditConditionOfClassModal } from '../components/EditConditionOfClassModal.js';
+import { EditInspectionModal } from '../components/EditInspectionModal.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -54,6 +57,7 @@ interface RawSurvey {
   surveyor: string;
   location: string;
   status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'POSTPONED' | 'CANCELLED';
+  notes?: string | null;
 }
 
 interface RawConditionOfClass {
@@ -639,11 +643,13 @@ function SurveysTab({
   surveys,
   loading,
   onAdd,
+  onEdit,
   canAdd,
 }: {
   surveys: Survey[];
   loading: boolean;
   onAdd: () => void;
+  onEdit: (id: string) => void;
   canAdd: boolean;
 }) {
   const { t } = useTranslation();
@@ -751,8 +757,9 @@ function SurveysTab({
                     cursor: 'pointer',
                     color: 'var(--ink-2)',
                   }}
+                  onClick={() => onEdit(s.id)}
                 >
-                  {t('common.open')}
+                  {t('common.edit')}
                 </button>
               </div>
             </div>
@@ -769,11 +776,13 @@ function ConditionsTab({
   conditions,
   loading,
   onAdd,
+  onEdit,
   canAdd,
 }: {
   conditions: ConditionOfClass[];
   loading: boolean;
   onAdd: () => void;
+  onEdit: (id: string) => void;
   canAdd: boolean;
 }) {
   const { t } = useTranslation();
@@ -844,6 +853,18 @@ function ConditionsTab({
                 <Badge color={toneColor(c.tone)}>{c.severity.toUpperCase()}</Badge>
                 <span className="flex-1 min-w-0 text-[13px] font-semibold truncate">{c.title}</span>
                 {c.daysLeft !== null && <DaysLeftBadge daysLeft={c.daysLeft} status={c.tone} />}
+                <button
+                  className="text-[11px] px-2 py-0.5 rounded-1 border"
+                  style={{
+                    background: 'var(--surface)',
+                    borderColor: 'var(--border)',
+                    cursor: 'pointer',
+                    color: 'var(--ink-2)',
+                  }}
+                  onClick={() => onEdit(c.id)}
+                >
+                  {t('common.edit')}
+                </button>
               </div>
               <div
                 className="px-4 py-2.5 text-[12.5px]"
@@ -920,8 +941,9 @@ function ConditionsTab({
                       cursor: 'pointer',
                       color: 'var(--ink-2)',
                     }}
+                    onClick={() => onEdit(c.id)}
                   >
-                    {t('common.open')}
+                    {t('common.edit')}
                   </button>
                 </div>
               ))}
@@ -939,11 +961,13 @@ function InspectionsTab({
   inspections,
   loading,
   onAdd,
+  onEdit,
   canAdd,
 }: {
   inspections: Inspection[];
   loading: boolean;
   onAdd: () => void;
+  onEdit: (id: string) => void;
   canAdd: boolean;
 }) {
   const { t } = useTranslation();
@@ -1131,8 +1155,9 @@ function InspectionsTab({
                     cursor: 'pointer',
                     color: 'var(--ink-2)',
                   }}
+                  onClick={() => onEdit(i.id)}
                 >
-                  {t('common.open')}
+                  {t('common.edit')}
                 </button>
               </div>
             ))
@@ -1332,8 +1357,11 @@ export function CertificatesPage() {
 
   const [certs, setCerts] = useState<Certificate[]>([]);
   const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [rawSurveys, setRawSurveys] = useState<RawSurvey[]>([]);
   const [conditions, setConditions] = useState<ConditionOfClass[]>([]);
+  const [rawConditions, setRawConditions] = useState<RawConditionOfClass[]>([]);
   const [inspections, setInspections] = useState<Inspection[]>([]);
+  const [rawInspections, setRawInspections] = useState<RawInspection[]>([]);
   const [loadCerts, setLoadCerts] = useState(true);
   const [loadSurveys, setLoadSurveys] = useState(true);
   const [loadCoc, setLoadCoc] = useState(true);
@@ -1343,6 +1371,9 @@ export function CertificatesPage() {
   const [addSurvey, setAddSurvey] = useState(false);
   const [addCoc, setAddCoc] = useState(false);
   const [addInsp, setAddInsp] = useState(false);
+  const [editSurveyId, setEditSurveyId] = useState<string | null>(null);
+  const [editCocId, setEditCocId] = useState<string | null>(null);
+  const [editInspId, setEditInspId] = useState<string | null>(null);
   const canAddVessel = Boolean(selectedVesselId);
 
   const fetchAll = useCallback(() => {
@@ -1353,18 +1384,36 @@ export function CertificatesPage() {
       .finally(() => setLoadCerts(false));
     api
       .get<RawSurvey[]>('/surveys')
-      .then((raw) => setSurveys(normalizeSurveys(raw)))
-      .catch(() => setSurveys([]))
+      .then((raw) => {
+        setRawSurveys(raw);
+        setSurveys(normalizeSurveys(raw));
+      })
+      .catch(() => {
+        setRawSurveys([]);
+        setSurveys([]);
+      })
       .finally(() => setLoadSurveys(false));
     api
       .get<RawConditionOfClass[]>('/conditions-of-class')
-      .then((raw) => setConditions(normalizeConditionsOfClass(raw)))
-      .catch(() => setConditions([]))
+      .then((raw) => {
+        setRawConditions(raw);
+        setConditions(normalizeConditionsOfClass(raw));
+      })
+      .catch(() => {
+        setRawConditions([]);
+        setConditions([]);
+      })
       .finally(() => setLoadCoc(false));
     api
       .get<RawInspection[]>('/inspections')
-      .then((raw) => setInspections(normalizeInspections(raw)))
-      .catch(() => setInspections([]))
+      .then((raw) => {
+        setRawInspections(raw);
+        setInspections(normalizeInspections(raw));
+      })
+      .catch(() => {
+        setRawInspections([]);
+        setInspections([]);
+      })
       .finally(() => setLoadInsp(false));
   }, []);
 
@@ -1479,6 +1528,7 @@ export function CertificatesPage() {
           surveys={surveys}
           loading={loadSurveys}
           onAdd={() => setAddSurvey(true)}
+          onEdit={(id) => setEditSurveyId(id)}
           canAdd={canAddVessel}
         />
       )}
@@ -1487,6 +1537,7 @@ export function CertificatesPage() {
           conditions={conditions}
           loading={loadCoc}
           onAdd={() => setAddCoc(true)}
+          onEdit={(id) => setEditCocId(id)}
           canAdd={canAddVessel}
         />
       )}
@@ -1495,10 +1546,54 @@ export function CertificatesPage() {
           inspections={inspections}
           loading={loadInsp}
           onAdd={() => setAddInsp(true)}
+          onEdit={(id) => setEditInspId(id)}
           canAdd={canAddVessel}
         />
       )}
       {tab === 'renew' && <RenewalTimelineTab certs={certs} loading={loadCerts} />}
+
+      {(() => {
+        const sv = rawSurveys.find((r) => r.id === editSurveyId);
+        if (!sv) return null;
+        return (
+          <EditSurveyModal
+            survey={sv}
+            onClose={() => setEditSurveyId(null)}
+            onSaved={() => {
+              setEditSurveyId(null);
+              fetchAll();
+            }}
+          />
+        );
+      })()}
+      {(() => {
+        const coc = rawConditions.find((r) => r.id === editCocId);
+        if (!coc) return null;
+        return (
+          <EditConditionOfClassModal
+            condition={coc}
+            onClose={() => setEditCocId(null)}
+            onSaved={() => {
+              setEditCocId(null);
+              fetchAll();
+            }}
+          />
+        );
+      })()}
+      {(() => {
+        const ins = rawInspections.find((r) => r.id === editInspId);
+        if (!ins) return null;
+        return (
+          <EditInspectionModal
+            inspection={ins}
+            onClose={() => setEditInspId(null)}
+            onSaved={() => {
+              setEditInspId(null);
+              fetchAll();
+            }}
+          />
+        );
+      })()}
 
       {selectedVesselId && (
         <>
