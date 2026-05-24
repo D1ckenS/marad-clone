@@ -2,24 +2,43 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { newId } from '@fleetops/domain';
 import type { AuthContext } from '../auth/auth-context';
 import { PrismaService } from '../prisma/prisma.service';
+import { TenantBroadcastRecorder } from '../sync/tenant-broadcast-recorder';
 import type { CreateMasterComponentDto } from './dto/create-master-component.dto';
 import type { UpdateMasterComponentDto } from './dto/update-master-component.dto';
 
+function broadcastFields(row: {
+  tenantId: string;
+  name: string;
+  description: string | null;
+  sfi: string | null;
+  category: string | null;
+}): Record<string, unknown> {
+  return {
+    tenantId: row.tenantId,
+    name: row.name,
+    description: row.description,
+    sfi: row.sfi,
+    category: row.category,
+  };
+}
+
 /**
- * MasterComponents are shore-only templates that vessels clone into their
- * own Component rows. They do NOT go through the outbox/sync wire here —
- * vessel-side replication of the master library is a separate concern (a
- * full-table snapshot on connect, or on-demand fetch). Skipping outbox
- * writes keeps PR 2 small; revisit when the vessel-side master browser
- * lands in P1-3.
+ * MasterComponents are tenant-scoped catalog rows that shore broadcasts
+ * to every vessel of the tenant via TenantBroadcastRecorder (see
+ * apps/docs/adr/0004-tenant-broadcast-sync.md). Vessels materialise into
+ * their local `master_components` SQLite table via the materialiser
+ * registered in apps/api-vessel/src/sync/tenant-materialisers.ts.
  */
 @Injectable()
 export class MasterComponentService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly broadcaster: TenantBroadcastRecorder,
+  ) {}
 
   create(auth: AuthContext, dto: CreateMasterComponentDto) {
-    return this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.masterComponent.create({
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      const row = await tx.masterComponent.create({
         data: {
           id: newId(),
           tenantId: auth.tenantId!,
@@ -28,8 +47,16 @@ export class MasterComponentService {
           sfi: dto.sfi ?? null,
           category: dto.category ?? null,
         },
-      }),
-    );
+      });
+      await this.broadcaster.broadcastUpsert(
+        tx,
+        auth.tenantId!,
+        'MasterComponent',
+        row.id,
+        broadcastFields(row),
+      );
+      return row;
+    });
   }
 
   findAll(auth: AuthContext) {
@@ -53,8 +80,8 @@ export class MasterComponentService {
 
   async update(auth: AuthContext, id: string, dto: UpdateMasterComponentDto) {
     await this.findOne(auth, id);
-    return this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.masterComponent.update({
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      const row = await tx.masterComponent.update({
         where: { id },
         data: {
           ...(dto.name !== undefined && { name: dto.name }),
@@ -62,17 +89,23 @@ export class MasterComponentService {
           ...(dto.sfi !== undefined && { sfi: dto.sfi }),
           ...(dto.category !== undefined && { category: dto.category }),
         },
-      }),
-    );
+      });
+      await this.broadcaster.broadcastUpsert(
+        tx,
+        auth.tenantId!,
+        'MasterComponent',
+        row.id,
+        broadcastFields(row),
+      );
+      return row;
+    });
   }
 
   async softDelete(auth: AuthContext, id: string) {
     await this.findOne(auth, id);
-    await this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.masterComponent.update({
-        where: { id },
-        data: { deletedAt: new Date() },
-      }),
-    );
+    await this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      await tx.masterComponent.update({ where: { id }, data: { deletedAt: new Date() } });
+      await this.broadcaster.broadcastDelete(tx, auth.tenantId!, 'MasterComponent', id);
+    });
   }
 }

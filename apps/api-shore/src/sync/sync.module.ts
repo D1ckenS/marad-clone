@@ -7,6 +7,7 @@ import { PrismaSyncAdapter } from './prisma-sync-adapter';
 import { SmtpSyncGatewayService } from './smtp-sync-gateway.service';
 import { SyncGatewayService } from './sync-gateway.service';
 import { PRISMA_SYNC_ADAPTER_FACTORY, type PrismaSyncAdapterFactory } from './sync.tokens';
+import { TenantBroadcastRecorder } from './tenant-broadcast-recorder';
 
 /**
  * Shore-side sync module. Exposes:
@@ -37,6 +38,7 @@ export { PRISMA_SYNC_ADAPTER_FACTORY, type PrismaSyncAdapterFactory } from './sy
     SyncGatewayService,
     SmtpSyncGatewayService,
     BlobReceiverService,
+    TenantBroadcastRecorder,
   ],
   exports: [
     PRISMA_SYNC_ADAPTER_FACTORY,
@@ -45,6 +47,7 @@ export { PRISMA_SYNC_ADAPTER_FACTORY, type PrismaSyncAdapterFactory } from './sy
     SyncGatewayService,
     SmtpSyncGatewayService,
     BlobReceiverService,
+    TenantBroadcastRecorder,
   ],
 })
 export class SyncModule {}

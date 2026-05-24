@@ -9,6 +9,7 @@ import {
 } from '@fleetops/sync-engine';
 import { sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { materialiseTenantEntity } from './tenant-materialisers';
 
 /**
  * Drizzle / SQLite implementation of SyncAdapter for the vessel side.
@@ -17,6 +18,12 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
  * apps/api-vessel/src/db/schema.ts via raw SQL on the better-sqlite3
  * driver — the synchronous SQLite calls are wrapped in async methods to
  * satisfy the SyncAdapter contract (Prisma is async on the shore side).
+ *
+ * Materialisation: after the sync_records merge in applyRemoteDelta, this
+ * adapter also writes through to the actual entity table for tenant-scoped
+ * catalogs (e.g. Jha, MasterComponent, Supplier — see tenant-materialisers.ts).
+ * Vessel-scoped deltas have no materialiser registered; their entity table
+ * is populated by the originating service via OutboxRecorder.
  */
 export class DrizzleSyncAdapter implements SyncAdapter {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- drizzle generic type is verbose; runtime checks are enough
@@ -84,6 +91,14 @@ export class DrizzleSyncAdapter implements SyncAdapter {
           fields: existing?.fields ?? {},
         };
         await this.upsertSyncRecord(record);
+        materialiseTenantEntity(
+          this.db,
+          record.entityType,
+          record.entityId,
+          record.fields,
+          record.hlc,
+          record.deletedAt,
+        );
         return { record, merged: true };
       }
       return { record: existing, merged: false };
@@ -98,6 +113,14 @@ export class DrizzleSyncAdapter implements SyncAdapter {
         fields: delta.payload ?? {},
       };
       await this.upsertSyncRecord(record);
+      materialiseTenantEntity(
+        this.db,
+        record.entityType,
+        record.entityId,
+        record.fields,
+        record.hlc,
+        null,
+      );
       return { record, merged: true };
     }
 
@@ -116,6 +139,14 @@ export class DrizzleSyncAdapter implements SyncAdapter {
       fields: mergedFields,
     };
     await this.upsertSyncRecord(record);
+    materialiseTenantEntity(
+      this.db,
+      record.entityType,
+      record.entityId,
+      record.fields,
+      record.hlc,
+      record.deletedAt,
+    );
     return { record, merged: changed || deletedAt !== existing.deletedAt };
   }
 
