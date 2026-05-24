@@ -1,6 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import '../services/api_client.dart';
+import '../services/outbox_service.dart';
 import '../widgets/entity_list_scaffold.dart';
 
 class DrybmsElementsScreen extends StatelessWidget {
@@ -43,11 +43,11 @@ class DrybmsElementsScreen extends StatelessWidget {
           ),
         );
       },
-      onCreate: (ctx, client, vesselId) => _showCreateDialog(ctx, client),
+      onCreate: (ctx, outbox, _, vesselId) => _showCreateDialog(ctx, outbox),
     );
   }
 
-  Future<bool?> _showCreateDialog(BuildContext ctx, ApiClient client) async {
+  Future<bool?> _showCreateDialog(BuildContext ctx, OutboxService outbox) async {
     final chapterCtrl = TextEditingController();
     final chapterTitleCtrl = TextEditingController();
     final nameCtrl = TextEditingController();
@@ -118,7 +118,7 @@ class DrybmsElementsScreen extends StatelessWidget {
                 final ok = await submitCreateForm(
                   sheetCtx: dialogCtx,
                   onSubmit: () async {
-                    await client.post('/drybms-elements', {
+                    await outbox.postOrQueue('/drybms-elements', {
                       'chapter': chapterCtrl.text.trim(),
                       'chapterTitle': chapterTitleCtrl.text.trim(),
                       'name': nameCtrl.text.trim(),

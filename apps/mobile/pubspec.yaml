@@ -18,11 +18,20 @@ dependencies:
   image_picker: ^1.1.2
   provider: ^6.1.2
   easy_localization: ^3.0.7
+  # Offline write outbox (REFERENCE.md §9.10): SQLite for queue + path
+  # discovery for the DB file location.
+  sqflite: ^2.3.3
+  path_provider: ^2.1.4
+  path: ^1.9.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  # FFI backend so sqflite works on the test VM (no real Android/iOS device).
+  sqflite_common_ffi: ^2.3.3
+  # Stubbed at test boot so outbox tests don't hit the real platform channel.
+  path_provider_platform_interface: ^2.1.2
 
 flutter:
   assets:

@@ -1,6 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import '../services/api_client.dart';
+import '../services/outbox_service.dart';
 import '../widgets/entity_list_scaffold.dart';
 
 class ManagementReviewsScreen extends StatelessWidget {
@@ -55,11 +55,11 @@ class ManagementReviewsScreen extends StatelessWidget {
           ),
         );
       },
-      onCreate: (ctx, client, vesselId) => _showCreateDialog(ctx, client),
+      onCreate: (ctx, outbox, _, vesselId) => _showCreateDialog(ctx, outbox),
     );
   }
 
-  Future<bool?> _showCreateDialog(BuildContext ctx, ApiClient client) async {
+  Future<bool?> _showCreateDialog(BuildContext ctx, OutboxService outbox) async {
     String status = _statuses.first;
     final kindCtrl = TextEditingController();
     final chairCtrl = TextEditingController();
@@ -142,7 +142,7 @@ class ManagementReviewsScreen extends StatelessWidget {
                 final ok = await submitCreateForm(
                   sheetCtx: dialogCtx,
                   onSubmit: () async {
-                    await client.post('/management-reviews', {
+                    await outbox.postOrQueue('/management-reviews', {
                       'kind': kindCtrl.text.trim(),
                       'chair': chairCtrl.text.trim(),
                       'scheduledAt': scheduledCtrl.text.trim(),

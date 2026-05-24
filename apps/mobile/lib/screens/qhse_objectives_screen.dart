@@ -1,6 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import '../services/api_client.dart';
+import '../services/outbox_service.dart';
 import '../widgets/entity_list_scaffold.dart';
 
 class QhseObjectivesScreen extends StatelessWidget {
@@ -50,11 +50,11 @@ class QhseObjectivesScreen extends StatelessWidget {
           ),
         );
       },
-      onCreate: (ctx, client, vesselId) => _showCreateDialog(ctx, client),
+      onCreate: (ctx, outbox, _, vesselId) => _showCreateDialog(ctx, outbox),
     );
   }
 
-  Future<bool?> _showCreateDialog(BuildContext ctx, ApiClient client) async {
+  Future<bool?> _showCreateDialog(BuildContext ctx, OutboxService outbox) async {
     String category = _categories.first;
     String status = _statuses.first;
     final labelCtrl = TextEditingController();
@@ -137,7 +137,7 @@ class QhseObjectivesScreen extends StatelessWidget {
                 final ok = await submitCreateForm(
                   sheetCtx: dialogCtx,
                   onSubmit: () async {
-                    await client.post('/qhse-objectives', {
+                    await outbox.postOrQueue('/qhse-objectives', {
                       'category': category,
                       'label': labelCtrl.text.trim(),
                       'target': targetCtrl.text.trim(),
