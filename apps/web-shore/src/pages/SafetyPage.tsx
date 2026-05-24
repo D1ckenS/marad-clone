@@ -421,12 +421,12 @@ function PermitsTab({ permits, loading }: { permits: WorkPermit[]; loading: bool
                     background: isActive ? 'var(--surface-sunk)' : 'var(--surface)',
                   }}
                 >
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 min-w-0">
                     <span
-                      className="font-mono text-[11px] font-medium"
+                      className="font-mono text-[11px] font-medium truncate"
                       style={{ color: 'var(--ink-2)' }}
                     >
-                      {p.id}
+                      {p.id.slice(0, 8)}
                     </span>
                     <Badge color={km.color}>{km.short}</Badge>
                     <div className="flex-1" />
@@ -466,9 +466,9 @@ function PermitsTab({ permits, loading }: { permits: WorkPermit[]; loading: bool
             className="px-5 py-4"
             style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}
           >
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="font-mono text-[11px]" style={{ color: 'var(--ink-3)' }}>
-                {sel.id}
+            <div className="flex items-center gap-2 mb-1.5 min-w-0">
+              <span className="font-mono text-[11px] truncate" style={{ color: 'var(--ink-3)' }}>
+                {sel.id.slice(0, 8)}
               </span>
               <Badge color={PERMIT_KIND_META[sel.kind]?.color ?? 'slate'}>
                 {PERMIT_KIND_META[sel.kind]?.short}
@@ -848,7 +848,7 @@ function FindingsTab({ findings, loading }: { findings: SafetyFinding[]; loading
           <div
             className="grid gap-2 px-4 py-2 text-[10.5px] font-semibold uppercase tracking-widest"
             style={{
-              gridTemplateColumns: '80px 100px 90px 1fr 150px 80px 100px 80px',
+              gridTemplateColumns: '80px 80px 80px minmax(80px, 1fr) 110px 60px 80px 70px',
               background: 'var(--surface-sunk)',
               color: 'var(--ink-3)',
               borderBottom: '1px solid var(--hairline)',
@@ -871,12 +871,15 @@ function FindingsTab({ findings, loading }: { findings: SafetyFinding[]; loading
                 key={f.id}
                 className="grid gap-2 px-4 py-2.5 items-center"
                 style={{
-                  gridTemplateColumns: '80px 100px 90px 1fr 150px 80px 100px 80px',
+                  gridTemplateColumns: '80px 80px 80px minmax(80px, 1fr) 110px 60px 80px 70px',
                   borderTop: '1px solid var(--hairline)',
                 }}
               >
-                <span className="font-mono text-[11px]" style={{ color: 'var(--ink-2)' }}>
-                  {f.id}
+                <span
+                  className="font-mono text-[11px] truncate min-w-0"
+                  style={{ color: 'var(--ink-2)' }}
+                >
+                  {f.id.slice(0, 8)}
                 </span>
                 <span className="font-mono text-[11px]" style={{ color: 'var(--ink-3)' }}>
                   {fmtPermitDate(f.raisedAt).split(',')[0]}
@@ -886,11 +889,11 @@ function FindingsTab({ findings, loading }: { findings: SafetyFinding[]; loading
                 </Badge>
                 <div className="min-w-0">
                   <div className="text-[12.5px] font-medium truncate">{f.title}</div>
-                  <div className="text-[10.5px]" style={{ color: 'var(--ink-3)' }}>
+                  <div className="text-[10.5px] truncate" style={{ color: 'var(--ink-3)' }}>
                     {f.where}
                   </div>
                 </div>
-                <span className="text-[11.5px]" style={{ color: 'var(--ink-2)' }}>
+                <span className="text-[11.5px] truncate min-w-0" style={{ color: 'var(--ink-2)' }}>
                   {f.raisedBy}
                 </span>
                 <Badge

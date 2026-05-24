@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, Select, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -21,12 +22,6 @@ interface Props {
   onSaved: () => void;
 }
 
-const KIND_OPTIONS = [
-  { value: 'PSC', label: 'Port State Control' },
-  { value: 'VETTING', label: 'Vetting' },
-  { value: 'FLAG', label: 'Flag' },
-];
-
 function toLocalInput(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
@@ -35,6 +30,7 @@ function toLocalInput(iso: string): string {
 }
 
 export function EditInspectionModal({ inspection, onClose, onSaved }: Props) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(() => ({
     inspectedAt: toLocalInput(inspection.inspectedAt),
     kind: inspection.kind,
@@ -48,6 +44,15 @@ export function EditInspectionModal({ inspection, onClose, onSaved }: Props) {
   }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const kindOptions = useMemo(
+    () => [
+      { value: 'PSC', label: t('certificates.inspection_modal.kind_psc') },
+      { value: 'VETTING', label: t('certificates.inspection_modal.kind_vetting') },
+      { value: 'FLAG', label: t('certificates.inspection_modal.kind_flag') },
+    ],
+    [t],
+  );
 
   useEffect(() => {
     setForm({
@@ -70,7 +75,7 @@ export function EditInspectionModal({ inspection, onClose, onSaved }: Props) {
 
   const handleSubmit = async () => {
     if (!form.inspectedAt || !form.port.trim() || !form.inspector.trim() || !form.status.trim()) {
-      setError('Inspected-at, port, inspector and status are required.');
+      setError(t('certificates.inspection_modal.error_required'));
       return;
     }
     setSaving(true);
@@ -89,7 +94,7 @@ export function EditInspectionModal({ inspection, onClose, onSaved }: Props) {
       });
       onSaved();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to update inspection.');
+      setError(e instanceof Error ? e.message : t('certificates.inspection_modal.error_update'));
     } finally {
       setSaving(false);
     }
@@ -98,16 +103,16 @@ export function EditInspectionModal({ inspection, onClose, onSaved }: Props) {
   return (
     <Modal
       open
-      title="Edit inspection"
+      title={t('certificates.inspection_modal.title_edit')}
       onClose={onClose}
       onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Save
+            {t('common.save')}
           </Button>
         </>
       }
@@ -119,29 +124,46 @@ export function EditInspectionModal({ inspection, onClose, onSaved }: Props) {
         <div className="grid grid-cols-2 gap-3">
           <Input
             id="ins-when"
-            label="Inspected at *"
+            label={`${t('certificates.inspection_modal.field_inspected_at')} *`}
             type="datetime-local"
             value={form.inspectedAt}
             onChange={set('inspectedAt')}
             autoFocus
           />
           <Select
-            options={KIND_OPTIONS}
+            id="ins-kind"
+            label={t('certificates.inspection_modal.field_kind')}
+            options={kindOptions}
             value={form.kind}
             onChange={(v) => setForm((f) => ({ ...f, kind: v as typeof f.kind }))}
           />
-          <Input id="ins-port" label="Port *" value={form.port} onChange={set('port')} />
+          <Input
+            id="ins-port"
+            label={`${t('certificates.inspection_modal.field_port')} *`}
+            value={form.port}
+            onChange={set('port')}
+          />
           <Input
             id="ins-inspector"
-            label="Inspector *"
+            label={`${t('certificates.inspection_modal.field_inspector')} *`}
             value={form.inspector}
             onChange={set('inspector')}
           />
-          <Input id="ins-mou" label="MOU" value={form.mou} onChange={set('mou')} />
-          <Input id="ins-status" label="Status *" value={form.status} onChange={set('status')} />
+          <Input
+            id="ins-mou"
+            label={t('certificates.inspection_modal.field_mou')}
+            value={form.mou}
+            onChange={set('mou')}
+          />
+          <Input
+            id="ins-status"
+            label={`${t('certificates.inspection_modal.field_status')} *`}
+            value={form.status}
+            onChange={set('status')}
+          />
           <Input
             id="ins-def"
-            label="Deficiencies"
+            label={t('certificates.inspection_modal.field_deficiencies')}
             type="number"
             min="0"
             value={form.deficiencies}
@@ -153,12 +175,12 @@ export function EditInspectionModal({ inspection, onClose, onSaved }: Props) {
               checked={form.detained}
               onChange={(e) => setForm((f) => ({ ...f, detained: e.target.checked }))}
             />
-            Detained
+            {t('certificates.inspection_modal.field_detained')}
           </label>
         </div>
         <TextArea
           id="ins-findings"
-          label="Findings"
+          label={t('certificates.inspection_modal.field_findings')}
           rows={3}
           value={form.findings}
           onChange={set('findings')}

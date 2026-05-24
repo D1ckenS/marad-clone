@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, Select } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -8,11 +9,6 @@ interface Props {
   onClose: () => void;
   onCreated: () => void;
 }
-
-const MODE_OPTIONS = [
-  { value: 'LADEN', label: 'Laden' },
-  { value: 'BALLAST', label: 'Ballast' },
-];
 
 const EMPTY = {
   route: '',
@@ -29,9 +25,18 @@ const EMPTY = {
 };
 
 export function CreateVoyageLegModal({ open, vesselId, onClose, onCreated }: Props) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const modeOptions = useMemo(
+    () => [
+      { value: 'LADEN', label: t('qhse.voyage_modal.mode_laden') },
+      { value: 'BALLAST', label: t('qhse.voyage_modal.mode_ballast') },
+    ],
+    [t],
+  );
 
   const set =
     (field: keyof typeof EMPTY) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -60,7 +65,7 @@ export function CreateVoyageLegModal({ open, vesselId, onClose, onCreated }: Pro
       !form.noxTonnes ||
       !form.hours
     ) {
-      setError('Route, dates, distance, fuel, emissions and hours are all required.');
+      setError(t('qhse.voyage_modal.error_required'));
       return;
     }
     setSaving(true);
@@ -83,7 +88,7 @@ export function CreateVoyageLegModal({ open, vesselId, onClose, onCreated }: Pro
       setForm(EMPTY);
       onCreated();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to log voyage leg.');
+      setError(e instanceof Error ? e.message : t('qhse.voyage_modal.error_create'));
     } finally {
       setSaving(false);
     }
@@ -92,16 +97,16 @@ export function CreateVoyageLegModal({ open, vesselId, onClose, onCreated }: Pro
   return (
     <Modal
       open={open}
-      title="Log voyage leg"
+      title={t('qhse.voyage_modal.title_create')}
       onClose={handleClose}
       onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Create
+            {t('common.create')}
           </Button>
         </>
       }
@@ -113,36 +118,38 @@ export function CreateVoyageLegModal({ open, vesselId, onClose, onCreated }: Pro
         <div className="grid grid-cols-2 gap-3">
           <Input
             id="vl-route"
-            label="Route *"
+            label={`${t('qhse.voyage_modal.field_route')} *`}
             value={form.route}
             onChange={set('route')}
             autoFocus
             placeholder="RTM → SIN"
           />
           <Select
-            options={MODE_OPTIONS}
+            id="vl-mode"
+            label={t('qhse.voyage_modal.field_mode')}
+            options={modeOptions}
             value={form.mode}
             onChange={(v) => setForm((f) => ({ ...f, mode: v }))}
           />
           <Input
             id="vl-dep"
-            label="Departure *"
+            label={`${t('qhse.voyage_modal.field_departure')} *`}
             type="datetime-local"
             value={form.departureAt}
             onChange={set('departureAt')}
           />
           <Input
             id="vl-arr"
-            label="Arrival *"
+            label={`${t('qhse.voyage_modal.field_arrival')} *`}
             type="datetime-local"
             value={form.arrivalAt}
             onChange={set('arrivalAt')}
           />
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Input
             id="vl-nm"
-            label="Distance (nm) *"
+            label={`${t('qhse.voyage_modal.field_distance_nm')} *`}
             type="number"
             step="0.01"
             value={form.nm}
@@ -150,7 +157,7 @@ export function CreateVoyageLegModal({ open, vesselId, onClose, onCreated }: Pro
           />
           <Input
             id="vl-hours"
-            label="Hours *"
+            label={`${t('qhse.voyage_modal.field_hours')} *`}
             type="number"
             step="0.01"
             value={form.hours}
@@ -158,7 +165,7 @@ export function CreateVoyageLegModal({ open, vesselId, onClose, onCreated }: Pro
           />
           <Input
             id="vl-fuel"
-            label="Fuel (t) *"
+            label={`${t('qhse.voyage_modal.field_fuel')} *`}
             type="number"
             step="0.001"
             value={form.fuelTonnes}
@@ -166,7 +173,7 @@ export function CreateVoyageLegModal({ open, vesselId, onClose, onCreated }: Pro
           />
           <Input
             id="vl-co2"
-            label="CO₂ (t) *"
+            label={`${t('qhse.voyage_modal.field_co2')} *`}
             type="number"
             step="0.001"
             value={form.co2Tonnes}
@@ -174,7 +181,7 @@ export function CreateVoyageLegModal({ open, vesselId, onClose, onCreated }: Pro
           />
           <Input
             id="vl-sox"
-            label="SOx (t) *"
+            label={`${t('qhse.voyage_modal.field_sox')} *`}
             type="number"
             step="0.001"
             value={form.soxTonnes}
@@ -182,7 +189,7 @@ export function CreateVoyageLegModal({ open, vesselId, onClose, onCreated }: Pro
           />
           <Input
             id="vl-nox"
-            label="NOx (t) *"
+            label={`${t('qhse.voyage_modal.field_nox')} *`}
             type="number"
             step="0.001"
             value={form.noxTonnes}
@@ -191,7 +198,7 @@ export function CreateVoyageLegModal({ open, vesselId, onClose, onCreated }: Pro
         </div>
         <Input
           id="vl-cargo"
-          label="Cargo"
+          label={t('qhse.voyage_modal.field_cargo')}
           value={form.cargo}
           onChange={set('cargo')}
           placeholder="Containers / Crude / Ballast"

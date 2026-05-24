@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -26,6 +27,7 @@ function splitLines(s: string): string[] {
 }
 
 export function CreateJhaModal({ open, onClose, onCreated }: Props) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,13 +44,13 @@ export function CreateJhaModal({ open, onClose, onCreated }: Props) {
 
   const handleSubmit = async () => {
     if (!form.ref.trim() || !form.title.trim()) {
-      setError('Ref and title are required.');
+      setError(t('safety.jha_modal.error_required'));
       return;
     }
     const hazards = splitLines(form.hazardsText);
     const controls = splitLines(form.controlsText);
     if (hazards.length === 0 || controls.length === 0) {
-      setError('Add at least one hazard and one control (one per line).');
+      setError(t('safety.jha_modal.error_hazards_controls'));
       return;
     }
     setSaving(true);
@@ -66,7 +68,7 @@ export function CreateJhaModal({ open, onClose, onCreated }: Props) {
       setForm(EMPTY);
       onCreated();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to create JHA.');
+      setError(e instanceof Error ? e.message : t('safety.jha_modal.error_create'));
     } finally {
       setSaving(false);
     }
@@ -75,16 +77,16 @@ export function CreateJhaModal({ open, onClose, onCreated }: Props) {
   return (
     <Modal
       open={open}
-      title="New JHA / risk assessment"
+      title={t('safety.jha_modal.title_create')}
       onClose={handleClose}
       onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Create
+            {t('common.create')}
           </Button>
         </>
       }
@@ -96,7 +98,7 @@ export function CreateJhaModal({ open, onClose, onCreated }: Props) {
         <div className="grid grid-cols-2 gap-3">
           <Input
             id="jha-ref"
-            label="Ref *"
+            label={`${t('safety.jha_modal.field_ref')} *`}
             value={form.ref}
             onChange={set('ref')}
             placeholder="JHA-001"
@@ -104,16 +106,21 @@ export function CreateJhaModal({ open, onClose, onCreated }: Props) {
           />
           <Input
             id="jha-activity"
-            label="Activity"
+            label={t('safety.jha_modal.field_activity')}
             value={form.activity}
             onChange={set('activity')}
             placeholder="Hot work / Enclosed entry"
           />
         </div>
-        <Input id="jha-title" label="Title *" value={form.title} onChange={set('title')} />
+        <Input
+          id="jha-title"
+          label={`${t('safety.jha_modal.field_title')} *`}
+          value={form.title}
+          onChange={set('title')}
+        />
         <TextArea
           id="jha-hazards"
-          label="Hazards (one per line) *"
+          label={`${t('safety.jha_modal.field_hazards')} *`}
           rows={3}
           value={form.hazardsText}
           onChange={set('hazardsText')}
@@ -121,7 +128,7 @@ export function CreateJhaModal({ open, onClose, onCreated }: Props) {
         />
         <TextArea
           id="jha-controls"
-          label="Key controls (one per line) *"
+          label={`${t('safety.jha_modal.field_controls')} *`}
           rows={3}
           value={form.controlsText}
           onChange={set('controlsText')}
@@ -130,7 +137,7 @@ export function CreateJhaModal({ open, onClose, onCreated }: Props) {
         <div className="grid grid-cols-2 gap-3">
           <Input
             id="jha-l"
-            label="Residual likelihood (1-5)"
+            label={t('safety.jha_modal.field_residual_l')}
             type="number"
             min="1"
             max="5"
@@ -139,7 +146,7 @@ export function CreateJhaModal({ open, onClose, onCreated }: Props) {
           />
           <Input
             id="jha-s"
-            label="Residual severity (1-5)"
+            label={t('safety.jha_modal.field_residual_s')}
             type="number"
             min="1"
             max="5"

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, Select, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -19,14 +20,6 @@ interface Props {
   onSaved: () => void;
 }
 
-const STATUS_OPTIONS = [
-  { value: 'SCHEDULED', label: 'Scheduled' },
-  { value: 'IN_PROGRESS', label: 'In progress' },
-  { value: 'COMPLETED', label: 'Completed' },
-  { value: 'POSTPONED', label: 'Postponed' },
-  { value: 'CANCELLED', label: 'Cancelled' },
-];
-
 function toLocalInput(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
@@ -35,6 +28,7 @@ function toLocalInput(iso: string): string {
 }
 
 export function EditSurveyModal({ survey, onClose, onSaved }: Props) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(() => ({
     scheduledAt: toLocalInput(survey.scheduledAt),
     kind: survey.kind,
@@ -46,6 +40,17 @@ export function EditSurveyModal({ survey, onClose, onSaved }: Props) {
   }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const statusOptions = useMemo(
+    () => [
+      { value: 'SCHEDULED', label: t('certificates.survey_modal.status_scheduled') },
+      { value: 'IN_PROGRESS', label: t('certificates.survey_modal.status_in_progress') },
+      { value: 'COMPLETED', label: t('certificates.survey_modal.status_completed') },
+      { value: 'POSTPONED', label: t('certificates.survey_modal.status_postponed') },
+      { value: 'CANCELLED', label: t('certificates.survey_modal.status_cancelled') },
+    ],
+    [t],
+  );
 
   useEffect(() => {
     setForm({
@@ -72,7 +77,7 @@ export function EditSurveyModal({ survey, onClose, onSaved }: Props) {
       !form.surveyor.trim() ||
       !form.location.trim()
     ) {
-      setError('Scheduled date, kind, scope, surveyor and location are required.');
+      setError(t('certificates.survey_modal.error_required'));
       return;
     }
     setSaving(true);
@@ -89,7 +94,7 @@ export function EditSurveyModal({ survey, onClose, onSaved }: Props) {
       });
       onSaved();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to update survey.');
+      setError(e instanceof Error ? e.message : t('certificates.survey_modal.error_update'));
     } finally {
       setSaving(false);
     }
@@ -98,16 +103,16 @@ export function EditSurveyModal({ survey, onClose, onSaved }: Props) {
   return (
     <Modal
       open
-      title="Edit survey"
+      title={t('certificates.survey_modal.title_edit')}
       onClose={onClose}
       onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Save
+            {t('common.save')}
           </Button>
         </>
       }
@@ -118,34 +123,52 @@ export function EditSurveyModal({ survey, onClose, onSaved }: Props) {
         )}
         <Input
           id="sv-scheduled"
-          label="Scheduled at *"
+          label={`${t('certificates.survey_modal.field_scheduled_at')} *`}
           type="datetime-local"
           value={form.scheduledAt}
           onChange={set('scheduledAt')}
           autoFocus
         />
         <div className="grid grid-cols-2 gap-3">
-          <Input id="sv-kind" label="Kind *" value={form.kind} onChange={set('kind')} />
-          <Input id="sv-scope" label="Scope *" value={form.scope} onChange={set('scope')} />
+          <Input
+            id="sv-kind"
+            label={`${t('certificates.survey_modal.field_kind')} *`}
+            value={form.kind}
+            onChange={set('kind')}
+          />
+          <Input
+            id="sv-scope"
+            label={`${t('certificates.survey_modal.field_scope')} *`}
+            value={form.scope}
+            onChange={set('scope')}
+          />
           <Input
             id="sv-surveyor"
-            label="Surveyor *"
+            label={`${t('certificates.survey_modal.field_surveyor')} *`}
             value={form.surveyor}
             onChange={set('surveyor')}
           />
           <Input
             id="sv-location"
-            label="Location *"
+            label={`${t('certificates.survey_modal.field_location')} *`}
             value={form.location}
             onChange={set('location')}
           />
         </div>
         <Select
-          options={STATUS_OPTIONS}
+          id="sv-status"
+          label={t('certificates.survey_modal.field_status')}
+          options={statusOptions}
           value={form.status}
           onChange={(v) => setForm((f) => ({ ...f, status: v as typeof f.status }))}
         />
-        <TextArea id="sv-notes" label="Notes" rows={2} value={form.notes} onChange={set('notes')} />
+        <TextArea
+          id="sv-notes"
+          label={t('certificates.survey_modal.field_notes')}
+          rows={2}
+          value={form.notes}
+          onChange={set('notes')}
+        />
       </div>
     </Modal>
   );
