@@ -691,7 +691,7 @@ function SurveysTab({
           disabled={!canAdd}
           title={canAdd ? undefined : 'Select a vessel first'}
         >
-          + {t('certificates.schedule_survey')}
+          {t('certificates.schedule_survey')}
         </button>
       </div>
 
@@ -825,7 +825,7 @@ function ConditionsTab({
           disabled={!canAdd}
           title={canAdd ? undefined : 'Select a vessel first'}
         >
-          + {t('certificates.log_item')}
+          {t('certificates.log_item')}
         </button>
       </div>
 

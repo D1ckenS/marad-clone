@@ -16,6 +16,10 @@ interface SelectProps {
   size?: 'sm' | 'md';
   /** Which direction the dropdown opens. Default: bottom. Use top when the trigger is near the bottom of a constrained container. */
   placement?: 'bottom' | 'top';
+  /** Optional field label rendered above the trigger; matches Input's spacing so adjacent fields align. */
+  label?: string;
+  /** Used to associate the label with the trigger for screen readers. */
+  id?: string;
 }
 
 const HEIGHT = { sm: 28, md: 36 };
@@ -30,12 +34,14 @@ export function Select({
   disabled,
   size = 'md',
   placement = 'bottom',
+  label,
+  id,
 }: SelectProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   const selected = options.find((o) => o.value === value) ?? null;
-  const label = selected?.label ?? placeholder ?? 'Select…';
+  const triggerLabel = selected?.label ?? placeholder ?? 'Select…';
   const isEmpty = !selected;
 
   useEffect(() => {
@@ -50,115 +56,125 @@ export function Select({
   }, [open]);
 
   return (
-    <div ref={ref} style={{ position: 'relative', width: '100%' }}>
-      <button
-        type="button"
-        onClick={() => !disabled && setOpen((p) => !p)}
-        style={{
-          width: '100%',
-          height: HEIGHT[size],
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: PAD[size],
-          borderRadius: 6,
-          border: '1px solid var(--border)',
-          background: open ? 'var(--surface-2)' : 'var(--surface)',
-          cursor: disabled ? 'not-allowed' : 'pointer',
-          fontFamily: 'inherit',
-          textAlign: 'left',
-          opacity: disabled ? 0.5 : 1,
-          transition: 'background .1s',
-        }}
-      >
-        <span
-          style={{
-            flex: 1,
-            fontSize: FONT[size],
-            fontWeight: isEmpty ? 400 : 500,
-            color: isEmpty ? 'var(--ink-3)' : 'var(--ink)',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%' }}>
+      {label && (
+        <label htmlFor={id} style={{ fontSize: 12.5, fontWeight: 500, color: '#41546A' }}>
           {label}
-        </span>
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 12 12"
-          style={{
-            flexShrink: 0,
-            color: 'var(--ink-3)',
-            transform: open ? 'rotate(180deg)' : 'none',
-            transition: 'transform .15s',
-          }}
-        >
-          <path
-            d="M2 4l4 4 4-4"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-
-      {open && (
-        <div
-          style={{
-            position: 'absolute',
-            ...(placement === 'top' ? { bottom: 'calc(100% + 4px)' } : { top: 'calc(100% + 4px)' }),
-            left: 0,
-            right: 0,
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            borderRadius: 8,
-            boxShadow: '0 4px 16px rgba(10,31,51,.10)',
-            zIndex: 200,
-            overflow: 'hidden',
-            maxHeight: 260,
-            overflowY: 'auto',
-          }}
-        >
-          {options.map((o, i) => (
-            <button
-              key={o.value}
-              type="button"
-              onClick={() => {
-                onChange(o.value);
-                setOpen(false);
-              }}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                border: 'none',
-                borderTop: i === 0 ? 'none' : '1px solid var(--hairline)',
-                background: value === o.value ? 'var(--surface-sunk)' : 'var(--surface)',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                textAlign: 'left',
-                fontSize: 13,
-                fontWeight: value === o.value ? 600 : 400,
-                color: 'var(--ink)',
-                display: 'block',
-              }}
-              onMouseEnter={(e) => {
-                if (value !== o.value)
-                  (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface-2)';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background =
-                  value === o.value ? 'var(--surface-sunk)' : 'var(--surface)';
-              }}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
+        </label>
       )}
+      <div ref={ref} style={{ position: 'relative', width: '100%' }}>
+        <button
+          id={id}
+          type="button"
+          onClick={() => !disabled && setOpen((p) => !p)}
+          style={{
+            width: '100%',
+            height: HEIGHT[size],
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: PAD[size],
+            borderRadius: 6,
+            border: '1px solid var(--border)',
+            background: open ? 'var(--surface-2)' : 'var(--surface)',
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            fontFamily: 'inherit',
+            textAlign: 'left',
+            opacity: disabled ? 0.5 : 1,
+            transition: 'background .1s',
+          }}
+        >
+          <span
+            style={{
+              flex: 1,
+              fontSize: FONT[size],
+              fontWeight: isEmpty ? 400 : 500,
+              color: isEmpty ? 'var(--ink-3)' : 'var(--ink)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {triggerLabel}
+          </span>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            style={{
+              flexShrink: 0,
+              color: 'var(--ink-3)',
+              transform: open ? 'rotate(180deg)' : 'none',
+              transition: 'transform .15s',
+            }}
+          >
+            <path
+              d="M2 4l4 4 4-4"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+
+        {open && (
+          <div
+            style={{
+              position: 'absolute',
+              ...(placement === 'top'
+                ? { bottom: 'calc(100% + 4px)' }
+                : { top: 'calc(100% + 4px)' }),
+              left: 0,
+              right: 0,
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              boxShadow: '0 4px 16px rgba(10,31,51,.10)',
+              zIndex: 200,
+              overflow: 'hidden',
+              maxHeight: 260,
+              overflowY: 'auto',
+            }}
+          >
+            {options.map((o, i) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => {
+                  onChange(o.value);
+                  setOpen(false);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: 'none',
+                  borderTop: i === 0 ? 'none' : '1px solid var(--hairline)',
+                  background: value === o.value ? 'var(--surface-sunk)' : 'var(--surface)',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  textAlign: 'left',
+                  fontSize: 13,
+                  fontWeight: value === o.value ? 600 : 400,
+                  color: 'var(--ink)',
+                  display: 'block',
+                }}
+                onMouseEnter={(e) => {
+                  if (value !== o.value)
+                    (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface-2)';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background =
+                    value === o.value ? 'var(--surface-sunk)' : 'var(--surface)';
+                }}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

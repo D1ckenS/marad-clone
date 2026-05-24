@@ -102,6 +102,8 @@ export function CreateInspectionModal({ open, vesselId, onClose, onCreated }: Pr
             autoFocus
           />
           <Select
+            id="ins-kind"
+            label="Kind"
             options={KIND_OPTIONS}
             value={form.kind}
             onChange={(v) => setForm((f) => ({ ...f, kind: v }))}

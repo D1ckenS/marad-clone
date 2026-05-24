@@ -695,7 +695,7 @@ function AuditsTab({
                 cursor: 'pointer',
               }}
             >
-              + {t('qhse.schedule_audit')}
+              {t('qhse.schedule_audit')}
             </button>
           </div>
           <div
@@ -1631,7 +1631,7 @@ function MgmtReviewTab({
           className="px-3 py-1 rounded-2 text-[12px] font-medium"
           style={{ background: 'var(--navy)', color: '#fff', border: 'none', cursor: 'pointer' }}
         >
-          + {t('qhse.schedule_review')}
+          {t('qhse.schedule_review')}
         </button>
       </div>
 

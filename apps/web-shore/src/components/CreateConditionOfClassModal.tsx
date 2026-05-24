@@ -88,6 +88,8 @@ export function CreateConditionOfClassModal({ open, vesselId, onClose, onCreated
           <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">{error}</div>
         )}
         <Select
+          id="coc-severity"
+          label="Severity"
           options={SEVERITY_OPTIONS}
           value={form.severity}
           onChange={(v) => setForm((f) => ({ ...f, severity: v }))}

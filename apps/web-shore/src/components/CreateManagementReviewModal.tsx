@@ -99,6 +99,8 @@ export function CreateManagementReviewModal({ open, onClose, onCreated }: Props)
             placeholder="Annual / Quarterly"
           />
           <Select
+            id="mr-status"
+            label="Status"
             options={STATUS_OPTIONS}
             value={form.status}
             onChange={(v) => setForm((f) => ({ ...f, status: v }))}

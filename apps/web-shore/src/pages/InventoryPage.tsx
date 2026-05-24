@@ -307,25 +307,7 @@ function DetailPane({
       .finally(() => setLoadingMov(false));
   }, [part?.id]);
 
-  if (!part)
-    return (
-      <aside
-        style={{
-          width: 300,
-          flexShrink: 0,
-          background: T.surface,
-          borderLeft: `1px solid ${T.border}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 24,
-        }}
-      >
-        <p style={{ fontSize: 12.5, color: T.ink3, textAlign: 'center' }}>
-          {t('inventory.select_part_hint')}
-        </p>
-      </aside>
-    );
+  if (!part) return null;
 
   const status = worstStatus(part.stockLevels);
   const first = part.stockLevels[0];

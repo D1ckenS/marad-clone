@@ -135,6 +135,8 @@ export function CreateSurveyModal({ open, vesselId, onClose, onCreated }: Props)
           />
         </div>
         <Select
+          id="sv-status"
+          label="Status"
           options={STATUS_OPTIONS}
           value={form.status}
           onChange={(v) => setForm((f) => ({ ...f, status: v }))}

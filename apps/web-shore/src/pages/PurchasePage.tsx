@@ -776,7 +776,7 @@ function RequisitionsTab() {
       <div
         className="grid gap-2 px-4 py-2 flex-shrink-0 text-[10.5px] font-semibold uppercase tracking-widest"
         style={{
-          gridTemplateColumns: '80px 1fr 110px 90px 100px 80px',
+          gridTemplateColumns: '80px 1fr 110px 90px 100px 150px',
           background: 'var(--surface-sunk)',
           color: 'var(--ink-3)',
           borderBottom: '1px solid var(--border)',
@@ -814,7 +814,7 @@ function RequisitionsTab() {
               <div
                 className="grid gap-2 px-4 py-2.5 cursor-pointer transition-colors"
                 style={{
-                  gridTemplateColumns: '80px 1fr 110px 90px 100px 80px',
+                  gridTemplateColumns: '80px 1fr 110px 90px 100px 150px',
                   borderTop: '1px solid var(--hairline)',
                   background: expanded === r.id ? 'var(--surface-sunk)' : 'var(--surface)',
                 }}

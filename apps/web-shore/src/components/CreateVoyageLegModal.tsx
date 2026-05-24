@@ -120,6 +120,8 @@ export function CreateVoyageLegModal({ open, vesselId, onClose, onCreated }: Pro
             placeholder="RTM → SIN"
           />
           <Select
+            id="vl-mode"
+            label="Mode"
             options={MODE_OPTIONS}
             value={form.mode}
             onChange={(v) => setForm((f) => ({ ...f, mode: v }))}

@@ -126,6 +126,8 @@ export function EditInspectionModal({ inspection, onClose, onSaved }: Props) {
             autoFocus
           />
           <Select
+            id="ins-kind"
+            label="Kind"
             options={KIND_OPTIONS}
             value={form.kind}
             onChange={(v) => setForm((f) => ({ ...f, kind: v as typeof f.kind }))}

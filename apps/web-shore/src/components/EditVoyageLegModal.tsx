@@ -142,6 +142,8 @@ export function EditVoyageLegModal({ leg, onClose, onSaved }: Props) {
             autoFocus
           />
           <Select
+            id="vl-mode"
+            label="Mode"
             options={MODE_OPTIONS}
             value={form.mode}
             onChange={(v) => setForm((f) => ({ ...f, mode: v as typeof f.mode }))}

@@ -141,6 +141,8 @@ export function EditSurveyModal({ survey, onClose, onSaved }: Props) {
           />
         </div>
         <Select
+          id="sv-status"
+          label="Status"
           options={STATUS_OPTIONS}
           value={form.status}
           onChange={(v) => setForm((f) => ({ ...f, status: v as typeof f.status }))}

@@ -97,11 +97,15 @@ export function CreateAuditModal({ open, vesselId, onClose, onCreated }: Props) 
         )}
         <div className="grid grid-cols-2 gap-3">
           <Select
+            id="aud-kind"
+            label="Kind"
             options={KIND_OPTIONS}
             value={form.kind}
             onChange={(v) => setForm((f) => ({ ...f, kind: v }))}
           />
           <Select
+            id="aud-status"
+            label="Status"
             options={STATUS_OPTIONS}
             value={form.status}
             onChange={(v) => setForm((f) => ({ ...f, status: v }))}

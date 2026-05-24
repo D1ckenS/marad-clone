@@ -554,26 +554,7 @@ function CrewTab({ crew, loading }: { crew: CrewMember[]; loading: boolean }) {
         </div>
       </section>
 
-      {sel ? (
-        <CrewDetailPane c={sel} onClose={() => setSelected(null)} />
-      ) : (
-        <aside
-          style={{
-            width: 340,
-            flexShrink: 0,
-            background: 'var(--surface)',
-            borderLeft: '1px solid var(--border)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 24,
-          }}
-        >
-          <p className="text-xs text-center" style={{ color: 'var(--ink-3)' }}>
-            {t('crewing.select_member_hint')}
-          </p>
-        </aside>
-      )}
+      {sel && <CrewDetailPane c={sel} onClose={() => setSelected(null)} />}
     </div>
   );
 }

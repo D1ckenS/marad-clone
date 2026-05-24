@@ -98,11 +98,15 @@ export function CreateSafetyEquipmentModal({ open, vesselId, onClose, onCreated 
         )}
         <div className="grid grid-cols-2 gap-3">
           <Select
+            id="se-category"
+            label="Category"
             options={CATEGORY_OPTIONS}
             value={form.category}
             onChange={(v) => setForm((f) => ({ ...f, category: v }))}
           />
           <Select
+            id="se-status"
+            label="Status"
             options={STATUS_OPTIONS}
             value={form.status}
             onChange={(v) => setForm((f) => ({ ...f, status: v }))}

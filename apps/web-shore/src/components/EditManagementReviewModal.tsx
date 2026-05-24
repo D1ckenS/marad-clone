@@ -116,6 +116,8 @@ export function EditManagementReviewModal({ review, onClose, onSaved }: Props) {
         <div className="grid grid-cols-2 gap-3">
           <Input id="mr-kind" label="Kind *" value={form.kind} onChange={set('kind')} autoFocus />
           <Select
+            id="mr-status"
+            label="Status"
             options={STATUS_OPTIONS}
             value={form.status}
             onChange={(v) => setForm((f) => ({ ...f, status: v as typeof f.status }))}
