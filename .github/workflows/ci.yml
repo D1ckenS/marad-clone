@@ -16,6 +16,31 @@ jobs:
   ci:
     name: ci
     runs-on: ubuntu-latest
+
+    env:
+      # Skip the Electron binary download on `pnpm install` — none of our CI
+      # steps boot Electron, and the download is ~120 MB.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+
+    services:
+      # Postgres 16, mirrors infra/docker-compose.dev.yml port mapping (5433).
+      # We start with `marad` as the bootstrap superuser, then add a
+      # NOSUPERUSER `fleetops` role for the app/test connection so RLS is
+      # actually enforced against application queries (matches P5-4 dev).
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: marad
+          POSTGRES_PASSWORD: marad
+          POSTGRES_DB: fleetops_shore
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U marad -d fleetops_shore"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -23,7 +48,7 @@ jobs:
           fetch-depth: 1
 
       - name: Set up pnpm
-        # version is read from the `packageManager` field in root package.json
+        # Version is read from the `packageManager` field in root package.json.
         uses: pnpm/action-setup@v6
 
       - name: Set up Node
@@ -35,14 +60,93 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # ── Static checks (cheap, fail fast before spinning up the DB) ─────────
+
       - name: Lint
         run: pnpm run lint
 
-      - name: Typecheck
-        run: pnpm run typecheck
+      - name: Typecheck (root + every workspace)
+        # Previously this step ran `pnpm run typecheck` which only covers the
+        # root tsconfig. `typecheck:all` also runs `tsc --noEmit` inside every
+        # workspace package (api-shore, api-vessel, web-shore, desktop-vessel,
+        # ui-kit, domain, sync-engine, etc.). The vessel auth regression from
+        # PR #29 wasn't caught for 2+ days because root-only typecheck doesn't
+        # import the per-app code.
+        run: pnpm run typecheck:all
 
-      - name: Test
+      - name: Unit tests
         run: pnpm run test
 
       - name: Format check
         run: pnpm run format:check
+
+      # ── E2E setup ──────────────────────────────────────────────────────────
+
+      - name: Generate RS256 JWT keypair
+        # Shore + vessel e2e both load PEM files at ../../keys/jwt-*.pem
+        # relative to their package (= repo-root/keys/). gen:jwt-keys writes
+        # them there; they're gitignored so CI must generate fresh each run.
+        run: pnpm -w run gen:jwt-keys
+
+      - name: Bootstrap test DB — create non-superuser fleetops role
+        env:
+          PGPASSWORD: marad
+        # Mirrors what P5-4 set up in dev: fleetops is NOSUPERUSER so RLS
+        # policies are actually enforced against application queries.
+        run: |
+          psql -h localhost -p 5433 -U marad -d fleetops_shore <<'SQL'
+          CREATE ROLE fleetops WITH LOGIN PASSWORD 'fleetops_dev' NOSUPERUSER;
+          GRANT CONNECT ON DATABASE fleetops_shore TO fleetops;
+          GRANT USAGE, CREATE ON SCHEMA public TO fleetops;
+          SQL
+
+      - name: Apply Prisma migrations (shore)
+        env:
+          # Migrations run as superuser so CREATE POLICY / ALTER ROLE / etc.
+          # always succeed even if a future migration needs them.
+          DATABASE_URL: postgresql://marad:marad@localhost:5433/fleetops_shore
+        run: pnpm --filter api-shore exec prisma migrate deploy
+
+      - name: Grant DML on migrated tables to fleetops
+        env:
+          PGPASSWORD: marad
+        # Migrations create tables owned by marad; fleetops needs explicit
+        # SELECT/INSERT/UPDATE/DELETE to run the app. ALTER DEFAULT PRIVILEGES
+        # covers any future migration that adds tables.
+        run: |
+          psql -h localhost -p 5433 -U marad -d fleetops_shore <<'SQL'
+          GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO fleetops;
+          GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO fleetops;
+          ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO fleetops;
+          ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO fleetops;
+          SQL
+
+      # ── E2E suites ─────────────────────────────────────────────────────────
+
+      - name: Shore e2e
+        env:
+          DATABASE_URL: postgresql://fleetops:fleetops_dev@localhost:5433/fleetops_shore
+          JWT_PRIVATE_KEY_PATH: ../../keys/jwt-private.pem
+          JWT_PUBLIC_KEY_PATH: ../../keys/jwt-public.pem
+          JWT_ACCESS_TTL_MS: '86400000'
+          JWT_REFRESH_TTL_MS: '2592000000'
+          # S3 is stubbed by StorageService.overrideProvider in every e2e
+          # file; these values just satisfy ConfigService validation.
+          S3_ENDPOINT: http://localhost:9999
+          S3_ACCESS_KEY_ID: stub
+          S3_SECRET_ACCESS_KEY: stub
+          S3_BUCKET: stub-bucket
+          S3_REGION: us-east-1
+          S3_FORCE_PATH_STYLE: '1'
+          PLATFORM_BOOTSTRAP_KEY: ci-bootstrap-key
+          PORT: '3000'
+          NODE_ENV: test
+        run: pnpm --filter api-shore run test:e2e
+
+      - name: Vessel e2e
+        # Vessel uses in-memory SQLite (set in vitest.config.e2e.ts), so no
+        # service container needed. The vitest config also pre-sets
+        # DATABASE_URL=:memory:, JWT key paths, VESSEL_LOCAL_JWT_SECRET, and
+        # the port. We only need to make sure the JWT pem files exist
+        # (done above by gen:jwt-keys).
+        run: pnpm --filter api-vessel run test:e2e
