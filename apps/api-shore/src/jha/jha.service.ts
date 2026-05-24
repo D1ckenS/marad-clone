@@ -3,15 +3,47 @@ import { Prisma } from '@prisma/client';
 import { newId } from '@fleetops/domain';
 import type { AuthContext } from '../auth/auth-context';
 import { PrismaService } from '../prisma/prisma.service';
+import { TenantBroadcastRecorder } from '../sync/tenant-broadcast-recorder';
 import type { CreateJhaDto, UpdateJhaDto } from './dto/jha.dto';
+
+// Field names the vessel materialiser expects in the broadcast payload.
+// Keep in sync with `Jha` registration in tenant-materialisers.ts.
+function broadcastFields(row: {
+  tenantId: string;
+  ref: string;
+  title: string;
+  activity: string | null;
+  hazards: unknown;
+  controls: unknown;
+  residualL: number;
+  residualS: number;
+  reviewedAt: Date | null;
+  reviewedBy: string | null;
+}): Record<string, unknown> {
+  return {
+    tenantId: row.tenantId,
+    ref: row.ref,
+    title: row.title,
+    activity: row.activity,
+    hazards: row.hazards,
+    controls: row.controls,
+    residualL: row.residualL,
+    residualS: row.residualS,
+    reviewedAt: row.reviewedAt?.toISOString() ?? null,
+    reviewedBy: row.reviewedBy,
+  };
+}
 
 @Injectable()
 export class JhaService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly broadcaster: TenantBroadcastRecorder,
+  ) {}
 
   create(auth: AuthContext, dto: CreateJhaDto) {
-    return this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.jha.create({
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      const row = await tx.jha.create({
         data: {
           id: newId(),
           tenantId: auth.tenantId!,
@@ -25,8 +57,16 @@ export class JhaService {
           reviewedAt: dto.reviewedAt ? new Date(dto.reviewedAt) : null,
           reviewedBy: dto.reviewedBy ?? null,
         },
-      }),
-    );
+      });
+      await this.broadcaster.broadcastUpsert(
+        tx,
+        auth.tenantId!,
+        'Jha',
+        row.id,
+        broadcastFields(row),
+      );
+      return row;
+    });
   }
 
   findAll(auth: AuthContext) {
@@ -50,8 +90,8 @@ export class JhaService {
 
   async update(auth: AuthContext, id: string, dto: UpdateJhaDto) {
     await this.findOne(auth, id);
-    return this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.jha.update({
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      const row = await tx.jha.update({
         where: { id },
         data: {
           ...(dto.ref !== undefined && { ref: dto.ref }),
@@ -66,14 +106,23 @@ export class JhaService {
           }),
           ...(dto.reviewedBy !== undefined && { reviewedBy: dto.reviewedBy }),
         },
-      }),
-    );
+      });
+      await this.broadcaster.broadcastUpsert(
+        tx,
+        auth.tenantId!,
+        'Jha',
+        row.id,
+        broadcastFields(row),
+      );
+      return row;
+    });
   }
 
   async softDelete(auth: AuthContext, id: string) {
     await this.findOne(auth, id);
-    await this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.jha.update({ where: { id }, data: { deletedAt: new Date() } }),
-    );
+    await this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      await tx.jha.update({ where: { id }, data: { deletedAt: new Date() } });
+      await this.broadcaster.broadcastDelete(tx, auth.tenantId!, 'Jha', id);
+    });
   }
 }

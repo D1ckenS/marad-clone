@@ -2,15 +2,39 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { newId } from '@fleetops/domain';
 import type { AuthContext } from '../auth/auth-context';
 import { PrismaService } from '../prisma/prisma.service';
+import { TenantBroadcastRecorder } from '../sync/tenant-broadcast-recorder';
 import type { CreateDrybmsElementDto, UpdateDrybmsElementDto } from './dto/drybms-element.dto';
+
+function broadcastFields(row: {
+  tenantId: string;
+  chapter: string;
+  chapterTitle: string;
+  name: string;
+  score: number;
+  stage: string | null;
+  evidence: string | null;
+}): Record<string, unknown> {
+  return {
+    tenantId: row.tenantId,
+    chapter: row.chapter,
+    chapterTitle: row.chapterTitle,
+    name: row.name,
+    score: row.score,
+    stage: row.stage,
+    evidence: row.evidence,
+  };
+}
 
 @Injectable()
 export class DrybmsElementService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly broadcaster: TenantBroadcastRecorder,
+  ) {}
 
   create(auth: AuthContext, dto: CreateDrybmsElementDto) {
-    return this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.drybmsElement.create({
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      const row = await tx.drybmsElement.create({
         data: {
           id: newId(),
           tenantId: auth.tenantId!,
@@ -21,8 +45,16 @@ export class DrybmsElementService {
           stage: dto.stage ?? null,
           evidence: dto.evidence ?? null,
         },
-      }),
-    );
+      });
+      await this.broadcaster.broadcastUpsert(
+        tx,
+        auth.tenantId!,
+        'DrybmsElement',
+        row.id,
+        broadcastFields(row),
+      );
+      return row;
+    });
   }
 
   findAll(auth: AuthContext, query: { chapter?: string }) {
@@ -50,8 +82,8 @@ export class DrybmsElementService {
 
   async update(auth: AuthContext, id: string, dto: UpdateDrybmsElementDto) {
     await this.findOne(auth, id);
-    return this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.drybmsElement.update({
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      const row = await tx.drybmsElement.update({
         where: { id },
         data: {
           ...(dto.chapter !== undefined && { chapter: dto.chapter }),
@@ -61,14 +93,23 @@ export class DrybmsElementService {
           ...(dto.stage !== undefined && { stage: dto.stage }),
           ...(dto.evidence !== undefined && { evidence: dto.evidence }),
         },
-      }),
-    );
+      });
+      await this.broadcaster.broadcastUpsert(
+        tx,
+        auth.tenantId!,
+        'DrybmsElement',
+        row.id,
+        broadcastFields(row),
+      );
+      return row;
+    });
   }
 
   async softDelete(auth: AuthContext, id: string) {
     await this.findOne(auth, id);
-    await this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.drybmsElement.update({ where: { id }, data: { deletedAt: new Date() } }),
-    );
+    await this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      await tx.drybmsElement.update({ where: { id }, data: { deletedAt: new Date() } });
+      await this.broadcaster.broadcastDelete(tx, auth.tenantId!, 'DrybmsElement', id);
+    });
   }
 }

@@ -3,15 +3,47 @@ import { Prisma } from '@prisma/client';
 import { newId } from '@fleetops/domain';
 import type { AuthContext } from '../auth/auth-context';
 import { PrismaService } from '../prisma/prisma.service';
+import { TenantBroadcastRecorder } from '../sync/tenant-broadcast-recorder';
 import type { CreateQhseObjectiveDto, UpdateQhseObjectiveDto } from './dto/qhse-objective.dto';
+
+function broadcastFields(row: {
+  tenantId: string;
+  category: string;
+  label: string;
+  target: string;
+  actual: string;
+  unit: string;
+  status: string;
+  delta: string | null;
+  trend: unknown;
+  periodFrom: Date | null;
+  periodTo: Date | null;
+}): Record<string, unknown> {
+  return {
+    tenantId: row.tenantId,
+    category: row.category,
+    label: row.label,
+    target: row.target,
+    actual: row.actual,
+    unit: row.unit,
+    status: row.status,
+    delta: row.delta,
+    trend: row.trend ?? null,
+    periodFrom: row.periodFrom?.toISOString() ?? null,
+    periodTo: row.periodTo?.toISOString() ?? null,
+  };
+}
 
 @Injectable()
 export class QhseObjectiveService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly broadcaster: TenantBroadcastRecorder,
+  ) {}
 
   create(auth: AuthContext, dto: CreateQhseObjectiveDto) {
-    return this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.qhseObjective.create({
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      const row = await tx.qhseObjective.create({
         data: {
           id: newId(),
           tenantId: auth.tenantId!,
@@ -29,8 +61,16 @@ export class QhseObjectiveService {
           periodFrom: dto.periodFrom ? new Date(dto.periodFrom) : null,
           periodTo: dto.periodTo ? new Date(dto.periodTo) : null,
         },
-      }),
-    );
+      });
+      await this.broadcaster.broadcastUpsert(
+        tx,
+        auth.tenantId!,
+        'QhseObjective',
+        row.id,
+        broadcastFields(row),
+      );
+      return row;
+    });
   }
 
   findAll(auth: AuthContext, query: { category?: string }) {
@@ -58,8 +98,8 @@ export class QhseObjectiveService {
 
   async update(auth: AuthContext, id: string, dto: UpdateQhseObjectiveDto) {
     await this.findOne(auth, id);
-    return this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.qhseObjective.update({
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      const row = await tx.qhseObjective.update({
         where: { id },
         data: {
           ...(dto.category !== undefined && { category: dto.category }),
@@ -79,14 +119,23 @@ export class QhseObjectiveService {
             periodTo: dto.periodTo === null ? null : new Date(dto.periodTo),
           }),
         },
-      }),
-    );
+      });
+      await this.broadcaster.broadcastUpsert(
+        tx,
+        auth.tenantId!,
+        'QhseObjective',
+        row.id,
+        broadcastFields(row),
+      );
+      return row;
+    });
   }
 
   async softDelete(auth: AuthContext, id: string) {
     await this.findOne(auth, id);
-    await this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.qhseObjective.update({ where: { id }, data: { deletedAt: new Date() } }),
-    );
+    await this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      await tx.qhseObjective.update({ where: { id }, data: { deletedAt: new Date() } });
+      await this.broadcaster.broadcastDelete(tx, auth.tenantId!, 'QhseObjective', id);
+    });
   }
 }
