@@ -254,7 +254,7 @@ These changed in the P2-2 merge and are easy to get wrong in tests.
 .send({ tenantId, identifier: 'user@example.com', password: 'Pass1234!' })
 ```
 
-**In e2e tests on vessel** — the vessel auth still accepts `email:` in the body (vessel uses a different DTO). Do not change vessel tests to use `identifier`.
+**In e2e tests on vessel** — `LoginDto` was renamed to use `identifier:` in PR #29 (modal-enter-key fix) to mirror shore. Vessel users have no `username` column so the identifier is always an email, but the field name is `identifier`. PR #46 fixed the 10 e2e files that still sent `email:`.
 
 ---
 
