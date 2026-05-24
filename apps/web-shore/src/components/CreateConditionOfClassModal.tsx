@@ -108,7 +108,7 @@ export function CreateConditionOfClassModal({ open, vesselId, onClose, onCreated
           value={form.detail}
           onChange={set('detail')}
         />
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input
             id="coc-raised"
             label="Raised at *"
