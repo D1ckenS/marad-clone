@@ -11,6 +11,9 @@ export {
   startSyncServer,
   type GrpcClientTransportOptions,
   type SyncServerOptions,
+  type BlobServerHandler,
+  type BlobMetaWire,
+  type BlobUploadResult,
 } from './transport/grpc-transport.js';
 export {
   SmtpSyncTransport,

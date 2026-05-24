@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { S3Client } from '@aws-sdk/client-s3';
+import { DrizzleService } from '../db/drizzle.service';
 import { StorageService } from './storage.service';
 
 @Global()
@@ -7,7 +8,7 @@ import { StorageService } from './storage.service';
   providers: [
     {
       provide: StorageService,
-      useFactory: () => {
+      useFactory: (drizzle: DrizzleService) => {
         const accessKeyId = process.env['S3_ACCESS_KEY_ID'] ?? '';
         const secretAccessKey = process.env['S3_SECRET_ACCESS_KEY'] ?? '';
         const region = process.env['S3_REGION'] ?? 'us-east-1';
@@ -20,8 +21,9 @@ import { StorageService } from './storage.service';
           credentials: { accessKeyId, secretAccessKey },
           ...(endpoint !== undefined && endpoint.trim() !== '' && { endpoint, forcePathStyle }),
         });
-        return new StorageService(client, bucket);
+        return new StorageService(client, bucket, drizzle);
       },
+      inject: [DrizzleService],
     },
   ],
   exports: [StorageService],

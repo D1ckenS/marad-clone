@@ -12,6 +12,71 @@ service SyncService {
   rpc Stream(stream ClientMessage) returns (stream ServerMessage);
 }
 
+// Vessel-to-shore binary transfer (job-history photos, QHSE document
+// attachments, BDN PDFs, etc.). Runs alongside SyncService on the same
+// gRPC connection but on a separate RPC so multi-MB blob transfer does
+// not block per-entity deltas (head-of-line avoidance).
+//
+// Protocol: client sends a stream of BlobChunks. The first chunk MUST
+// carry a populated `meta`; subsequent chunks carry only `body`. After
+// the client closes its half-stream, the server replies with one
+// BlobUploadAck and ends. Retry: a partial upload is safely retried —
+// the receiver always overwrites by `meta.key` (PutObject is
+// idempotent for our key scheme).
+//
+// See apps/docs/adr/0003-blob-sync.md for design notes.
+service BlobService {
+  rpc UploadBlob(stream BlobChunk) returns (BlobUploadAck);
+}
+
+// --------------------------------------------------------------------
+// Blob transfer
+// --------------------------------------------------------------------
+
+message BlobMeta {
+  // Full S3 key, e.g.
+  //   "<tenantId>/<vesselId>/job-history/<id>/photos/0-photo.jpg"
+  string key = 1;
+  // MIME type for the receiver's PutObject. Optional; defaults to
+  // application/octet-stream.
+  string content_type = 2;
+  // Expected total byte length. Receiver uses it to validate and to
+  // pick single-shot PutObject vs multipart upload.
+  int64 size_bytes = 3;
+  // Hex-encoded sha256 of the full blob, optional. When present the
+  // receiver verifies after assembly and refuses to commit on mismatch.
+  string sha256 = 4;
+  // Tenant + vessel for receiver-side auth / logging. Redundant with
+  // the gRPC metadata but kept here so the message is self-describing
+  // in protocol traces.
+  string tenant_id = 5;
+  string vessel_id = 6;
+}
+
+message BlobChunk {
+  // Populated on the FIRST chunk only; absent thereafter.
+  BlobMeta meta = 1;
+  // Body slice for this chunk. Empty bytes are legal (e.g. a metadata-
+  // only "open" chunk).
+  bytes body = 2;
+  // Zero-indexed chunk number. Useful for receiver-side reordering
+  // sanity checks and for logs. Sender MUST emit consecutive ascending
+  // values starting at 0.
+  uint32 index = 3;
+}
+
+message BlobUploadAck {
+  // Echoed back so the sender can correlate with its outbox row.
+  string key = 1;
+  // Bytes actually persisted on shore. Sender should compare against
+  // its expected size as a final sanity check.
+  int64 stored_bytes = 2;
+  // True iff sha256 was supplied AND verified by the receiver.
+  bool sha256_verified = 3;
+  // Server-assigned correlation id for log triage.
+  string session_id = 4;
+}
+
 // --------------------------------------------------------------------
 // Envelopes
 // --------------------------------------------------------------------

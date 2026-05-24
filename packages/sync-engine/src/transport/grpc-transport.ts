@@ -124,7 +124,37 @@ export interface SyncServerOptions {
     onReceive: (delta: SyncDelta) => Promise<void>;
     onClose: () => Promise<void>;
   }>;
+  /**
+   * Optional BlobService handler. When provided, the same server also
+   * hosts BlobService.UploadBlob (vessel → shore binary transfer).
+   * The handler is called once per upload with the fully-assembled
+   * payload and is responsible for persisting it (typically to S3).
+   * Sync-engine deliberately knows nothing about S3 — that's the
+   * caller's concern.
+   */
+  blob?: BlobServerHandler;
 }
+
+export interface BlobMetaWire {
+  key: string;
+  contentType: string;
+  sizeBytes: number;
+  sha256: string;
+  tenantId: string;
+  vesselId: string;
+}
+
+export interface BlobUploadResult {
+  storedBytes: number;
+  sha256Verified: boolean;
+  sessionId: string;
+}
+
+export type BlobServerHandler = (
+  meta: BlobMetaWire,
+  body: Buffer,
+  metadata: { authorization?: string },
+) => Promise<BlobUploadResult>;
 
 /**
  * Boot a gRPC server hosting the SyncService at the given bind address.
@@ -140,6 +170,10 @@ export async function startSyncServer(
   const serviceImpl = (def.SyncService as unknown as { service: grpc.ServiceDefinition }).service;
 
   const server = new grpc.Server();
+
+  if (opts.blob !== undefined) {
+    installBlobService(server, proto, opts.blob);
+  }
 
   server.addService(serviceImpl, {
     Stream: (call: grpc.ServerDuplexStream<ClientMessage, ServerMessage>) => {
@@ -198,6 +232,137 @@ export async function startSyncServer(
         server.tryShutdown(() => resolve());
       }),
   };
+}
+
+// ── BlobService server-side install ──────────────────────────────────────────
+
+interface BlobChunkWire {
+  meta?: {
+    key: string;
+    contentType: string;
+    sizeBytes: string | number;
+    sha256: string;
+    tenantId: string;
+    vesselId: string;
+  };
+  body: Buffer;
+  index: number;
+}
+
+interface BlobUploadAckWire {
+  key: string;
+  storedBytes: number | string;
+  sha256Verified: boolean;
+  sessionId: string;
+}
+
+interface BlobServiceDef {
+  BlobService: grpc.ServiceClientConstructor;
+}
+
+interface FleetopsBlobV1 {
+  fleetops: { sync: { v1: BlobServiceDef } };
+}
+
+function blobServiceFrom(proto: grpc.GrpcObject): BlobServiceDef {
+  return (proto as unknown as FleetopsBlobV1).fleetops.sync.v1;
+}
+
+function installBlobService(
+  server: grpc.Server,
+  proto: grpc.GrpcObject,
+  handler: BlobServerHandler,
+): void {
+  const def = blobServiceFrom(proto);
+  const serviceImpl = (def.BlobService as unknown as { service: grpc.ServiceDefinition }).service;
+
+  server.addService(serviceImpl, {
+    UploadBlob: (
+      call: grpc.ServerReadableStream<BlobChunkWire, BlobUploadAckWire>,
+      cb: grpc.sendUnaryData<BlobUploadAckWire>,
+    ) => {
+      let meta: BlobMetaWire | null = null;
+      const parts: Buffer[] = [];
+      let expectedNextIndex = 0;
+      const auth = call.metadata.get('authorization')[0];
+
+      call.on('data', (chunk: BlobChunkWire) => {
+        if (chunk.index !== expectedNextIndex) {
+          cb(
+            {
+              code: grpc.status.FAILED_PRECONDITION,
+              message: `out-of-order chunk`,
+            } as grpc.ServiceError,
+            null,
+          );
+          call.destroy();
+          return;
+        }
+        expectedNextIndex++;
+        // proto-loader with `defaults: true` materialises an empty `meta`
+        // on every chunk (and may even surface it as null on some chunks),
+        // so we key off `meta?.key` (the real signal) not the existence
+        // of the wrapper.
+        if (chunk.meta?.key !== undefined && chunk.meta.key !== '') {
+          if (meta !== null) {
+            cb(
+              {
+                code: grpc.status.FAILED_PRECONDITION,
+                message: 'meta sent twice',
+              } as grpc.ServiceError,
+              null,
+            );
+            call.destroy();
+            return;
+          }
+          meta = {
+            key: chunk.meta.key,
+            contentType: chunk.meta.contentType,
+            sizeBytes: Number(chunk.meta.sizeBytes),
+            sha256: chunk.meta.sha256,
+            tenantId: chunk.meta.tenantId,
+            vesselId: chunk.meta.vesselId,
+          };
+        }
+        if (chunk.body !== undefined && chunk.body.length > 0) parts.push(chunk.body);
+      });
+
+      call.on('end', () => {
+        if (meta === null) {
+          cb(
+            { code: grpc.status.FAILED_PRECONDITION, message: 'meta missing' } as grpc.ServiceError,
+            null,
+          );
+          return;
+        }
+        const body = Buffer.concat(parts);
+        const authVal = typeof auth === 'string' ? auth : auth?.toString();
+        handler(meta, body, authVal !== undefined ? { authorization: authVal } : {})
+          .then((res) => {
+            const ack: BlobUploadAckWire = {
+              key: meta!.key,
+              storedBytes: res.storedBytes,
+              sha256Verified: res.sha256Verified,
+              sessionId: res.sessionId,
+            };
+            cb(null, ack);
+          })
+          .catch((err: unknown) => {
+            cb(
+              {
+                code: grpc.status.INTERNAL,
+                message: err instanceof Error ? err.message : String(err),
+              } as grpc.ServiceError,
+              null,
+            );
+          });
+      });
+
+      call.on('error', () => {
+        // Client aborted; nothing to ack.
+      });
+    },
+  });
 }
 
 // ── client transport ──────────────────────────────────────────────────────────
