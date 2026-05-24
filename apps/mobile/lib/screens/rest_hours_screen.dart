@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/crew_member.dart';
 import '../providers/auth_provider.dart';
 import '../utils/request_bodies.dart';
 
@@ -10,7 +11,7 @@ class RestHoursScreen extends StatefulWidget {
 }
 
 class _RestHoursScreenState extends State<RestHoursScreen> {
-  List<dynamic> _crew = [];
+  List<CrewMember> _crew = [];
   bool _loading = true;
   String? _error;
 
@@ -25,7 +26,12 @@ class _RestHoursScreenState extends State<RestHoursScreen> {
     try {
       final client = context.read<AuthProvider>().client;
       final data = await client.get('/crew-members');
-      setState(() { _crew = data as List<dynamic>; });
+      setState(() {
+        _crew = (data as List<dynamic>)
+            .cast<Map<String, dynamic>>()
+            .map(CrewMember.fromJson)
+            .toList();
+      });
     } catch (e) {
       setState(() { _error = e.toString(); });
     } finally {
@@ -48,18 +54,18 @@ class _RestHoursScreenState extends State<RestHoursScreen> {
                     : ListView.builder(
                         itemCount: _crew.length,
                         itemBuilder: (ctx, i) {
-                          final m = _crew[i] as Map<String, dynamic>;
+                          final m = _crew[i];
                           return ListTile(
                             leading: CircleAvatar(
                               backgroundColor: const Color(0xFF1F5B9D),
                               child: Text(
-                                '${m['firstName']?.toString().substring(0, 1)}${m['lastName']?.toString().substring(0, 1)}',
+                                m.initials,
                                 style: const TextStyle(color: Colors.white, fontSize: 12),
                               ),
                             ),
-                            title: Text('${m['firstName']} ${m['lastName']}',
+                            title: Text(m.fullName,
                                 style: const TextStyle(fontWeight: FontWeight.w600)),
-                            subtitle: Text('${m['rank']} · ${m['status']}'),
+                            subtitle: Text('${m.rank ?? '—'} · ${m.status ?? '—'}'),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () => _showLogRestHoursDialog(context, m),
                           );
@@ -69,7 +75,7 @@ class _RestHoursScreenState extends State<RestHoursScreen> {
     );
   }
 
-  Future<void> _showLogRestHoursDialog(BuildContext ctx, Map<String, dynamic> member) async {
+  Future<void> _showLogRestHoursDialog(BuildContext ctx, CrewMember member) async {
     final dateController = TextEditingController(
         text: DateTime.now().toIso8601String().split('T').first);
     final List<bool> workedHours = List.filled(24, false);
@@ -89,7 +95,7 @@ class _RestHoursScreenState extends State<RestHoursScreen> {
                 child: Row(
                   children: [
                     Expanded(child: Text(
-                      'Log Rest Hours — ${member['firstName']} ${member['lastName']}',
+                      'Log Rest Hours — ${member.fullName}',
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                     )),
                     IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(sheetCtx)),
@@ -123,7 +129,7 @@ class _RestHoursScreenState extends State<RestHoursScreen> {
                     onTap: () => setSheetState(() { workedHours[h] = !workedHours[h]; }),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: workedHours[h] ? const Color(0xFFB5731E).withOpacity(0.15) : const Color(0xFF2F7D4F).withOpacity(0.12),
+                        color: workedHours[h] ? const Color(0xFFB5731E).withValues(alpha: 0.15) : const Color(0xFF2F7D4F).withValues(alpha: 0.12),
                         border: Border.all(color: workedHours[h] ? const Color(0xFFB5731E) : const Color(0xFF2F7D4F)),
                         borderRadius: BorderRadius.circular(6),
                       ),
@@ -148,8 +154,8 @@ class _RestHoursScreenState extends State<RestHoursScreen> {
                     onPressed: () async {
                       try {
                         final auth = ctx.read<AuthProvider>();
-                        final vesselId = auth.vesselId ?? (member['vesselId'] as String?);
-                        if (vesselId == null) {
+                        final vesselId = auth.vesselId ?? member.vesselId;
+                        if (vesselId.isEmpty) {
                           ScaffoldMessenger.of(sheetCtx).showSnackBar(
                             const SnackBar(
                               content: Text('Cannot log rest hours: vessel context missing.'),
@@ -162,7 +168,7 @@ class _RestHoursScreenState extends State<RestHoursScreen> {
                           '/rest-hour-entries',
                           buildRestHoursBody(
                             vesselId: vesselId,
-                            crewMemberId: member['id'] as String,
+                            crewMemberId: member.id,
                             date: dateController.text,
                             hoursWorked: workedHours,
                           ),

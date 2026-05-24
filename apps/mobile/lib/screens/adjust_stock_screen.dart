@@ -140,7 +140,7 @@ class _AdjustStockScreenState extends State<AdjustStockScreen> {
             const SizedBox(height: 16),
             // Movement type selector
             DropdownButtonFormField<String>(
-              value: _movementType,
+              initialValue: _movementType,
               decoration: const InputDecoration(
                 labelText: 'Movement Type',
                 border: OutlineInputBorder(),
@@ -167,7 +167,7 @@ class _AdjustStockScreenState extends State<AdjustStockScreen> {
               const Center(child: CircularProgressIndicator())
             else
               DropdownButtonFormField<String>(
-                value: _selectedLocationId,
+                initialValue: _selectedLocationId,
                 decoration: const InputDecoration(
                   labelText: 'Location',
                   border: OutlineInputBorder(),
