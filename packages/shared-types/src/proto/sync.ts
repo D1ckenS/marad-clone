@@ -25,6 +25,68 @@ export enum ErrorCode {
   UNRECOGNIZED = -1,
 }
 
+export interface BlobMeta {
+  /**
+   * Full S3 key, e.g.
+   *   "<tenantId>/<vesselId>/job-history/<id>/photos/0-photo.jpg"
+   */
+  key: string;
+  /**
+   * MIME type for the receiver's PutObject. Optional; defaults to
+   * application/octet-stream.
+   */
+  contentType: string;
+  /**
+   * Expected total byte length. Receiver uses it to validate and to
+   * pick single-shot PutObject vs multipart upload.
+   */
+  sizeBytes: string;
+  /**
+   * Hex-encoded sha256 of the full blob, optional. When present the
+   * receiver verifies after assembly and refuses to commit on mismatch.
+   */
+  sha256: string;
+  /**
+   * Tenant + vessel for receiver-side auth / logging. Redundant with
+   * the gRPC metadata but kept here so the message is self-describing
+   * in protocol traces.
+   */
+  tenantId: string;
+  vesselId: string;
+}
+
+export interface BlobChunk {
+  /** Populated on the FIRST chunk only; absent thereafter. */
+  meta?:
+    | BlobMeta
+    | undefined;
+  /**
+   * Body slice for this chunk. Empty bytes are legal (e.g. a metadata-
+   * only "open" chunk).
+   */
+  body: Uint8Array;
+  /**
+   * Zero-indexed chunk number. Useful for receiver-side reordering
+   * sanity checks and for logs. Sender MUST emit consecutive ascending
+   * values starting at 0.
+   */
+  index: number;
+}
+
+export interface BlobUploadAck {
+  /** Echoed back so the sender can correlate with its outbox row. */
+  key: string;
+  /**
+   * Bytes actually persisted on shore. Sender should compare against
+   * its expected size as a final sanity check.
+   */
+  storedBytes: string;
+  /** True iff sha256 was supplied AND verified by the receiver. */
+  sha256Verified: boolean;
+  /** Server-assigned correlation id for log triage. */
+  sessionId: string;
+}
+
 export interface ClientMessage {
   hello?: Hello | undefined;
   deltas?: DeltaBatch | undefined;
@@ -120,4 +182,23 @@ export interface Error {
  */
 export interface SyncService {
   Stream(request: Observable<ClientMessage>): Observable<ServerMessage>;
+}
+
+/**
+ * Vessel-to-shore binary transfer (job-history photos, QHSE document
+ * attachments, BDN PDFs, etc.). Runs alongside SyncService on the same
+ * gRPC connection but on a separate RPC so multi-MB blob transfer does
+ * not block per-entity deltas (head-of-line avoidance).
+ *
+ * Protocol: client sends a stream of BlobChunks. The first chunk MUST
+ * carry a populated `meta`; subsequent chunks carry only `body`. After
+ * the client closes its half-stream, the server replies with one
+ * BlobUploadAck and ends. Retry: a partial upload is safely retried —
+ * the receiver always overwrites by `meta.key` (PutObject is
+ * idempotent for our key scheme).
+ *
+ * See apps/docs/adr/0003-blob-sync.md for design notes.
+ */
+export interface BlobService {
+  UploadBlob(request: Observable<BlobChunk>): Promise<BlobUploadAck>;
 }

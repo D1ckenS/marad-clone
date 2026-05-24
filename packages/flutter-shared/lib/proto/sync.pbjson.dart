@@ -48,6 +48,65 @@ final $typed_data.Uint8List errorCodeDescriptor = $convert.base64Decode(
     '5BVVRIRU5USUNBVEVEEAESHgoaRVJST1JfQ09ERV9URU5BTlRfTUlTTUFUQ0gQAhIXChNFUlJP'
     'Ul9DT0RFX1BST1RPQ09MEAMSFwoTRVJST1JfQ09ERV9JTlRFUk5BTBAE');
 
+@$core.Deprecated('Use blobMetaDescriptor instead')
+const BlobMeta$json = {
+  '1': 'BlobMeta',
+  '2': [
+    {'1': 'key', '3': 1, '4': 1, '5': 9, '10': 'key'},
+    {'1': 'content_type', '3': 2, '4': 1, '5': 9, '10': 'contentType'},
+    {'1': 'size_bytes', '3': 3, '4': 1, '5': 3, '10': 'sizeBytes'},
+    {'1': 'sha256', '3': 4, '4': 1, '5': 9, '10': 'sha256'},
+    {'1': 'tenant_id', '3': 5, '4': 1, '5': 9, '10': 'tenantId'},
+    {'1': 'vessel_id', '3': 6, '4': 1, '5': 9, '10': 'vesselId'},
+  ],
+};
+
+/// Descriptor for `BlobMeta`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List blobMetaDescriptor = $convert.base64Decode(
+    'CghCbG9iTWV0YRIQCgNrZXkYASABKAlSA2tleRIhCgxjb250ZW50X3R5cGUYAiABKAlSC2Nvbn'
+    'RlbnRUeXBlEh0KCnNpemVfYnl0ZXMYAyABKANSCXNpemVCeXRlcxIWCgZzaGEyNTYYBCABKAlS'
+    'BnNoYTI1NhIbCgl0ZW5hbnRfaWQYBSABKAlSCHRlbmFudElkEhsKCXZlc3NlbF9pZBgGIAEoCV'
+    'IIdmVzc2VsSWQ=');
+
+@$core.Deprecated('Use blobChunkDescriptor instead')
+const BlobChunk$json = {
+  '1': 'BlobChunk',
+  '2': [
+    {
+      '1': 'meta',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.fleetops.sync.v1.BlobMeta',
+      '10': 'meta'
+    },
+    {'1': 'body', '3': 2, '4': 1, '5': 12, '10': 'body'},
+    {'1': 'index', '3': 3, '4': 1, '5': 13, '10': 'index'},
+  ],
+};
+
+/// Descriptor for `BlobChunk`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List blobChunkDescriptor = $convert.base64Decode(
+    'CglCbG9iQ2h1bmsSLgoEbWV0YRgBIAEoCzIaLmZsZWV0b3BzLnN5bmMudjEuQmxvYk1ldGFSBG'
+    '1ldGESEgoEYm9keRgCIAEoDFIEYm9keRIUCgVpbmRleBgDIAEoDVIFaW5kZXg=');
+
+@$core.Deprecated('Use blobUploadAckDescriptor instead')
+const BlobUploadAck$json = {
+  '1': 'BlobUploadAck',
+  '2': [
+    {'1': 'key', '3': 1, '4': 1, '5': 9, '10': 'key'},
+    {'1': 'stored_bytes', '3': 2, '4': 1, '5': 3, '10': 'storedBytes'},
+    {'1': 'sha256_verified', '3': 3, '4': 1, '5': 8, '10': 'sha256Verified'},
+    {'1': 'session_id', '3': 4, '4': 1, '5': 9, '10': 'sessionId'},
+  ],
+};
+
+/// Descriptor for `BlobUploadAck`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List blobUploadAckDescriptor = $convert.base64Decode(
+    'Cg1CbG9iVXBsb2FkQWNrEhAKA2tleRgBIAEoCVIDa2V5EiEKDHN0b3JlZF9ieXRlcxgCIAEoA1'
+    'ILc3RvcmVkQnl0ZXMSJwoPc2hhMjU2X3ZlcmlmaWVkGAMgASgIUg5zaGEyNTZWZXJpZmllZBId'
+    'CgpzZXNzaW9uX2lkGAQgASgJUglzZXNzaW9uSWQ=');
+
 @$core.Deprecated('Use clientMessageDescriptor instead')
 const ClientMessage$json = {
   '1': 'ClientMessage',
@@ -96,11 +155,11 @@ const ClientMessage$json = {
 
 /// Descriptor for `ClientMessage`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List clientMessageDescriptor = $convert.base64Decode(
-    'Cg1DbGllbnRNZXNzYWdlEiwKBWhlbGxvGAEgASgLMhQubWFyYWQuc3luYy52MS5IZWxsb0gAUg'
-    'VoZWxsbxIzCgZkZWx0YXMYAiABKAsyGS5tYXJhZC5zeW5jLnYxLkRlbHRhQmF0Y2hIAFIGZGVs'
-    'dGFzEiYKA2FjaxgDIAEoCzISLm1hcmFkLnN5bmMudjEuQWNrSABSA2FjaxI4CgloZWFydGJlYX'
-    'QYBCABKAsyGC5tYXJhZC5zeW5jLnYxLkhlYXJ0YmVhdEgAUgloZWFydGJlYXRCCQoHcGF5bG9h'
-    'ZA==');
+    'Cg1DbGllbnRNZXNzYWdlEi8KBWhlbGxvGAEgASgLMhcuZmxlZXRvcHMuc3luYy52MS5IZWxsb0'
+    'gAUgVoZWxsbxI2CgZkZWx0YXMYAiABKAsyHC5mbGVldG9wcy5zeW5jLnYxLkRlbHRhQmF0Y2hI'
+    'AFIGZGVsdGFzEikKA2FjaxgDIAEoCzIVLmZsZWV0b3BzLnN5bmMudjEuQWNrSABSA2FjaxI7Cg'
+    'loZWFydGJlYXQYBCABKAsyGy5mbGVldG9wcy5zeW5jLnYxLkhlYXJ0YmVhdEgAUgloZWFydGJl'
+    'YXRCCQoHcGF5bG9hZA==');
 
 @$core.Deprecated('Use serverMessageDescriptor instead')
 const ServerMessage$json = {
@@ -159,11 +218,12 @@ const ServerMessage$json = {
 
 /// Descriptor for `ServerMessage`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List serverMessageDescriptor = $convert.base64Decode(
-    'Cg1TZXJ2ZXJNZXNzYWdlEjIKB3dlbGNvbWUYASABKAsyFi5tYXJhZC5zeW5jLnYxLldlbGNvbW'
-    'VIAFIHd2VsY29tZRIzCgZkZWx0YXMYAiABKAsyGS5tYXJhZC5zeW5jLnYxLkRlbHRhQmF0Y2hI'
-    'AFIGZGVsdGFzEiYKA2FjaxgDIAEoCzISLm1hcmFkLnN5bmMudjEuQWNrSABSA2FjaxI4CgloZW'
-    'FydGJlYXQYBCABKAsyGC5tYXJhZC5zeW5jLnYxLkhlYXJ0YmVhdEgAUgloZWFydGJlYXQSLAoF'
-    'ZXJyb3IYBSABKAsyFC5tYXJhZC5zeW5jLnYxLkVycm9ySABSBWVycm9yQgkKB3BheWxvYWQ=');
+    'Cg1TZXJ2ZXJNZXNzYWdlEjUKB3dlbGNvbWUYASABKAsyGS5mbGVldG9wcy5zeW5jLnYxLldlbG'
+    'NvbWVIAFIHd2VsY29tZRI2CgZkZWx0YXMYAiABKAsyHC5mbGVldG9wcy5zeW5jLnYxLkRlbHRh'
+    'QmF0Y2hIAFIGZGVsdGFzEikKA2FjaxgDIAEoCzIVLmZsZWV0b3BzLnN5bmMudjEuQWNrSABSA2'
+    'FjaxI7CgloZWFydGJlYXQYBCABKAsyGy5mbGVldG9wcy5zeW5jLnYxLkhlYXJ0YmVhdEgAUglo'
+    'ZWFydGJlYXQSLwoFZXJyb3IYBSABKAsyFy5mbGVldG9wcy5zeW5jLnYxLkVycm9ySABSBWVycm'
+    '9yQgkKB3BheWxvYWQ=');
 
 @$core.Deprecated('Use helloDescriptor instead')
 const Hello$json = {
@@ -197,9 +257,9 @@ const Hello_CursorsEntry$json = {
 /// Descriptor for `Hello`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List helloDescriptor = $convert.base64Decode(
     'CgVIZWxsbxIbCgl0ZW5hbnRfaWQYASABKAlSCHRlbmFudElkEhsKCXZlc3NlbF9pZBgCIAEoCV'
-    'IIdmVzc2VsSWQSFwoHbm9kZV9pZBgDIAEoCVIGbm9kZUlkEjsKB2N1cnNvcnMYBCADKAsyIS5t'
-    'YXJhZC5zeW5jLnYxLkhlbGxvLkN1cnNvcnNFbnRyeVIHY3Vyc29ycxo6CgxDdXJzb3JzRW50cn'
-    'kSEAoDa2V5GAEgASgJUgNrZXkSFAoFdmFsdWUYAiABKAlSBXZhbHVlOgI4AQ==');
+    'IIdmVzc2VsSWQSFwoHbm9kZV9pZBgDIAEoCVIGbm9kZUlkEj4KB2N1cnNvcnMYBCADKAsyJC5m'
+    'bGVldG9wcy5zeW5jLnYxLkhlbGxvLkN1cnNvcnNFbnRyeVIHY3Vyc29ycxo6CgxDdXJzb3JzRW'
+    '50cnkSEAoDa2V5GAEgASgJUgNrZXkSFAoFdmFsdWUYAiABKAlSBXZhbHVlOgI4AQ==');
 
 @$core.Deprecated('Use welcomeDescriptor instead')
 const Welcome$json = {
@@ -230,9 +290,10 @@ const Welcome_CursorsEntry$json = {
 
 /// Descriptor for `Welcome`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List welcomeDescriptor = $convert.base64Decode(
-    'CgdXZWxjb21lEj0KB2N1cnNvcnMYASADKAsyIy5tYXJhZC5zeW5jLnYxLldlbGNvbWUuQ3Vyc2'
-    '9yc0VudHJ5UgdjdXJzb3JzEh0KCnNlc3Npb25faWQYAiABKAlSCXNlc3Npb25JZBo6CgxDdXJz'
-    'b3JzRW50cnkSEAoDa2V5GAEgASgJUgNrZXkSFAoFdmFsdWUYAiABKAlSBXZhbHVlOgI4AQ==');
+    'CgdXZWxjb21lEkAKB2N1cnNvcnMYASADKAsyJi5mbGVldG9wcy5zeW5jLnYxLldlbGNvbWUuQ3'
+    'Vyc29yc0VudHJ5UgdjdXJzb3JzEh0KCnNlc3Npb25faWQYAiABKAlSCXNlc3Npb25JZBo6CgxD'
+    'dXJzb3JzRW50cnkSEAoDa2V5GAEgASgJUgNrZXkSFAoFdmFsdWUYAiABKAlSBXZhbHVlOgI4AQ'
+    '==');
 
 @$core.Deprecated('Use deltaDescriptor instead')
 const Delta$json = {
@@ -257,9 +318,9 @@ const Delta$json = {
 /// Descriptor for `Delta`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List deltaDescriptor = $convert.base64Decode(
     'CgVEZWx0YRIfCgtlbnRpdHlfdHlwZRgBIAEoCVIKZW50aXR5VHlwZRIbCgllbnRpdHlfaWQYAi'
-    'ABKAlSCGVudGl0eUlkEjoKCW9wZXJhdGlvbhgDIAEoDjIcLm1hcmFkLnN5bmMudjEuU3luY09w'
-    'ZXJhdGlvblIJb3BlcmF0aW9uEhAKA2hsYxgEIAEoCVIDaGxjEhcKB25vZGVfaWQYBSABKAlSBm'
-    '5vZGVJZBIYCgdwYXlsb2FkGAYgASgMUgdwYXlsb2Fk');
+    'ABKAlSCGVudGl0eUlkEj0KCW9wZXJhdGlvbhgDIAEoDjIfLmZsZWV0b3BzLnN5bmMudjEuU3lu'
+    'Y09wZXJhdGlvblIJb3BlcmF0aW9uEhAKA2hsYxgEIAEoCVIDaGxjEhcKB25vZGVfaWQYBSABKA'
+    'lSBm5vZGVJZBIYCgdwYXlsb2FkGAYgASgMUgdwYXlsb2Fk');
 
 @$core.Deprecated('Use deltaBatchDescriptor instead')
 const DeltaBatch$json = {
@@ -278,8 +339,8 @@ const DeltaBatch$json = {
 
 /// Descriptor for `DeltaBatch`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List deltaBatchDescriptor = $convert.base64Decode(
-    'CgpEZWx0YUJhdGNoEiwKBmRlbHRhcxgBIAMoCzIULm1hcmFkLnN5bmMudjEuRGVsdGFSBmRlbH'
-    'Rhcw==');
+    'CgpEZWx0YUJhdGNoEi8KBmRlbHRhcxgBIAMoCzIXLmZsZWV0b3BzLnN5bmMudjEuRGVsdGFSBm'
+    'RlbHRhcw==');
 
 @$core.Deprecated('Use ackDescriptor instead')
 const Ack$json = {
@@ -309,9 +370,9 @@ const Ack_AppliedCursorsEntry$json = {
 
 /// Descriptor for `Ack`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List ackDescriptor = $convert.base64Decode(
-    'CgNBY2sSTwoPYXBwbGllZF9jdXJzb3JzGAEgAygLMiYubWFyYWQuc3luYy52MS5BY2suQXBwbG'
-    'llZEN1cnNvcnNFbnRyeVIOYXBwbGllZEN1cnNvcnMaQQoTQXBwbGllZEN1cnNvcnNFbnRyeRIQ'
-    'CgNrZXkYASABKAlSA2tleRIUCgV2YWx1ZRgCIAEoCVIFdmFsdWU6AjgB');
+    'CgNBY2sSUgoPYXBwbGllZF9jdXJzb3JzGAEgAygLMikuZmxlZXRvcHMuc3luYy52MS5BY2suQX'
+    'BwbGllZEN1cnNvcnNFbnRyeVIOYXBwbGllZEN1cnNvcnMaQQoTQXBwbGllZEN1cnNvcnNFbnRy'
+    'eRIQCgNrZXkYASABKAlSA2tleRIUCgV2YWx1ZRgCIAEoCVIFdmFsdWU6AjgB');
 
 @$core.Deprecated('Use heartbeatDescriptor instead')
 const Heartbeat$json = {
@@ -346,8 +407,8 @@ const Error$json = {
 
 /// Descriptor for `Error`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List errorDescriptor = $convert.base64Decode(
-    'CgVFcnJvchIsCgRjb2RlGAEgASgOMhgubWFyYWQuc3luYy52MS5FcnJvckNvZGVSBGNvZGUSGA'
-    'oHbWVzc2FnZRgCIAEoCVIHbWVzc2FnZQ==');
+    'CgVFcnJvchIvCgRjb2RlGAEgASgOMhsuZmxlZXRvcHMuc3luYy52MS5FcnJvckNvZGVSBGNvZG'
+    'USGAoHbWVzc2FnZRgCIAEoCVIHbWVzc2FnZQ==');
 
 const $core.Map<$core.String, $core.dynamic> SyncServiceBase$json = {
   '1': 'SyncService',
@@ -381,5 +442,30 @@ const $core.Map<$core.String, $core.Map<$core.String, $core.dynamic>>
 
 /// Descriptor for `SyncService`. Decode as a `google.protobuf.ServiceDescriptorProto`.
 final $typed_data.Uint8List syncServiceDescriptor = $convert.base64Decode(
-    'CgtTeW5jU2VydmljZRJICgZTdHJlYW0SHC5tYXJhZC5zeW5jLnYxLkNsaWVudE1lc3NhZ2UaHC'
-    '5tYXJhZC5zeW5jLnYxLlNlcnZlck1lc3NhZ2UoATAB');
+    'CgtTeW5jU2VydmljZRJOCgZTdHJlYW0SHy5mbGVldG9wcy5zeW5jLnYxLkNsaWVudE1lc3NhZ2'
+    'UaHy5mbGVldG9wcy5zeW5jLnYxLlNlcnZlck1lc3NhZ2UoATAB');
+
+const $core.Map<$core.String, $core.dynamic> BlobServiceBase$json = {
+  '1': 'BlobService',
+  '2': [
+    {
+      '1': 'UploadBlob',
+      '2': '.fleetops.sync.v1.BlobChunk',
+      '3': '.fleetops.sync.v1.BlobUploadAck',
+      '5': true
+    },
+  ],
+};
+
+@$core.Deprecated('Use blobServiceDescriptor instead')
+const $core.Map<$core.String, $core.Map<$core.String, $core.dynamic>>
+    BlobServiceBase$messageJson = {
+  '.fleetops.sync.v1.BlobChunk': BlobChunk$json,
+  '.fleetops.sync.v1.BlobMeta': BlobMeta$json,
+  '.fleetops.sync.v1.BlobUploadAck': BlobUploadAck$json,
+};
+
+/// Descriptor for `BlobService`. Decode as a `google.protobuf.ServiceDescriptorProto`.
+final $typed_data.Uint8List blobServiceDescriptor = $convert.base64Decode(
+    'CgtCbG9iU2VydmljZRJMCgpVcGxvYWRCbG9iEhsuZmxlZXRvcHMuc3luYy52MS5CbG9iQ2h1bm'
+    'saHy5mbGVldG9wcy5zeW5jLnYxLkJsb2JVcGxvYWRBY2soAQ==');

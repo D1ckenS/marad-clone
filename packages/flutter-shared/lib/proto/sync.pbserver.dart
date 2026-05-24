@@ -47,3 +47,31 @@ abstract class SyncServiceBase extends $pb.GeneratedService {
   $core.Map<$core.String, $core.Map<$core.String, $core.dynamic>>
       get $messageJson => SyncServiceBase$messageJson;
 }
+
+abstract class BlobServiceBase extends $pb.GeneratedService {
+  $async.Future<$0.BlobUploadAck> uploadBlob(
+      $pb.ServerContext ctx, $0.BlobChunk request);
+
+  $pb.GeneratedMessage createRequest($core.String methodName) {
+    switch (methodName) {
+      case 'UploadBlob':
+        return $0.BlobChunk();
+      default:
+        throw $core.ArgumentError('Unknown method: $methodName');
+    }
+  }
+
+  $async.Future<$pb.GeneratedMessage> handleCall($pb.ServerContext ctx,
+      $core.String methodName, $pb.GeneratedMessage request) {
+    switch (methodName) {
+      case 'UploadBlob':
+        return uploadBlob(ctx, request as $0.BlobChunk);
+      default:
+        throw $core.ArgumentError('Unknown method: $methodName');
+    }
+  }
+
+  $core.Map<$core.String, $core.dynamic> get $json => BlobServiceBase$json;
+  $core.Map<$core.String, $core.Map<$core.String, $core.dynamic>>
+      get $messageJson => BlobServiceBase$messageJson;
+}

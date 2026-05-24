@@ -7,6 +7,7 @@ import {
   OnApplicationShutdown,
 } from '@nestjs/common';
 import { resolve } from 'node:path';
+import { BlobReceiverService } from './blob-receiver.service';
 import { HlcClockRegistry } from './hlc-clock-registry';
 import { PRISMA_SYNC_ADAPTER_FACTORY, type PrismaSyncAdapterFactory } from './sync.tokens';
 
@@ -42,6 +43,7 @@ export class SyncGatewayService implements OnApplicationBootstrap, OnApplication
     @Inject(PRISMA_SYNC_ADAPTER_FACTORY)
     private readonly adapterFactory: PrismaSyncAdapterFactory,
     private readonly clocks: HlcClockRegistry,
+    private readonly blobs: BlobReceiverService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -54,6 +56,7 @@ export class SyncGatewayService implements OnApplicationBootstrap, OnApplication
 
     const { port: bound, shutdown } = await startSyncServer(`0.0.0.0:${port}`, {
       protoPath,
+      blob: this.blobs.handle,
       onStreamOpen: async (hello, send) => {
         const key = `${hello.tenantId}:${hello.vesselId}`;
         let engine = this.engines.get(key);
