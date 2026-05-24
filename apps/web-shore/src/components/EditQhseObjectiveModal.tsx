@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, Select } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -20,20 +21,8 @@ interface Props {
   onSaved: () => void;
 }
 
-const CATEGORY_OPTIONS = [
-  { value: 'Q', label: 'Quality' },
-  { value: 'H', label: 'Health' },
-  { value: 'S', label: 'Safety' },
-  { value: 'E', label: 'Environment' },
-];
-
-const STATUS_OPTIONS = [
-  { value: 'GREEN', label: 'On target' },
-  { value: 'AMBER', label: 'At risk' },
-  { value: 'RED', label: 'Off target' },
-];
-
 export function EditQhseObjectiveModal({ objective, onClose, onSaved }: Props) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(() => ({
     category: objective.category,
     label: objective.label,
@@ -46,6 +35,25 @@ export function EditQhseObjectiveModal({ objective, onClose, onSaved }: Props) {
   }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const categoryOptions = useMemo(
+    () => [
+      { value: 'Q', label: t('qhse.objective_modal.category_quality') },
+      { value: 'H', label: t('qhse.objective_modal.category_health') },
+      { value: 'S', label: t('qhse.objective_modal.category_safety') },
+      { value: 'E', label: t('qhse.objective_modal.category_environment') },
+    ],
+    [t],
+  );
+
+  const statusOptions = useMemo(
+    () => [
+      { value: 'GREEN', label: t('qhse.objective_modal.status_on_target') },
+      { value: 'AMBER', label: t('qhse.objective_modal.status_at_risk') },
+      { value: 'RED', label: t('qhse.objective_modal.status_off_target') },
+    ],
+    [t],
+  );
 
   useEffect(() => {
     setForm({
@@ -67,7 +75,7 @@ export function EditQhseObjectiveModal({ objective, onClose, onSaved }: Props) {
 
   const handleSubmit = async () => {
     if (!form.label.trim() || !form.target.trim() || !form.actual.trim() || !form.unit.trim()) {
-      setError('Label, target, actual and unit are required.');
+      setError(t('qhse.objective_modal.error_required'));
       return;
     }
     const trend = form.trendText
@@ -89,7 +97,7 @@ export function EditQhseObjectiveModal({ objective, onClose, onSaved }: Props) {
       });
       onSaved();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to update objective.');
+      setError(e instanceof Error ? e.message : t('qhse.objective_modal.error_update'));
     } finally {
       setSaving(false);
     }
@@ -98,16 +106,16 @@ export function EditQhseObjectiveModal({ objective, onClose, onSaved }: Props) {
   return (
     <Modal
       open
-      title="Edit QHSE objective"
+      title={t('qhse.objective_modal.title_edit')}
       onClose={onClose}
       onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Save
+            {t('common.save')}
           </Button>
         </>
       }
@@ -118,32 +126,56 @@ export function EditQhseObjectiveModal({ objective, onClose, onSaved }: Props) {
         )}
         <div className="grid grid-cols-2 gap-3">
           <Select
-            options={CATEGORY_OPTIONS}
+            id="obj-category"
+            label={t('qhse.objective_modal.field_category')}
+            options={categoryOptions}
             value={form.category}
             onChange={(v) => setForm((f) => ({ ...f, category: v as typeof f.category }))}
           />
           <Select
-            options={STATUS_OPTIONS}
+            id="obj-status"
+            label={t('qhse.objective_modal.field_status')}
+            options={statusOptions}
             value={form.status}
             onChange={(v) => setForm((f) => ({ ...f, status: v as typeof f.status }))}
           />
         </div>
         <Input
           id="obj-label"
-          label="Label *"
+          label={`${t('qhse.objective_modal.field_label')} *`}
           value={form.label}
           onChange={set('label')}
           autoFocus
         />
-        <div className="grid grid-cols-3 gap-3">
-          <Input id="obj-target" label="Target *" value={form.target} onChange={set('target')} />
-          <Input id="obj-actual" label="Actual *" value={form.actual} onChange={set('actual')} />
-          <Input id="obj-unit" label="Unit *" value={form.unit} onChange={set('unit')} />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Input
+            id="obj-target"
+            label={`${t('qhse.objective_modal.field_target')} *`}
+            value={form.target}
+            onChange={set('target')}
+          />
+          <Input
+            id="obj-actual"
+            label={`${t('qhse.objective_modal.field_actual')} *`}
+            value={form.actual}
+            onChange={set('actual')}
+          />
+          <Input
+            id="obj-unit"
+            label={`${t('qhse.objective_modal.field_unit')} *`}
+            value={form.unit}
+            onChange={set('unit')}
+          />
         </div>
-        <Input id="obj-delta" label="Delta" value={form.delta} onChange={set('delta')} />
+        <Input
+          id="obj-delta"
+          label={t('qhse.objective_modal.field_delta')}
+          value={form.delta}
+          onChange={set('delta')}
+        />
         <Input
           id="obj-trend"
-          label="Trend (comma-separated numbers)"
+          label={t('qhse.objective_modal.field_trend')}
           value={form.trendText}
           onChange={set('trendText')}
         />

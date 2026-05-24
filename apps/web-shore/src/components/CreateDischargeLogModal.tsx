@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -19,6 +20,7 @@ const EMPTY = {
 };
 
 export function CreateDischargeLogModal({ open, vesselId, onClose, onCreated }: Props) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +37,7 @@ export function CreateDischargeLogModal({ open, vesselId, onClose, onCreated }: 
 
   const handleSubmit = async () => {
     if (!form.kind.trim() || !form.occurredAt || !form.location.trim() || !form.volume.trim()) {
-      setError('Kind, occurred-at, location and volume are required.');
+      setError(t('qhse.discharge_modal.error_required'));
       return;
     }
     setSaving(true);
@@ -53,7 +55,7 @@ export function CreateDischargeLogModal({ open, vesselId, onClose, onCreated }: 
       setForm(EMPTY);
       onCreated();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to log discharge.');
+      setError(e instanceof Error ? e.message : t('qhse.discharge_modal.error_create'));
     } finally {
       setSaving(false);
     }
@@ -62,16 +64,16 @@ export function CreateDischargeLogModal({ open, vesselId, onClose, onCreated }: 
   return (
     <Modal
       open={open}
-      title="Log discharge"
+      title={t('qhse.discharge_modal.title_create')}
       onClose={handleClose}
       onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Create
+            {t('common.create')}
           </Button>
         </>
       }
@@ -83,7 +85,7 @@ export function CreateDischargeLogModal({ open, vesselId, onClose, onCreated }: 
         <div className="grid grid-cols-2 gap-3">
           <Input
             id="dl-kind"
-            label="Kind *"
+            label={`${t('qhse.discharge_modal.field_kind')} *`}
             value={form.kind}
             onChange={set('kind')}
             autoFocus
@@ -91,34 +93,40 @@ export function CreateDischargeLogModal({ open, vesselId, onClose, onCreated }: 
           />
           <Input
             id="dl-when"
-            label="Occurred at *"
+            label={`${t('qhse.discharge_modal.field_occurred_at')} *`}
             type="datetime-local"
             value={form.occurredAt}
             onChange={set('occurredAt')}
           />
           <Input
             id="dl-loc"
-            label="Location *"
+            label={`${t('qhse.discharge_modal.field_location')} *`}
             value={form.location}
             onChange={set('location')}
             placeholder="Port reception / Lat/Lon"
           />
           <Input
             id="dl-vol"
-            label="Volume *"
+            label={`${t('qhse.discharge_modal.field_volume')} *`}
             value={form.volume}
             onChange={set('volume')}
             placeholder="0.5 m³"
           />
         </div>
-        <TextArea id="dl-notes" label="Notes" rows={2} value={form.notes} onChange={set('notes')} />
+        <TextArea
+          id="dl-notes"
+          label={t('qhse.discharge_modal.field_notes')}
+          rows={2}
+          value={form.notes}
+          onChange={set('notes')}
+        />
         <label className="flex items-center gap-2 text-[13px]" style={{ color: 'var(--ink-2)' }}>
           <input
             type="checkbox"
             checked={form.compliant}
             onChange={(e) => setForm((f) => ({ ...f, compliant: e.target.checked }))}
           />
-          MARPOL compliant
+          {t('qhse.discharge_modal.field_compliant')}
         </label>
       </div>
     </Modal>

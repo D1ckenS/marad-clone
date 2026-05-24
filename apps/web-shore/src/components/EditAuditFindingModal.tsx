@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -29,6 +30,7 @@ function toLocalInput(iso: string | null): string {
 }
 
 export function EditAuditFindingModal({ finding, onClose, onSaved }: Props) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(() => ({
     auditId: finding.auditId ?? '',
     classification: finding.classification,
@@ -62,7 +64,7 @@ export function EditAuditFindingModal({ finding, onClose, onSaved }: Props) {
 
   const handleSubmit = async () => {
     if (!form.classification.trim() || !form.title.trim() || !form.openedAt) {
-      setError('Classification, title and opened-at are required.');
+      setError(t('qhse.finding_modal.error_required'));
       return;
     }
     setSaving(true);
@@ -80,7 +82,7 @@ export function EditAuditFindingModal({ finding, onClose, onSaved }: Props) {
       });
       onSaved();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to update finding.');
+      setError(e instanceof Error ? e.message : t('qhse.finding_modal.error_update'));
     } finally {
       setSaving(false);
     }
@@ -89,16 +91,16 @@ export function EditAuditFindingModal({ finding, onClose, onSaved }: Props) {
   return (
     <Modal
       open
-      title="Edit audit finding"
+      title={t('qhse.finding_modal.title_edit')}
       onClose={onClose}
       onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Save
+            {t('common.save')}
           </Button>
         </>
       }
@@ -109,33 +111,53 @@ export function EditAuditFindingModal({ finding, onClose, onSaved }: Props) {
         )}
         <Input
           id="af-class"
-          label="Classification *"
+          label={`${t('qhse.finding_modal.field_classification')} *`}
           value={form.classification}
           onChange={set('classification')}
           autoFocus
         />
-        <Input id="af-title" label="Title *" value={form.title} onChange={set('title')} />
+        <Input
+          id="af-title"
+          label={`${t('qhse.finding_modal.field_title')} *`}
+          value={form.title}
+          onChange={set('title')}
+        />
         <TextArea
           id="af-detail"
-          label="Detail"
+          label={t('qhse.finding_modal.field_detail')}
           rows={3}
           value={form.detail}
           onChange={set('detail')}
         />
         <div className="grid grid-cols-2 gap-3">
-          <Input id="af-audit" label="Audit ID" value={form.auditId} onChange={set('auditId')} />
-          <Input id="af-sms" label="SMS ref" value={form.smsRef} onChange={set('smsRef')} />
-          <Input id="af-owner" label="Owner" value={form.owner} onChange={set('owner')} />
+          <Input
+            id="af-audit"
+            label={t('qhse.finding_modal.field_audit_id')}
+            value={form.auditId}
+            onChange={set('auditId')}
+          />
+          <Input
+            id="af-sms"
+            label={t('qhse.finding_modal.field_sms_ref')}
+            value={form.smsRef}
+            onChange={set('smsRef')}
+          />
+          <Input
+            id="af-owner"
+            label={t('qhse.finding_modal.field_owner')}
+            value={form.owner}
+            onChange={set('owner')}
+          />
           <Input
             id="af-opened"
-            label="Opened at *"
+            label={`${t('qhse.finding_modal.field_opened_at')} *`}
             type="datetime-local"
             value={form.openedAt}
             onChange={set('openedAt')}
           />
           <Input
             id="af-due"
-            label="Due at"
+            label={t('qhse.finding_modal.field_due_at')}
             type="datetime-local"
             value={form.dueAt}
             onChange={set('dueAt')}

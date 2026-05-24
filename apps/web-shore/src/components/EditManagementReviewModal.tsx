@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, Select, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
 
@@ -20,13 +21,6 @@ interface Props {
   onSaved: () => void;
 }
 
-const STATUS_OPTIONS = [
-  { value: 'SCHEDULED', label: 'Scheduled' },
-  { value: 'IN_PROGRESS', label: 'In progress' },
-  { value: 'CLOSED', label: 'Closed' },
-  { value: 'CANCELLED', label: 'Cancelled' },
-];
-
 function toLocalInput(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
@@ -35,6 +29,7 @@ function toLocalInput(iso: string): string {
 }
 
 export function EditManagementReviewModal({ review, onClose, onSaved }: Props) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(() => ({
     kind: review.kind,
     scheduledAt: toLocalInput(review.scheduledAt),
@@ -47,6 +42,16 @@ export function EditManagementReviewModal({ review, onClose, onSaved }: Props) {
   }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const statusOptions = useMemo(
+    () => [
+      { value: 'SCHEDULED', label: t('qhse.review_modal.status_scheduled') },
+      { value: 'IN_PROGRESS', label: t('qhse.review_modal.status_in_progress') },
+      { value: 'CLOSED', label: t('qhse.review_modal.status_closed') },
+      { value: 'CANCELLED', label: t('qhse.review_modal.status_cancelled') },
+    ],
+    [t],
+  );
 
   useEffect(() => {
     setForm({
@@ -68,7 +73,7 @@ export function EditManagementReviewModal({ review, onClose, onSaved }: Props) {
 
   const handleSubmit = async () => {
     if (!form.kind.trim() || !form.scheduledAt || !form.chair.trim()) {
-      setError('Kind, scheduled-at and chair are required.');
+      setError(t('qhse.review_modal.error_required'));
       return;
     }
     setSaving(true);
@@ -86,7 +91,7 @@ export function EditManagementReviewModal({ review, onClose, onSaved }: Props) {
       });
       onSaved();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to update review.');
+      setError(e instanceof Error ? e.message : t('qhse.review_modal.error_update'));
     } finally {
       setSaving(false);
     }
@@ -95,16 +100,16 @@ export function EditManagementReviewModal({ review, onClose, onSaved }: Props) {
   return (
     <Modal
       open
-      title="Edit management review"
+      title={t('qhse.review_modal.title_edit')}
       onClose={onClose}
       onSubmit={handleSubmit}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Save
+            {t('common.save')}
           </Button>
         </>
       }
@@ -114,23 +119,36 @@ export function EditManagementReviewModal({ review, onClose, onSaved }: Props) {
           <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">{error}</div>
         )}
         <div className="grid grid-cols-2 gap-3">
-          <Input id="mr-kind" label="Kind *" value={form.kind} onChange={set('kind')} autoFocus />
+          <Input
+            id="mr-kind"
+            label={`${t('qhse.review_modal.field_kind')} *`}
+            value={form.kind}
+            onChange={set('kind')}
+            autoFocus
+          />
           <Select
-            options={STATUS_OPTIONS}
+            id="mr-status"
+            label={t('qhse.review_modal.field_status')}
+            options={statusOptions}
             value={form.status}
             onChange={(v) => setForm((f) => ({ ...f, status: v as typeof f.status }))}
           />
           <Input
             id="mr-when"
-            label="Scheduled at *"
+            label={`${t('qhse.review_modal.field_scheduled_at')} *`}
             type="datetime-local"
             value={form.scheduledAt}
             onChange={set('scheduledAt')}
           />
-          <Input id="mr-chair" label="Chair *" value={form.chair} onChange={set('chair')} />
+          <Input
+            id="mr-chair"
+            label={`${t('qhse.review_modal.field_chair')} *`}
+            value={form.chair}
+            onChange={set('chair')}
+          />
           <Input
             id="mr-att"
-            label="Attendees"
+            label={t('qhse.review_modal.field_attendees')}
             type="number"
             min="0"
             value={form.attendees}
@@ -138,7 +156,7 @@ export function EditManagementReviewModal({ review, onClose, onSaved }: Props) {
           />
           <Input
             id="mr-actions"
-            label="Actions (total)"
+            label={t('qhse.review_modal.field_actions_total')}
             type="number"
             min="0"
             value={form.actionsTotal}
@@ -146,7 +164,7 @@ export function EditManagementReviewModal({ review, onClose, onSaved }: Props) {
           />
           <Input
             id="mr-done"
-            label="Actions (done)"
+            label={t('qhse.review_modal.field_actions_done')}
             type="number"
             min="0"
             value={form.actionsDone}
@@ -155,7 +173,7 @@ export function EditManagementReviewModal({ review, onClose, onSaved }: Props) {
         </div>
         <TextArea
           id="mr-summary"
-          label="Summary"
+          label={t('qhse.review_modal.field_summary')}
           rows={3}
           value={form.summary}
           onChange={set('summary')}
