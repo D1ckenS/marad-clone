@@ -22,6 +22,315 @@ export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
 
 export 'sync.pbenum.dart';
 
+class BlobMeta extends $pb.GeneratedMessage {
+  factory BlobMeta({
+    $core.String? key,
+    $core.String? contentType,
+    $fixnum.Int64? sizeBytes,
+    $core.String? sha256,
+    $core.String? tenantId,
+    $core.String? vesselId,
+  }) {
+    final result = create();
+    if (key != null) result.key = key;
+    if (contentType != null) result.contentType = contentType;
+    if (sizeBytes != null) result.sizeBytes = sizeBytes;
+    if (sha256 != null) result.sha256 = sha256;
+    if (tenantId != null) result.tenantId = tenantId;
+    if (vesselId != null) result.vesselId = vesselId;
+    return result;
+  }
+
+  BlobMeta._();
+
+  factory BlobMeta.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory BlobMeta.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'BlobMeta',
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'key')
+    ..aOS(2, _omitFieldNames ? '' : 'contentType')
+    ..aInt64(3, _omitFieldNames ? '' : 'sizeBytes')
+    ..aOS(4, _omitFieldNames ? '' : 'sha256')
+    ..aOS(5, _omitFieldNames ? '' : 'tenantId')
+    ..aOS(6, _omitFieldNames ? '' : 'vesselId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BlobMeta clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BlobMeta copyWith(void Function(BlobMeta) updates) =>
+      super.copyWith((message) => updates(message as BlobMeta)) as BlobMeta;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static BlobMeta create() => BlobMeta._();
+  @$core.override
+  BlobMeta createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static BlobMeta getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<BlobMeta>(create);
+  static BlobMeta? _defaultInstance;
+
+  /// Full S3 key, e.g.
+  ///   "<tenantId>/<vesselId>/job-history/<id>/photos/0-photo.jpg"
+  @$pb.TagNumber(1)
+  $core.String get key => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set key($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasKey() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearKey() => $_clearField(1);
+
+  /// MIME type for the receiver's PutObject. Optional; defaults to
+  /// application/octet-stream.
+  @$pb.TagNumber(2)
+  $core.String get contentType => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set contentType($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasContentType() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearContentType() => $_clearField(2);
+
+  /// Expected total byte length. Receiver uses it to validate and to
+  /// pick single-shot PutObject vs multipart upload.
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get sizeBytes => $_getI64(2);
+  @$pb.TagNumber(3)
+  set sizeBytes($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasSizeBytes() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearSizeBytes() => $_clearField(3);
+
+  /// Hex-encoded sha256 of the full blob, optional. When present the
+  /// receiver verifies after assembly and refuses to commit on mismatch.
+  @$pb.TagNumber(4)
+  $core.String get sha256 => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set sha256($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasSha256() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearSha256() => $_clearField(4);
+
+  /// Tenant + vessel for receiver-side auth / logging. Redundant with
+  /// the gRPC metadata but kept here so the message is self-describing
+  /// in protocol traces.
+  @$pb.TagNumber(5)
+  $core.String get tenantId => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set tenantId($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasTenantId() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearTenantId() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get vesselId => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set vesselId($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasVesselId() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearVesselId() => $_clearField(6);
+}
+
+class BlobChunk extends $pb.GeneratedMessage {
+  factory BlobChunk({
+    BlobMeta? meta,
+    $core.List<$core.int>? body,
+    $core.int? index,
+  }) {
+    final result = create();
+    if (meta != null) result.meta = meta;
+    if (body != null) result.body = body;
+    if (index != null) result.index = index;
+    return result;
+  }
+
+  BlobChunk._();
+
+  factory BlobChunk.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory BlobChunk.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'BlobChunk',
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
+      createEmptyInstance: create)
+    ..aOM<BlobMeta>(1, _omitFieldNames ? '' : 'meta',
+        subBuilder: BlobMeta.create)
+    ..a<$core.List<$core.int>>(
+        2, _omitFieldNames ? '' : 'body', $pb.PbFieldType.OY)
+    ..aI(3, _omitFieldNames ? '' : 'index', fieldType: $pb.PbFieldType.OU3)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BlobChunk clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BlobChunk copyWith(void Function(BlobChunk) updates) =>
+      super.copyWith((message) => updates(message as BlobChunk)) as BlobChunk;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static BlobChunk create() => BlobChunk._();
+  @$core.override
+  BlobChunk createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static BlobChunk getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<BlobChunk>(create);
+  static BlobChunk? _defaultInstance;
+
+  /// Populated on the FIRST chunk only; absent thereafter.
+  @$pb.TagNumber(1)
+  BlobMeta get meta => $_getN(0);
+  @$pb.TagNumber(1)
+  set meta(BlobMeta value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasMeta() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearMeta() => $_clearField(1);
+  @$pb.TagNumber(1)
+  BlobMeta ensureMeta() => $_ensure(0);
+
+  /// Body slice for this chunk. Empty bytes are legal (e.g. a metadata-
+  /// only "open" chunk).
+  @$pb.TagNumber(2)
+  $core.List<$core.int> get body => $_getN(1);
+  @$pb.TagNumber(2)
+  set body($core.List<$core.int> value) => $_setBytes(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasBody() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearBody() => $_clearField(2);
+
+  /// Zero-indexed chunk number. Useful for receiver-side reordering
+  /// sanity checks and for logs. Sender MUST emit consecutive ascending
+  /// values starting at 0.
+  @$pb.TagNumber(3)
+  $core.int get index => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set index($core.int value) => $_setUnsignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasIndex() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearIndex() => $_clearField(3);
+}
+
+class BlobUploadAck extends $pb.GeneratedMessage {
+  factory BlobUploadAck({
+    $core.String? key,
+    $fixnum.Int64? storedBytes,
+    $core.bool? sha256Verified,
+    $core.String? sessionId,
+  }) {
+    final result = create();
+    if (key != null) result.key = key;
+    if (storedBytes != null) result.storedBytes = storedBytes;
+    if (sha256Verified != null) result.sha256Verified = sha256Verified;
+    if (sessionId != null) result.sessionId = sessionId;
+    return result;
+  }
+
+  BlobUploadAck._();
+
+  factory BlobUploadAck.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory BlobUploadAck.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'BlobUploadAck',
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'key')
+    ..aInt64(2, _omitFieldNames ? '' : 'storedBytes')
+    ..aOB(3, _omitFieldNames ? '' : 'sha256Verified')
+    ..aOS(4, _omitFieldNames ? '' : 'sessionId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BlobUploadAck clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BlobUploadAck copyWith(void Function(BlobUploadAck) updates) =>
+      super.copyWith((message) => updates(message as BlobUploadAck))
+          as BlobUploadAck;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static BlobUploadAck create() => BlobUploadAck._();
+  @$core.override
+  BlobUploadAck createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static BlobUploadAck getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<BlobUploadAck>(create);
+  static BlobUploadAck? _defaultInstance;
+
+  /// Echoed back so the sender can correlate with its outbox row.
+  @$pb.TagNumber(1)
+  $core.String get key => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set key($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasKey() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearKey() => $_clearField(1);
+
+  /// Bytes actually persisted on shore. Sender should compare against
+  /// its expected size as a final sanity check.
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get storedBytes => $_getI64(1);
+  @$pb.TagNumber(2)
+  set storedBytes($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasStoredBytes() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearStoredBytes() => $_clearField(2);
+
+  /// True iff sha256 was supplied AND verified by the receiver.
+  @$pb.TagNumber(3)
+  $core.bool get sha256Verified => $_getBF(2);
+  @$pb.TagNumber(3)
+  set sha256Verified($core.bool value) => $_setBool(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasSha256Verified() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearSha256Verified() => $_clearField(3);
+
+  /// Server-assigned correlation id for log triage.
+  @$pb.TagNumber(4)
+  $core.String get sessionId => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set sessionId($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasSessionId() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearSessionId() => $_clearField(4);
+}
+
 enum ClientMessage_Payload { hello, deltas, ack, heartbeat, notSet }
 
 class ClientMessage extends $pb.GeneratedMessage {
@@ -58,7 +367,8 @@ class ClientMessage extends $pb.GeneratedMessage {
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'ClientMessage',
-      package: const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
       createEmptyInstance: create)
     ..oo(0, [1, 2, 3, 4])
     ..aOM<Hello>(1, _omitFieldNames ? '' : 'hello', subBuilder: Hello.create)
@@ -184,7 +494,8 @@ class ServerMessage extends $pb.GeneratedMessage {
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'ServerMessage',
-      package: const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
       createEmptyInstance: create)
     ..oo(0, [1, 2, 3, 4, 5])
     ..aOM<Welcome>(1, _omitFieldNames ? '' : 'welcome',
@@ -312,7 +623,8 @@ class Hello extends $pb.GeneratedMessage {
 
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'Hello',
-      package: const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
       createEmptyInstance: create)
     ..aOS(1, _omitFieldNames ? '' : 'tenantId')
     ..aOS(2, _omitFieldNames ? '' : 'vesselId')
@@ -397,7 +709,8 @@ class Welcome extends $pb.GeneratedMessage {
 
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'Welcome',
-      package: const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
       createEmptyInstance: create)
     ..m<$core.String, $core.String>(1, _omitFieldNames ? '' : 'cursors',
         entryClassName: 'Welcome.CursorsEntry',
@@ -471,7 +784,8 @@ class Delta extends $pb.GeneratedMessage {
 
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'Delta',
-      package: const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
       createEmptyInstance: create)
     ..aOS(1, _omitFieldNames ? '' : 'entityType')
     ..aOS(2, _omitFieldNames ? '' : 'entityId')
@@ -578,7 +892,8 @@ class DeltaBatch extends $pb.GeneratedMessage {
 
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'DeltaBatch',
-      package: const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
       createEmptyInstance: create)
     ..pPM<Delta>(1, _omitFieldNames ? '' : 'deltas', subBuilder: Delta.create)
     ..hasRequiredFields = false;
@@ -629,7 +944,8 @@ class Ack extends $pb.GeneratedMessage {
 
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'Ack',
-      package: const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
       createEmptyInstance: create)
     ..m<$core.String, $core.String>(1, _omitFieldNames ? '' : 'appliedCursors',
         entryClassName: 'Ack.AppliedCursorsEntry',
@@ -684,7 +1000,8 @@ class Heartbeat extends $pb.GeneratedMessage {
 
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'Heartbeat',
-      package: const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
       createEmptyInstance: create)
     ..aOS(1, _omitFieldNames ? '' : 'nodeId')
     ..aOS(2, _omitFieldNames ? '' : 'hlc')
@@ -759,7 +1076,8 @@ class Error extends $pb.GeneratedMessage {
 
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'Error',
-      package: const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
+      package:
+          const $pb.PackageName(_omitMessageNames ? '' : 'fleetops.sync.v1'),
       createEmptyInstance: create)
     ..aE<ErrorCode>(1, _omitFieldNames ? '' : 'code',
         enumValues: ErrorCode.values)
@@ -814,6 +1132,30 @@ class SyncServiceApi {
           $pb.ClientContext? ctx, ClientMessage request) =>
       _client.invoke<ServerMessage>(
           ctx, 'SyncService', 'Stream', request, ServerMessage());
+}
+
+/// Vessel-to-shore binary transfer (job-history photos, QHSE document
+/// attachments, BDN PDFs, etc.). Runs alongside SyncService on the same
+/// gRPC connection but on a separate RPC so multi-MB blob transfer does
+/// not block per-entity deltas (head-of-line avoidance).
+///
+/// Protocol: client sends a stream of BlobChunks. The first chunk MUST
+/// carry a populated `meta`; subsequent chunks carry only `body`. After
+/// the client closes its half-stream, the server replies with one
+/// BlobUploadAck and ends. Retry: a partial upload is safely retried —
+/// the receiver always overwrites by `meta.key` (PutObject is
+/// idempotent for our key scheme).
+///
+/// See apps/docs/adr/0003-blob-sync.md for design notes.
+class BlobServiceApi {
+  final $pb.RpcClient _client;
+
+  BlobServiceApi(this._client);
+
+  $async.Future<BlobUploadAck> uploadBlob(
+          $pb.ClientContext? ctx, BlobChunk request) =>
+      _client.invoke<BlobUploadAck>(
+          ctx, 'BlobService', 'UploadBlob', request, BlobUploadAck());
 }
 
 const $core.bool _omitFieldNames =

@@ -1924,6 +1924,52 @@ export const managementReviews = sqliteTable(
   (t) => [index('management_reviews_tenant_idx').on(t.tenantId, t.scheduledAt)],
 );
 
+// Blob outbox — queues binary payloads (sign-off photos, QHSE docs, BDN
+// PDFs, etc.) for vessel → shore transfer over the gRPC BlobService.
+//
+// Lifecycle:
+//   1. Vessel app uploads bytes to LOCAL MinIO/S3 (existing StorageService
+//      behaviour) and gets back a key.
+//   2. Same tx (or immediately after) inserts a blob_outbox row with
+//      pending sent_at=null.
+//   3. BlobUploaderService polls pending rows, reads bytes back from
+//      local S3, streams them to shore via BlobService.UploadBlob.
+//   4. On success sets sent_at; on failure bumps attempt_count + records
+//      last_error and retries with backoff.
+//
+// The receiver overwrites by key on every upload, so retrying a partial
+// upload is safe.
+export const blobOutbox = sqliteTable(
+  'blob_outbox',
+  {
+    id: text('id').primaryKey(),
+    // Full S3 key (same value lives in JobHistory.photos[], QhseDocument
+    // attachment, etc.). Receiver uses it as the destination key on shore.
+    key: text('key').notNull(),
+    contentType: text('content_type').notNull().default('application/octet-stream'),
+    sizeBytes: integer('size_bytes').notNull(),
+    // Hex sha256 of the full blob. Optional — when set the receiver
+    // verifies before committing.
+    sha256: text('sha256'),
+    // Origin context for log triage + receiver-side auth checks.
+    tenantId: text('tenant_id').notNull(),
+    vesselId: text('vessel_id').notNull(),
+    createdAt: integer('created_at')
+      .notNull()
+      .default(sql`(unixepoch('subsec') * 1000)`),
+    // Unix ms when the upload was acknowledged by shore. NULL while pending.
+    sentAt: integer('sent_at'),
+    // Number of upload attempts (incremented on each try, success or fail).
+    attemptCount: integer('attempt_count').notNull().default(0),
+    // Most recent error message (truncated) — null when sent or untried.
+    lastError: text('last_error'),
+  },
+  (t) => [
+    index('blob_outbox_pending_idx').on(t.sentAt, t.createdAt),
+    index('blob_outbox_key_idx').on(t.key),
+  ],
+);
+
 // Sync engine outbox. Pending entries have sent_at = null.
 export const outbox = sqliteTable(
   'outbox',

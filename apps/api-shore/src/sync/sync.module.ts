@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { BlobReceiverService } from './blob-receiver.service';
 import { HlcClockRegistry } from './hlc-clock-registry';
 import { OutboxRecorder } from './outbox-recorder';
 import { PrismaSyncAdapter } from './prisma-sync-adapter';
@@ -35,6 +36,7 @@ export { PRISMA_SYNC_ADAPTER_FACTORY, type PrismaSyncAdapterFactory } from './sy
     },
     SyncGatewayService,
     SmtpSyncGatewayService,
+    BlobReceiverService,
   ],
   exports: [
     PRISMA_SYNC_ADAPTER_FACTORY,
@@ -42,6 +44,7 @@ export { PRISMA_SYNC_ADAPTER_FACTORY, type PrismaSyncAdapterFactory } from './sy
     OutboxRecorder,
     SyncGatewayService,
     SmtpSyncGatewayService,
+    BlobReceiverService,
   ],
 })
 export class SyncModule {}
