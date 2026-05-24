@@ -3,38 +3,47 @@ import 'package:flutter/material.dart';
 import '../services/api_client.dart';
 import '../widgets/entity_list_scaffold.dart';
 
-class SafetyEquipmentScreen extends StatelessWidget {
-  const SafetyEquipmentScreen({super.key});
+class AuditsScreen extends StatelessWidget {
+  const AuditsScreen({super.key});
 
-  static const _categories = ['FFA', 'LSA', 'OTH'];
-  static const _statuses = ['GREEN', 'AMBER', 'RED'];
+  static const _kinds = ['INTERNAL', 'EXTERNAL', 'CLASS', 'FLAG'];
+  static const _statuses = [
+    'SCHEDULED',
+    'IN_PROGRESS',
+    'COMPLETED',
+    'CANCELLED',
+  ];
 
   @override
   Widget build(BuildContext context) {
     return EntityListScaffold(
-      title: 'safety_equipment.title'.tr(),
-      endpoint: '/safety-equipment',
-      createTooltip: 'safety_equipment.create_button'.tr(),
-      emptyMessage: 'safety_equipment.empty'.tr(),
+      title: 'audits.title'.tr(),
+      endpoint: '/audits',
+      createTooltip: 'audits.create_button'.tr(),
+      emptyMessage: 'audits.empty'.tr(),
       itemBuilder: (ctx, item) {
-        final status = item['status']?.toString() ?? 'GREEN';
-        final color = status == 'RED'
-            ? const Color(0xFFAB382E)
-            : status == 'AMBER'
-                ? const Color(0xFFB5731E)
-                : const Color(0xFF2F7D4F);
+        final status = item['status']?.toString() ?? 'SCHEDULED';
+        final color = status == 'COMPLETED'
+            ? const Color(0xFF2F7D4F)
+            : status == 'CANCELLED'
+                ? const Color(0xFFAB382E)
+                : const Color(0xFFB5731E);
+        final findings = item['findings'];
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: color.withValues(alpha: 0.15),
-              child: Text(item['category']?.toString().substring(0, 1) ?? '?',
-                  style: TextStyle(color: color, fontWeight: FontWeight.bold)),
-            ),
-            title: Text(item['name']?.toString() ?? '—',
+            leading: const Icon(Icons.fact_check_outlined),
+            title: Text('${item['kind']} · ${item['scope']}',
                 style: const TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text('${item['location']} · qty ${item['quantity']}'
-                '${item['nextCheck'] != null ? ' · next: ${_formatDate(item['nextCheck'])}' : ''}'),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Auditor: ${item['auditor']}'),
+                Text(
+                    '${_formatDate(item['scheduledAt'])}${findings != null ? ' · $findings findings' : ''}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              ],
+            ),
             trailing: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
@@ -45,6 +54,7 @@ class SafetyEquipmentScreen extends StatelessWidget {
                   style: TextStyle(
                       color: color, fontSize: 11, fontWeight: FontWeight.bold)),
             ),
+            isThreeLine: true,
           ),
         );
       },
@@ -55,25 +65,19 @@ class SafetyEquipmentScreen extends StatelessWidget {
 
   Future<bool?> _showCreateDialog(
       BuildContext ctx, ApiClient client, String? vesselId) async {
-    if (vesselId == null) {
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        SnackBar(content: Text('common.vessel_context_missing'.tr())),
-      );
-      return false;
-    }
-    String category = _categories.first;
+    String kind = _kinds.first;
     String status = _statuses.first;
-    final nameCtrl = TextEditingController();
-    final locCtrl = TextEditingController();
-    final qtyCtrl = TextEditingController(text: '1');
-    final lastCheckCtrl = TextEditingController();
-    final nextCheckCtrl = TextEditingController();
+    final scopeCtrl = TextEditingController();
+    final auditorCtrl = TextEditingController();
+    final scheduledCtrl = TextEditingController(
+        text: DateTime.now().toUtc().toIso8601String());
+    final findingsCtrl = TextEditingController(text: '0');
 
     return showDialog<bool>(
       context: ctx,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (stateCtx, setSt) => AlertDialog(
-          title: Text('safety_equipment.create_title'.tr()),
+          title: Text('audits.create_title'.tr()),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -81,12 +85,12 @@ class SafetyEquipmentScreen extends StatelessWidget {
                 Row(children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      initialValue: category,
-                      decoration: const InputDecoration(labelText: 'Category'),
-                      items: _categories
-                          .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      initialValue: kind,
+                      decoration: const InputDecoration(labelText: 'Kind'),
+                      items: _kinds
+                          .map((k) => DropdownMenuItem(value: k, child: Text(k)))
                           .toList(),
-                      onChanged: (v) => setSt(() => category = v!),
+                      onChanged: (v) => setSt(() => kind = v!),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -102,26 +106,22 @@ class SafetyEquipmentScreen extends StatelessWidget {
                   ),
                 ]),
                 TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Name'),
+                  controller: scopeCtrl,
+                  decoration: const InputDecoration(labelText: 'Scope'),
                 ),
                 TextField(
-                  controller: locCtrl,
-                  decoration: const InputDecoration(labelText: 'Location'),
+                  controller: auditorCtrl,
+                  decoration: const InputDecoration(labelText: 'Auditor'),
                 ),
                 TextField(
-                  controller: qtyCtrl,
-                  decoration: const InputDecoration(labelText: 'Quantity'),
-                ),
-                TextField(
-                  controller: lastCheckCtrl,
+                  controller: scheduledCtrl,
                   decoration: const InputDecoration(
-                      labelText: 'Last check (ISO UTC, optional)'),
+                      labelText: 'Scheduled at (ISO UTC)'),
                 ),
                 TextField(
-                  controller: nextCheckCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Next check (ISO UTC, optional)'),
+                  controller: findingsCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Findings count'),
                 ),
               ],
             ),
@@ -135,17 +135,14 @@ class SafetyEquipmentScreen extends StatelessWidget {
                 final ok = await submitCreateForm(
                   sheetCtx: dialogCtx,
                   onSubmit: () async {
-                    await client.post('/safety-equipment', {
-                      'vesselId': vesselId,
-                      'category': category,
-                      'name': nameCtrl.text.trim(),
-                      'location': locCtrl.text.trim(),
-                      'quantity': qtyCtrl.text.trim(),
-                      if (lastCheckCtrl.text.trim().isNotEmpty)
-                        'lastCheck': lastCheckCtrl.text.trim(),
-                      if (nextCheckCtrl.text.trim().isNotEmpty)
-                        'nextCheck': nextCheckCtrl.text.trim(),
+                    await client.post('/audits', {
+                      if (vesselId != null) 'vesselId': vesselId,
+                      'kind': kind,
+                      'scope': scopeCtrl.text.trim(),
+                      'auditor': auditorCtrl.text.trim(),
+                      'scheduledAt': scheduledCtrl.text.trim(),
                       'status': status,
+                      'findings': int.tryParse(findingsCtrl.text.trim()) ?? 0,
                     });
                   },
                 );

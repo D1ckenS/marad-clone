@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/inventory_item.dart';
@@ -39,7 +40,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {
-      setState(() => _error = 'Could not reach vessel API.\n$e');
+      setState(() => _error = '${'jobs.could_not_reach'.tr()}\n$e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -97,7 +98,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               FilledButton.icon(
                 onPressed: _load,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
+                label: Text('common.retry'.tr()),
               ),
             ],
           ),
@@ -110,9 +111,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
         onRefresh: _load,
         child: items.isEmpty
             ? ListView(
-                children: const [
-                  SizedBox(height: 120),
-                  Center(child: Text('No parts in inventory.')),
+                children: [
+                  const SizedBox(height: 120),
+                  Center(child: Text('inventory.empty'.tr())),
                 ],
               )
             : ListView.separated(
@@ -168,7 +169,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _scanBarcode,
         icon: const Icon(Icons.qr_code_scanner),
-        label: const Text('Scan Barcode'),
+        label: Text('barcode_scan.scan_button'.tr()),
       ),
     );
   }
