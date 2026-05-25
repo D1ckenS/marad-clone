@@ -41,10 +41,10 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
     if (value == null) return;
 
     setState(() => _processing = true);
+    final client = context.read<ApiClient>();
     await _controller.stop();
 
     try {
-      final client = context.read<ApiClient>();
       final data = await client.get('/barcode-bindings/lookup/$value')
           as Map<String, dynamic>;
       if (!mounted) return;

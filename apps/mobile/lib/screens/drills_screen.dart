@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/drill.dart';
 import '../providers/auth_provider.dart';
 
 class DrillsScreen extends StatefulWidget {
@@ -9,7 +10,7 @@ class DrillsScreen extends StatefulWidget {
 }
 
 class _DrillsScreenState extends State<DrillsScreen> {
-  List<dynamic> _drills = [];
+  List<Drill> _drills = [];
   bool _loading = true;
   String? _error;
 
@@ -24,7 +25,12 @@ class _DrillsScreenState extends State<DrillsScreen> {
     try {
       final client = context.read<AuthProvider>().client;
       final data = await client.get('/drills');
-      setState(() { _drills = data as List<dynamic>; });
+      setState(() {
+        _drills = (data as List<dynamic>)
+            .cast<Map<String, dynamic>>()
+            .map(Drill.fromJson)
+            .toList();
+      });
     } catch (e) {
       setState(() { _error = e.toString(); });
     } finally {
@@ -53,34 +59,33 @@ class _DrillsScreenState extends State<DrillsScreen> {
                     : ListView.builder(
                         itemCount: _drills.length,
                         itemBuilder: (ctx, i) {
-                          final d = _drills[i] as Map<String, dynamic>;
-                          final status = d['status']?.toString() ?? 'SCHEDULED';
-                          final color = _statusColor(status);
+                          final d = _drills[i];
+                          final color = _statusColor(d.status);
                           return Card(
                             margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                             child: ListTile(
                               leading: const Icon(Icons.local_fire_department_outlined),
                               title: Text(
-                                d['drillType']?['name']?.toString() ?? 'Drill',
+                                d.drillTypeName,
                                 style: const TextStyle(fontWeight: FontWeight.w600),
                               ),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(d['scheduledAt']?.toString().split('T').first ?? ''),
-                                  if (d['location'] != null) Text(d['location'].toString()),
+                                  Text(d.scheduledAt?.toLocal().toString().split(' ').first ?? ''),
+                                  if (d.location != null) Text(d.location!),
                                 ],
                               ),
                               trailing: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: color.withOpacity(0.12),
+                                  color: color.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: Text(status,
+                                child: Text(d.status,
                                     style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
                               ),
-                              onTap: status == 'SCHEDULED'
+                              onTap: d.isScheduled
                                   ? () => _showSignOffDialog(context, d)
                                   : null,
                             ),
@@ -91,7 +96,7 @@ class _DrillsScreenState extends State<DrillsScreen> {
     );
   }
 
-  Future<void> _showSignOffDialog(BuildContext ctx, Map<String, dynamic> drill) async {
+  Future<void> _showSignOffDialog(BuildContext ctx, Drill drill) async {
     final nameController = TextEditingController();
     final result = await showDialog<bool>(
       context: ctx,
@@ -100,7 +105,7 @@ class _DrillsScreenState extends State<DrillsScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Drill: ${drill['drillType']?['name'] ?? ''}'),
+            Text('Drill: ${drill.drillTypeName}'),
             const SizedBox(height: 12),
             TextField(
               controller: nameController,
@@ -114,7 +119,7 @@ class _DrillsScreenState extends State<DrillsScreen> {
             onPressed: () async {
               try {
                 await context.read<AuthProvider>().client.post(
-                  '/drills/${drill['id']}/records',
+                  '/drills/${drill.id}/records',
                   {
                     'participantName': nameController.text,
                     'signedAt': DateTime.now().toIso8601String(),
