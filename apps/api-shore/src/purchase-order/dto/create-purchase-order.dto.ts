@@ -24,9 +24,10 @@ export class CreatePurchaseOrderDto {
   @IsString()
   poNumber?: string;
 
-  @IsOptional()
-  @IsString()
-  totalAmount?: string;
+  // totalAmount is intentionally NOT writable — it is derived from
+  // SUM(po_lines.totalPrice WHERE deleted_at IS NULL). The service
+  // recomputes it whenever lines change. Clients should not send it;
+  // ValidationPipe's whitelist will silently strip the field if they do.
 
   @IsOptional()
   @IsString()

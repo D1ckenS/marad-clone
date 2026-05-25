@@ -9,9 +9,7 @@ export class UpdateRequisitionDto {
   @IsString()
   notes?: string;
 
-  @IsOptional()
-  @IsString()
-  totalAmount?: string;
+  // totalAmount is derived; see CreateRequisitionDto for rationale.
 
   @IsOptional()
   @IsString()

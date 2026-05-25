@@ -34,7 +34,8 @@ export class RequisitionService {
         vesselId,
         title: dto.title,
         status: 'DRAFT' as const,
-        totalAmount: dto.totalAmount ?? '0',
+        // totalAmount derived from line sums; never sourced from input.
+        totalAmount: '0',
         requestedAt: dto.requestedAt,
       };
       const { hlc } = this.recorder.recordUpsert(
@@ -53,7 +54,7 @@ export class RequisitionService {
           title: dto.title,
           notes: dto.notes ?? null,
           status: 'DRAFT',
-          totalAmount: dto.totalAmount ?? '0',
+          totalAmount: '0',
           currency: dto.currency ?? 'USD',
           requestedByUserId: auth.userId,
           requestedAt: dto.requestedAt,
@@ -123,7 +124,7 @@ export class RequisitionService {
       .set({
         ...(dto.title !== undefined && { title: dto.title }),
         ...(dto.notes !== undefined && { notes: dto.notes }),
-        ...(dto.totalAmount !== undefined && { totalAmount: dto.totalAmount }),
+        // totalAmount derived; not writable.
         ...(dto.currency !== undefined && { currency: dto.currency }),
         ...(dto.approvalFlowId !== undefined && { approvalFlowId: dto.approvalFlowId }),
         updatedAt: new Date().toISOString(),
@@ -184,6 +185,7 @@ export class RequisitionService {
         })
         .returning()
         .all();
+      this.recomputeTotal(tx, requisitionId);
       return row;
     });
   }
@@ -192,12 +194,40 @@ export class RequisitionService {
     const req = this.findOne(auth, requisitionId);
     if (req.status !== 'DRAFT')
       throw new BadRequestException('Lines can only be removed from DRAFT requisitions');
-    this.drizzle.db
-      .update(requisitionLines)
-      .set({ deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
+    this.drizzle.db.transaction((tx) => {
+      tx.update(requisitionLines)
+        .set({ deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
+        .where(
+          and(eq(requisitionLines.id, lineId), eq(requisitionLines.requisitionId, requisitionId)),
+        )
+        .run();
+      this.recomputeTotal(tx, requisitionId);
+    });
+  }
+
+  /**
+   * Re-derive `requisitions.totalAmount` from
+   * `SUM(requisition_lines.estimatedTotalPrice WHERE deleted_at IS NULL)`.
+   * Requisition lines store an estimated total (nullable), so the
+   * requisition's total is a best-estimate by design.
+   */
+  private recomputeTotal(
+    tx: Parameters<Parameters<typeof this.drizzle.db.transaction>[0]>[0],
+    requisitionId: string,
+  ) {
+    const lines = tx
+      .select({ estimatedTotalPrice: requisitionLines.estimatedTotalPrice })
+      .from(requisitionLines)
       .where(
-        and(eq(requisitionLines.id, lineId), eq(requisitionLines.requisitionId, requisitionId)),
+        and(eq(requisitionLines.requisitionId, requisitionId), isNull(requisitionLines.deletedAt)),
       )
+      .all();
+    const total = lines
+      .reduce((sum, l) => sum + parseFloat(l.estimatedTotalPrice ?? '0'), 0)
+      .toFixed(2);
+    tx.update(requisitions)
+      .set({ totalAmount: total, updatedAt: new Date().toISOString() })
+      .where(eq(requisitions.id, requisitionId))
       .run();
   }
 

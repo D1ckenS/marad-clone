@@ -5,6 +5,7 @@ import type { AuthContext } from '../auth/auth-context';
 import { requireVesselId } from '../auth/vessel-bound';
 import { PrismaService } from '../prisma/prisma.service';
 import { OutboxRecorder } from '../sync/outbox-recorder';
+import { PurchaseOrderService } from '../purchase-order/purchase-order.service';
 import type { CreateQuoteDto } from './dto/create-quote.dto';
 import type { CreateQuoteLineDto } from './dto/create-quote-line.dto';
 
@@ -42,7 +43,8 @@ export class QuoteService {
           vesselId,
           rfqId: dto.rfqId,
           supplierId: dto.supplierId,
-          totalAmount: new Prisma.Decimal(dto.totalAmount ?? '0'),
+          // totalAmount derived from line sums; see `recomputeTotal`.
+          totalAmount: new Prisma.Decimal(0),
           currency: dto.currency ?? 'USD',
           notes: dto.notes ?? null,
           status: 'PENDING',
@@ -51,6 +53,20 @@ export class QuoteService {
         },
       });
     });
+  }
+
+  /** Re-derive Quote.totalAmount from SUM(quote_lines.totalPrice). */
+  static async recomputeTotal(tx: Prisma.TransactionClient, quoteId: string) {
+    const agg = await tx.quoteLine.aggregate({
+      where: { quoteId, deletedAt: null },
+      _sum: { totalPrice: true },
+    });
+    const total = agg._sum.totalPrice ?? new Prisma.Decimal(0);
+    await tx.quote.update({
+      where: { id: quoteId },
+      data: { totalAmount: total },
+    });
+    return total;
   }
 
   findAll(auth: AuthContext, rfqId?: string) {
@@ -96,7 +112,7 @@ export class QuoteService {
         id,
         fields,
       );
-      return tx.quoteLine.create({
+      const line = await tx.quoteLine.create({
         data: {
           id,
           tenantId: auth.tenantId!,
@@ -113,6 +129,8 @@ export class QuoteService {
           hlc,
         },
       });
+      await QuoteService.recomputeTotal(tx as Prisma.TransactionClient, quoteId);
+      return line;
     });
   }
 
@@ -148,7 +166,7 @@ export class QuoteService {
     const vesselId = quote.vesselId;
     const poId = newId();
     return this.prisma.withTenant(auth.tenantId!, async (tx) => {
-      const po = await tx.purchaseOrder.create({
+      await tx.purchaseOrder.create({
         data: {
           id: poId,
           tenantId: auth.tenantId!,
@@ -156,7 +174,12 @@ export class QuoteService {
           rfqId: quote.rfqId,
           supplierId: quote.supplierId,
           title: `PO from Quote ${id.slice(-8)}`,
-          totalAmount: quote.totalAmount,
+          // totalAmount left at 0 — it gets recomputed below from the
+          // actual line rows we insert. Copying `quote.totalAmount`
+          // directly was the source of the data-integrity bug where a
+          // Quote with a manually-set total and no lines produced a PO
+          // with the same phantom total.
+          totalAmount: new Prisma.Decimal(0),
           currency: quote.currency,
           status: 'DRAFT',
           hlc: id,
@@ -177,7 +200,8 @@ export class QuoteService {
         hlc: id,
       }));
       if (lineValues.length > 0) await tx.pOLine.createMany({ data: lineValues });
-      return po;
+      await PurchaseOrderService.recomputeTotal(tx as Prisma.TransactionClient, poId);
+      return tx.purchaseOrder.findUnique({ where: { id: poId } });
     });
   }
 }

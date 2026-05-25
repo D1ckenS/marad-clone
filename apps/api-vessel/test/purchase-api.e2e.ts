@@ -113,7 +113,6 @@ describe('P1-8 purchase API — SQLite/vessel', () => {
       .set('Authorization', `Bearer ${pmToken}`)
       .send({
         title: 'Deck consumables',
-        totalAmount: '10000',
         currency: 'EUR',
         requestedAt: new Date().toISOString(),
         approvalFlowId: flowId,
@@ -121,10 +120,17 @@ describe('P1-8 purchase API — SQLite/vessel', () => {
     expect(reqRes.status).toBe(201);
     const reqId = reqRes.body.id;
 
+    // Line worth €10k — under the €50k limit. Total recomputes via service.
     await request(app.getHttpServer())
       .post(`/api/v1/requisitions/${reqId}/lines`)
       .set('Authorization', `Bearer ${pmToken}`)
-      .send({ description: 'Safety gloves', quantity: '20', unit: 'pairs' });
+      .send({
+        description: 'Safety gloves',
+        quantity: '20',
+        unit: 'pairs',
+        estimatedUnitPrice: '500',
+        estimatedTotalPrice: '10000',
+      });
 
     const submitRes = await request(app.getHttpServer())
       .post(`/api/v1/requisitions/${reqId}/submit`)
@@ -149,12 +155,23 @@ describe('P1-8 purchase API — SQLite/vessel', () => {
       .set('Authorization', `Bearer ${pmToken}`)
       .send({
         title: 'Over-limit requisition',
-        totalAmount: '60000',
         currency: 'EUR',
         requestedAt: new Date().toISOString(),
         approvalFlowId: flowId,
       });
     const reqId = reqRes.body.id;
+
+    // €60k line — over the €50k limit. Total recomputes via service.
+    await request(app.getHttpServer())
+      .post(`/api/v1/requisitions/${reqId}/lines`)
+      .set('Authorization', `Bearer ${pmToken}`)
+      .send({
+        description: 'Over-limit item',
+        quantity: '1',
+        estimatedUnitPrice: '60000',
+        estimatedTotalPrice: '60000',
+      });
+
     await request(app.getHttpServer())
       .post(`/api/v1/requisitions/${reqId}/submit`)
       .set('Authorization', `Bearer ${pmToken}`);
@@ -202,5 +219,62 @@ describe('P1-8 purchase API — SQLite/vessel', () => {
       .set('Authorization', `Bearer ${pmToken}`)
       .send({ lines: [{ poLineId, quantityReceived: '2' }] });
     expect(grn2.body.poStatus).toBe('RECEIVED');
+  });
+
+  // ── totalAmount derivation invariant ─────────────────────────────────
+  // Regression: vessel-side parents (PO/Quote/Requisition) must derive
+  // totalAmount from line sums. See `recomputeTotal` in each service.
+
+  it('PO totalAmount: starts at 0 and ignores client-supplied totalAmount', async () => {
+    const poRes = await request(app.getHttpServer())
+      .post('/api/v1/purchase-orders')
+      .set('Authorization', `Bearer ${pmToken}`)
+      .send({ title: 'vessel-totals', totalAmount: '9999' });
+    expect(poRes.status).toBe(201);
+    expect(parseFloat(poRes.body.totalAmount)).toBe(0);
+  });
+
+  it('PO totalAmount: recomputed after addLine', async () => {
+    const poRes = await request(app.getHttpServer())
+      .post('/api/v1/purchase-orders')
+      .set('Authorization', `Bearer ${pmToken}`)
+      .send({ title: 'vessel-totals-add' });
+    const poId = poRes.body.id;
+    await request(app.getHttpServer())
+      .post(`/api/v1/purchase-orders/${poId}/lines`)
+      .set('Authorization', `Bearer ${pmToken}`)
+      .send({ description: 'A', quantity: '4', unitPrice: '25', totalPrice: '100' });
+    await request(app.getHttpServer())
+      .post(`/api/v1/purchase-orders/${poId}/lines`)
+      .set('Authorization', `Bearer ${pmToken}`)
+      .send({ description: 'B', quantity: '2', unitPrice: '50', totalPrice: '100' });
+
+    const getRes = await request(app.getHttpServer())
+      .get(`/api/v1/purchase-orders/${poId}`)
+      .set('Authorization', `Bearer ${pmToken}`);
+    expect(parseFloat(getRes.body.totalAmount)).toBe(200);
+  });
+
+  it('PO totalAmount: client-supplied totalAmount on PATCH is silently ignored', async () => {
+    const poRes = await request(app.getHttpServer())
+      .post('/api/v1/purchase-orders')
+      .set('Authorization', `Bearer ${pmToken}`)
+      .send({ title: 'vessel-totals-patch' });
+    const poId = poRes.body.id;
+    await request(app.getHttpServer())
+      .post(`/api/v1/purchase-orders/${poId}/lines`)
+      .set('Authorization', `Bearer ${pmToken}`)
+      .send({ description: 'X', quantity: '1', unitPrice: '11', totalPrice: '11' });
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/purchase-orders/${poId}`)
+      .set('Authorization', `Bearer ${pmToken}`)
+      .send({ notes: 'patched', totalAmount: '99999' });
+
+    const getRes = await request(app.getHttpServer())
+      .get(`/api/v1/purchase-orders/${poId}`)
+      .set('Authorization', `Bearer ${pmToken}`);
+    expect(parseFloat(getRes.body.totalAmount)).toBe(11);
+    expect(getRes.body.notes).toBe('patched');
   });
 });
