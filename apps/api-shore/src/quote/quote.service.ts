@@ -166,40 +166,73 @@ export class QuoteService {
     const vesselId = quote.vesselId;
     const poId = newId();
     return this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      // Mint a fresh HLC for the PO via the recorder. Previously this
+      // code set `hlc: id` (the source Quote's id) which corrupted
+      // causality in the sync engine — and skipped the outbox entirely,
+      // so converted POs never replicated. Going through the recorder
+      // fixes both.
+      const poFields = {
+        vesselId,
+        rfqId: quote.rfqId,
+        supplierId: quote.supplierId,
+        title: `PO from Quote ${id.slice(-8)}`,
+        status: 'DRAFT' as const,
+        currency: quote.currency,
+      };
+      const { hlc: poHlc } = await this.recorder.recordUpsert(
+        tx as unknown as Prisma.TransactionClient,
+        { tenantId: auth.tenantId!, vesselId },
+        'PurchaseOrder',
+        poId,
+        poFields,
+      );
       await tx.purchaseOrder.create({
         data: {
           id: poId,
           tenantId: auth.tenantId!,
-          vesselId,
-          rfqId: quote.rfqId,
-          supplierId: quote.supplierId,
-          title: `PO from Quote ${id.slice(-8)}`,
-          // totalAmount left at 0 — it gets recomputed below from the
-          // actual line rows we insert. Copying `quote.totalAmount`
-          // directly was the source of the data-integrity bug where a
-          // Quote with a manually-set total and no lines produced a PO
-          // with the same phantom total.
+          ...poFields,
+          // totalAmount left at 0; recomputed below from inserted lines.
           totalAmount: new Prisma.Decimal(0),
-          currency: quote.currency,
-          status: 'DRAFT',
-          hlc: id,
+          hlc: poHlc,
         },
       });
-      const lineValues = quote.lines.map((l) => ({
-        id: newId(),
-        tenantId: auth.tenantId!,
-        vesselId,
-        poId,
-        description: l.description,
-        quantity: l.quantity,
-        unit: l.unit,
-        unitPrice: l.unitPrice,
-        totalPrice: l.totalPrice,
-        currency: l.currency,
-        quoteLineId: l.id,
-        hlc: id,
-      }));
-      if (lineValues.length > 0) await tx.pOLine.createMany({ data: lineValues });
+      for (const l of quote.lines) {
+        const lineId = newId();
+        const lineFields = {
+          vesselId,
+          poId,
+          description: l.description,
+          quantity: l.quantity.toString(),
+          unit: l.unit,
+          unitPrice: l.unitPrice.toString(),
+          totalPrice: l.totalPrice.toString(),
+          currency: l.currency,
+          quoteLineId: l.id,
+        };
+        const { hlc: lineHlc } = await this.recorder.recordUpsert(
+          tx as unknown as Prisma.TransactionClient,
+          { tenantId: auth.tenantId!, vesselId },
+          'POLine',
+          lineId,
+          lineFields,
+        );
+        await tx.pOLine.create({
+          data: {
+            id: lineId,
+            tenantId: auth.tenantId!,
+            poId,
+            vesselId,
+            description: l.description,
+            quantity: l.quantity,
+            unit: l.unit,
+            unitPrice: l.unitPrice,
+            totalPrice: l.totalPrice,
+            currency: l.currency,
+            quoteLineId: l.id,
+            hlc: lineHlc,
+          },
+        });
+      }
       await PurchaseOrderService.recomputeTotal(tx as Prisma.TransactionClient, poId);
       return tx.purchaseOrder.findUnique({ where: { id: poId } });
     });

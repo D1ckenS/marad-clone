@@ -190,12 +190,15 @@ export class RequisitionService {
     const req = await this.findOne(auth, requisitionId);
     if (req.status !== 'DRAFT')
       throw new BadRequestException('Lines can only be removed from DRAFT requisitions');
-    await this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.requisitionLine.updateMany({
+    await this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      await tx.requisitionLine.updateMany({
         where: { id: lineId, requisitionId, tenantId: auth.tenantId! },
         data: { deletedAt: new Date() },
-      }),
-    );
+      });
+      // Mirror what addLine does — keep the parent total in sync with
+      // the surviving lines.
+      await RequisitionService.recomputeTotal(tx as Prisma.TransactionClient, requisitionId);
+    });
   }
 
   async submit(auth: AuthContext, id: string) {
