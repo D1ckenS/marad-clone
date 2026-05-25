@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/drill.dart';
@@ -47,7 +48,7 @@ class _DrillsScreenState extends State<DrillsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Safety Drills')),
+      appBar: AppBar(title: Text('drills.title'.tr())),
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading
@@ -55,7 +56,7 @@ class _DrillsScreenState extends State<DrillsScreen> {
             : _error != null
                 ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
                 : _drills.isEmpty
-                    ? const Center(child: Text('No drills found.'))
+                    ? Center(child: Text('drills.empty'.tr()))
                     : ListView.builder(
                         itemCount: _drills.length,
                         itemBuilder: (ctx, i) {
@@ -101,20 +102,20 @@ class _DrillsScreenState extends State<DrillsScreen> {
     final result = await showDialog<bool>(
       context: ctx,
       builder: (dialogCtx) => AlertDialog(
-        title: const Text('Sign Drill Record'),
+        title: Text('drills.sign_title'.tr()),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Drill: ${drill.drillTypeName}'),
+            Text('${'drills.drill_label'.tr()}: ${drill.drillTypeName}'),
             const SizedBox(height: 12),
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(labelText: 'Your Name'),
+              decoration: InputDecoration(labelText: 'drills.your_name'.tr()),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: Text('common.cancel'.tr())),
           FilledButton(
             onPressed: () async {
               try {
@@ -134,7 +135,7 @@ class _DrillsScreenState extends State<DrillsScreen> {
                 }
               }
             },
-            child: const Text('Sign Off'),
+            child: Text('drills.sign_button'.tr()),
           ),
         ],
       ),
@@ -142,7 +143,7 @@ class _DrillsScreenState extends State<DrillsScreen> {
     if (result == true) {
       if (ctx.mounted) {
         ScaffoldMessenger.of(ctx).showSnackBar(
-          const SnackBar(content: Text('Drill record added')),
+          SnackBar(content: Text('drills.record_added'.tr())),
         );
       }
       _load();

@@ -17,6 +17,11 @@ import 'audit_findings_screen.dart';
 import 'safety_equipment_screen.dart';
 import 'conditions_of_class_screen.dart';
 import 'inspections_screen.dart';
+import 'surveys_screen.dart';
+import 'qhse_objectives_screen.dart';
+import 'audits_screen.dart';
+import 'drybms_elements_screen.dart';
+import 'management_reviews_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -108,43 +113,70 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-            const _DrawerSection('Quick logs'),
+            _DrawerSection('drawer.section_quick_logs'.tr()),
             ListTile(
               leading: const Icon(Icons.water_outlined),
-              title: const Text('Discharge logs (MARPOL)'),
+              title: Text('drawer.discharge_logs'.tr()),
               onTap: () => _openDrawerDestination(const DischargeLogsScreen()),
             ),
             ListTile(
               leading: const Icon(Icons.warning_amber_outlined),
-              title: const Text('JHA / risk assessments'),
+              title: Text('drawer.jhas'.tr()),
               onTap: () => _openDrawerDestination(const JhasScreen()),
             ),
             ListTile(
               leading: const Icon(Icons.directions_boat_outlined),
-              title: const Text('Voyage legs'),
+              title: Text('drawer.voyage_legs'.tr()),
               onTap: () => _openDrawerDestination(const VoyageLegsScreen()),
             ),
             ListTile(
               leading: const Icon(Icons.security_outlined),
-              title: const Text('Inspections (PSC / Vetting)'),
+              title: Text('drawer.inspections'.tr()),
               onTap: () => _openDrawerDestination(const InspectionsScreen()),
             ),
             const Divider(),
-            const _DrawerSection('Records'),
+            _DrawerSection('drawer.section_records'.tr()),
             ListTile(
               leading: const Icon(Icons.flag_outlined),
-              title: const Text('Audit findings'),
+              title: Text('drawer.audit_findings'.tr()),
               onTap: () => _openDrawerDestination(const AuditFindingsScreen()),
             ),
             ListTile(
               leading: const Icon(Icons.health_and_safety_outlined),
-              title: const Text('Safety equipment'),
+              title: Text('drawer.safety_equipment'.tr()),
               onTap: () => _openDrawerDestination(const SafetyEquipmentScreen()),
             ),
             ListTile(
               leading: const Icon(Icons.gavel_outlined),
-              title: const Text('Conditions of Class'),
+              title: Text('drawer.conditions_of_class'.tr()),
               onTap: () => _openDrawerDestination(const ConditionsOfClassScreen()),
+            ),
+            ListTile(
+              leading: const Icon(Icons.assignment_outlined),
+              title: Text('drawer.surveys'.tr()),
+              onTap: () => _openDrawerDestination(const SurveysScreen()),
+            ),
+            ListTile(
+              leading: const Icon(Icons.fact_check_outlined),
+              title: Text('drawer.audits'.tr()),
+              onTap: () => _openDrawerDestination(const AuditsScreen()),
+            ),
+            const Divider(),
+            _DrawerSection('drawer.section_office'.tr()),
+            ListTile(
+              leading: const Icon(Icons.track_changes_outlined),
+              title: Text('drawer.qhse_objectives'.tr()),
+              onTap: () => _openDrawerDestination(const QhseObjectivesScreen()),
+            ),
+            ListTile(
+              leading: const Icon(Icons.fact_check_outlined),
+              title: Text('drawer.drybms_elements'.tr()),
+              onTap: () => _openDrawerDestination(const DrybmsElementsScreen()),
+            ),
+            ListTile(
+              leading: const Icon(Icons.event_note_outlined),
+              title: Text('drawer.management_reviews'.tr()),
+              onTap: () => _openDrawerDestination(const ManagementReviewsScreen()),
             ),
           ],
         ),

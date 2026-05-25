@@ -3,19 +3,19 @@ import 'package:flutter/material.dart';
 import '../services/api_client.dart';
 import '../widgets/entity_list_scaffold.dart';
 
-class SafetyEquipmentScreen extends StatelessWidget {
-  const SafetyEquipmentScreen({super.key});
+class QhseObjectivesScreen extends StatelessWidget {
+  const QhseObjectivesScreen({super.key});
 
-  static const _categories = ['FFA', 'LSA', 'OTH'];
+  static const _categories = ['Q', 'H', 'S', 'E'];
   static const _statuses = ['GREEN', 'AMBER', 'RED'];
 
   @override
   Widget build(BuildContext context) {
     return EntityListScaffold(
-      title: 'safety_equipment.title'.tr(),
-      endpoint: '/safety-equipment',
-      createTooltip: 'safety_equipment.create_button'.tr(),
-      emptyMessage: 'safety_equipment.empty'.tr(),
+      title: 'qhse_objectives.title'.tr(),
+      endpoint: '/qhse-objectives',
+      createTooltip: 'qhse_objectives.create_button'.tr(),
+      emptyMessage: 'qhse_objectives.empty'.tr(),
       itemBuilder: (ctx, item) {
         final status = item['status']?.toString() ?? 'GREEN';
         final color = status == 'RED'
@@ -28,13 +28,15 @@ class SafetyEquipmentScreen extends StatelessWidget {
           child: ListTile(
             leading: CircleAvatar(
               backgroundColor: color.withValues(alpha: 0.15),
-              child: Text(item['category']?.toString().substring(0, 1) ?? '?',
+              child: Text(item['category']?.toString() ?? '?',
                   style: TextStyle(color: color, fontWeight: FontWeight.bold)),
             ),
-            title: Text(item['name']?.toString() ?? '—',
+            title: Text(item['label']?.toString() ?? '—',
                 style: const TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text('${item['location']} · qty ${item['quantity']}'
-                '${item['nextCheck'] != null ? ' · next: ${_formatDate(item['nextCheck'])}' : ''}'),
+            subtitle: Text(
+              'Target ${item['target']} ${item['unit']} · Actual ${item['actual']} ${item['unit']}'
+              '${item['delta'] != null ? ' (Δ ${item['delta']})' : ''}',
+            ),
             trailing: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
@@ -48,32 +50,24 @@ class SafetyEquipmentScreen extends StatelessWidget {
           ),
         );
       },
-      onCreate: (ctx, client, vesselId) =>
-          _showCreateDialog(ctx, client, vesselId),
+      onCreate: (ctx, client, vesselId) => _showCreateDialog(ctx, client),
     );
   }
 
-  Future<bool?> _showCreateDialog(
-      BuildContext ctx, ApiClient client, String? vesselId) async {
-    if (vesselId == null) {
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        SnackBar(content: Text('common.vessel_context_missing'.tr())),
-      );
-      return false;
-    }
+  Future<bool?> _showCreateDialog(BuildContext ctx, ApiClient client) async {
     String category = _categories.first;
     String status = _statuses.first;
-    final nameCtrl = TextEditingController();
-    final locCtrl = TextEditingController();
-    final qtyCtrl = TextEditingController(text: '1');
-    final lastCheckCtrl = TextEditingController();
-    final nextCheckCtrl = TextEditingController();
+    final labelCtrl = TextEditingController();
+    final targetCtrl = TextEditingController();
+    final actualCtrl = TextEditingController();
+    final unitCtrl = TextEditingController();
+    final deltaCtrl = TextEditingController();
 
     return showDialog<bool>(
       context: ctx,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (stateCtx, setSt) => AlertDialog(
-          title: Text('safety_equipment.create_title'.tr()),
+          title: Text('qhse_objectives.create_title'.tr()),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -102,26 +96,34 @@ class SafetyEquipmentScreen extends StatelessWidget {
                   ),
                 ]),
                 TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Name'),
+                  controller: labelCtrl,
+                  decoration: const InputDecoration(labelText: 'Label'),
                 ),
+                Row(children: [
+                  Expanded(
+                    child: TextField(
+                      controller: targetCtrl,
+                      decoration: const InputDecoration(labelText: 'Target'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: actualCtrl,
+                      decoration: const InputDecoration(labelText: 'Actual'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: unitCtrl,
+                      decoration: const InputDecoration(labelText: 'Unit'),
+                    ),
+                  ),
+                ]),
                 TextField(
-                  controller: locCtrl,
-                  decoration: const InputDecoration(labelText: 'Location'),
-                ),
-                TextField(
-                  controller: qtyCtrl,
-                  decoration: const InputDecoration(labelText: 'Quantity'),
-                ),
-                TextField(
-                  controller: lastCheckCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Last check (ISO UTC, optional)'),
-                ),
-                TextField(
-                  controller: nextCheckCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Next check (ISO UTC, optional)'),
+                  controller: deltaCtrl,
+                  decoration: const InputDecoration(labelText: 'Delta (optional)'),
                 ),
               ],
             ),
@@ -135,17 +137,15 @@ class SafetyEquipmentScreen extends StatelessWidget {
                 final ok = await submitCreateForm(
                   sheetCtx: dialogCtx,
                   onSubmit: () async {
-                    await client.post('/safety-equipment', {
-                      'vesselId': vesselId,
+                    await client.post('/qhse-objectives', {
                       'category': category,
-                      'name': nameCtrl.text.trim(),
-                      'location': locCtrl.text.trim(),
-                      'quantity': qtyCtrl.text.trim(),
-                      if (lastCheckCtrl.text.trim().isNotEmpty)
-                        'lastCheck': lastCheckCtrl.text.trim(),
-                      if (nextCheckCtrl.text.trim().isNotEmpty)
-                        'nextCheck': nextCheckCtrl.text.trim(),
+                      'label': labelCtrl.text.trim(),
+                      'target': targetCtrl.text.trim(),
+                      'actual': actualCtrl.text.trim(),
+                      'unit': unitCtrl.text.trim(),
                       'status': status,
+                      if (deltaCtrl.text.trim().isNotEmpty)
+                        'delta': deltaCtrl.text.trim(),
                     });
                   },
                 );
@@ -157,11 +157,5 @@ class SafetyEquipmentScreen extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  static String _formatDate(dynamic v) {
-    if (v == null) return '';
-    final d = DateTime.tryParse(v.toString());
-    return d == null ? v.toString() : d.toLocal().toString().split(' ').first;
   }
 }

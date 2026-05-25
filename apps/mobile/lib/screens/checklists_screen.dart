@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/checklist_instance.dart';
@@ -45,7 +46,7 @@ class _ChecklistsScreenState extends State<ChecklistsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('QHSE Checklists')),
+      appBar: AppBar(title: Text('checklists.title'.tr())),
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading
@@ -53,7 +54,7 @@ class _ChecklistsScreenState extends State<ChecklistsScreen> {
             : _error != null
                 ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
                 : _checklists.isEmpty
-                    ? const Center(child: Text('No checklists found.'))
+                    ? Center(child: Text('checklists.empty'.tr()))
                     : ListView.builder(
                         itemCount: _checklists.length,
                         itemBuilder: (ctx, i) {
@@ -63,16 +64,16 @@ class _ChecklistsScreenState extends State<ChecklistsScreen> {
                             margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                             child: ListTile(
                               leading: const Icon(Icons.checklist_outlined),
-                              title: Text(cl.title.isEmpty ? 'Checklist' : cl.title,
+                              title: Text(cl.title.isEmpty ? 'checklists.default_name'.tr() : cl.title,
                                   style: const TextStyle(fontWeight: FontWeight.w600)),
-                              subtitle: Text('${cl.signedCount}/${cl.responses.length} items checked'),
+                              subtitle: Text('checklists.items_summary'.tr(namedArgs: {'signed': '${cl.signedCount}', 'total': '${cl.responses.length}'})),
                               trailing: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: color.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: Text(cl.isCompleted ? 'Done' : 'In Progress',
+                                child: Text(cl.isCompleted ? 'checklists.status_done'.tr() : 'checklists.status_in_progress'.tr(),
                                     style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
                               ),
                               onTap: cl.isCompleted ? null : () => _openChecklist(context, cl),
@@ -128,9 +129,11 @@ class _ChecklistsScreenState extends State<ChecklistsScreen> {
                       onChanged: item['signedAt'] != null ? null : (val) {
                         setSheetState(() { item['checked'] = val ?? false; });
                       },
-                      title: Text((item['label'] as String).isEmpty ? 'Item ${j + 1}' : item['label'] as String),
+                      title: Text((item['label'] as String).isEmpty
+                          ? 'checklists.item_label'.tr(namedArgs: {'n': '${j + 1}'})
+                          : item['label'] as String),
                       subtitle: item['signedAt'] != null
-                          ? Text('Signed ${item['signedAt']}', style: const TextStyle(fontSize: 11))
+                          ? Text('checklists.signed_at'.tr(namedArgs: {'at': '${item['signedAt']}'}), style: const TextStyle(fontSize: 11))
                           : null,
                     );
                   },
@@ -148,8 +151,8 @@ class _ChecklistsScreenState extends State<ChecklistsScreen> {
                       final signedByUserId = auth.userId;
                       if (signedByUserId == null) {
                         ScaffoldMessenger.of(sheetCtx).showSnackBar(
-                          const SnackBar(
-                            content: Text('Cannot sign: no user id in session token.'),
+                          SnackBar(
+                            content: Text('checklists.sign_blocked_no_user_id'.tr()),
                             backgroundColor: Colors.red,
                           ),
                         );
@@ -179,7 +182,7 @@ class _ChecklistsScreenState extends State<ChecklistsScreen> {
                       }
                     }
                   },
-                  child: const Text('Save Progress'),
+                  child: Text('checklists.save_progress'.tr()),
                 ),
               ),
             ),

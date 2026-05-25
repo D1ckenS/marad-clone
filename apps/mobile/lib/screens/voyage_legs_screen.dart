@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import '../services/api_client.dart';
 import '../widgets/entity_list_scaffold.dart';
@@ -10,10 +11,10 @@ class VoyageLegsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return EntityListScaffold(
-      title: 'Voyage Legs',
+      title: 'voyage_legs.title'.tr(),
       endpoint: '/voyage-legs',
-      createTooltip: 'Log Leg',
-      emptyMessage: 'No voyage legs yet.',
+      createTooltip: 'voyage_legs.create_button'.tr(),
+      emptyMessage: 'voyage_legs.empty'.tr(),
       itemBuilder: (ctx, item) {
         final mode = item['mode']?.toString() ?? '';
         final modeColor = mode == 'LADEN'
@@ -60,7 +61,7 @@ class VoyageLegsScreen extends StatelessWidget {
       BuildContext ctx, ApiClient client, String? vesselId) async {
     if (vesselId == null) {
       ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('No vessel context — cannot create.')),
+        SnackBar(content: Text('common.vessel_context_missing'.tr())),
       );
       return false;
     }
@@ -82,7 +83,7 @@ class VoyageLegsScreen extends StatelessWidget {
       context: ctx,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (stateCtx, setSt) => AlertDialog(
-          title: const Text('Log Voyage Leg'),
+          title: Text('voyage_legs.create_title'.tr()),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -165,7 +166,7 @@ class VoyageLegsScreen extends StatelessWidget {
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(dialogCtx, false),
-                child: const Text('Cancel')),
+                child: Text('common.cancel'.tr())),
             FilledButton(
               onPressed: () async {
                 final ok = await submitCreateForm(
@@ -190,7 +191,7 @@ class VoyageLegsScreen extends StatelessWidget {
                 );
                 if (ok && dialogCtx.mounted) Navigator.pop(dialogCtx, true);
               },
-              child: const Text('Save'),
+              child: Text('common.save'.tr()),
             ),
           ],
         ),

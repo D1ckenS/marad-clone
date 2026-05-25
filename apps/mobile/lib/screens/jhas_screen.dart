@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import '../services/api_client.dart';
 import '../widgets/entity_list_scaffold.dart';
@@ -8,10 +9,10 @@ class JhasScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return EntityListScaffold(
-      title: 'Job Hazard Analyses',
+      title: 'jhas.title'.tr(),
       endpoint: '/jhas',
-      createTooltip: 'New JHA',
-      emptyMessage: 'No JHAs yet.',
+      createTooltip: 'jhas.create_button'.tr(),
+      emptyMessage: 'jhas.empty'.tr(),
       itemBuilder: (ctx, item) {
         final residualL = item['residualL'];
         final residualS = item['residualS'];
@@ -50,7 +51,7 @@ class JhasScreen extends StatelessWidget {
       context: ctx,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (stateCtx, setSt) => AlertDialog(
-          title: const Text('New JHA'),
+          title: Text('jhas.create_title'.tr()),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -116,7 +117,7 @@ class JhasScreen extends StatelessWidget {
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(dialogCtx, false),
-                child: const Text('Cancel')),
+                child: Text('common.cancel'.tr())),
             FilledButton(
               onPressed: () async {
                 final hazards = hazardsCtrl.text
@@ -146,7 +147,7 @@ class JhasScreen extends StatelessWidget {
                 );
                 if (ok && dialogCtx.mounted) Navigator.pop(dialogCtx, true);
               },
-              child: const Text('Save'),
+              child: Text('common.save'.tr()),
             ),
           ],
         ),

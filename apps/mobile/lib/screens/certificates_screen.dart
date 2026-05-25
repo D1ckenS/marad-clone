@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/certificate.dart';
@@ -73,22 +74,22 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
 
   String _expiryLabel(Certificate cert) {
     final days = cert.daysUntilExpiry();
-    if (days == null) return 'No expiry';
-    if (days < 0) return 'EXPIRED ${-days}d ago';
-    if (days == 0) return 'Expires TODAY';
-    return 'Expires in ${days}d';
+    if (days == null) return 'certificates.no_expiry'.tr();
+    if (days < 0) return 'certificates.expired_ago'.tr(namedArgs: {'days': '${-days}'});
+    if (days == 0) return 'certificates.expires_today'.tr();
+    return 'certificates.expires_in'.tr(namedArgs: {'days': '$days'});
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Certificates'),
+        title: Text('certificates.title'.tr()),
         actions: [
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Expiring', style: TextStyle(fontSize: 12)),
+              Text('certificates.expiring_switch'.tr(), style: const TextStyle(fontSize: 12)),
               Switch(
                 value: _expiringOnly,
                 onChanged: (v) { setState(() { _expiringOnly = v; }); _load(); },
@@ -104,7 +105,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
             : _error != null
                 ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
                 : _certs.isEmpty
-                    ? const Center(child: Text('No certificates found.'))
+                    ? Center(child: Text('certificates.empty'.tr()))
                     : ListView.builder(
                         itemCount: _certs.length,
                         itemBuilder: (ctx, i) {

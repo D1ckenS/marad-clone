@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/tank.dart';
@@ -63,7 +64,7 @@ class _FlgoScreenState extends State<FlgoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('FLGO — Tanks & Soundings')),
+      appBar: AppBar(title: Text('flgo.title'.tr())),
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading
@@ -71,7 +72,7 @@ class _FlgoScreenState extends State<FlgoScreen> {
             : _error != null
                 ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
                 : _tanks.isEmpty
-                    ? const Center(child: Text('No tanks configured.'))
+                    ? Center(child: Text('flgo.empty'.tr()))
                     : ListView.builder(
                         itemCount: _tanks.length,
                         itemBuilder: (ctx, i) {
@@ -92,13 +93,13 @@ class _FlgoScreenState extends State<FlgoScreen> {
                                       mainAxisSize: MainAxisSize.min,
                                       crossAxisAlignment: CrossAxisAlignment.end,
                                       children: [
-                                        Text('${lastReading.robMt} MT',
+                                        Text('flgo.rob_mt'.tr(namedArgs: {'n': lastReading.robMt}),
                                             style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2F7D4F))),
                                         Text(lastReading.readingDate,
                                             style: const TextStyle(fontSize: 11, color: Colors.grey)),
                                       ],
                                     )
-                                  : const Text('No sounding', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                                  : Text('flgo.no_sounding'.tr(), style: const TextStyle(color: Colors.grey, fontSize: 12)),
                               onTap: () => _showLogSoundingDialog(context, t),
                             ),
                           );
@@ -108,7 +109,7 @@ class _FlgoScreenState extends State<FlgoScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showLogBdnDialog(context),
         icon: const Icon(Icons.local_shipping),
-        label: const Text('Log BDN'),
+        label: Text('flgo.log_bdn_button'.tr()),
       ),
     );
   }
@@ -120,7 +121,7 @@ class _FlgoScreenState extends State<FlgoScreen> {
     final result = await showDialog<bool>(
       context: ctx,
       builder: (dialogCtx) => AlertDialog(
-        title: Text('Log Sounding — ${tank.name}'),
+        title: Text('flgo.log_sounding_title'.tr(namedArgs: {'tank': tank.name})),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -137,7 +138,7 @@ class _FlgoScreenState extends State<FlgoScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: Text('common.cancel'.tr())),
           FilledButton(
             onPressed: () async {
               try {
@@ -156,7 +157,7 @@ class _FlgoScreenState extends State<FlgoScreen> {
                 }
               }
             },
-            child: const Text('Save'),
+            child: Text('common.save'.tr()),
           ),
         ],
       ),
@@ -172,7 +173,7 @@ class _FlgoScreenState extends State<FlgoScreen> {
     await showDialog<void>(
       context: ctx,
       builder: (dialogCtx) => AlertDialog(
-        title: const Text('Log Bunker Delivery Note'),
+        title: Text('flgo.log_bdn_title'.tr()),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -190,7 +191,7 @@ class _FlgoScreenState extends State<FlgoScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(dialogCtx), child: Text('common.cancel'.tr())),
           FilledButton(
             onPressed: () async {
               try {
@@ -204,7 +205,7 @@ class _FlgoScreenState extends State<FlgoScreen> {
                 if (dialogCtx.mounted) {
                   Navigator.pop(dialogCtx);
                   ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(content: Text('BDN logged successfully')),
+                    SnackBar(content: Text('flgo.bdn_logged'.tr())),
                   );
                 }
               } catch (e) {
@@ -215,7 +216,7 @@ class _FlgoScreenState extends State<FlgoScreen> {
                 }
               }
             },
-            child: const Text('Save'),
+            child: Text('common.save'.tr()),
           ),
         ],
       ),
