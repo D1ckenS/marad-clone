@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/tank.dart';
 import '../providers/auth_provider.dart';
 
 class FlgoScreen extends StatefulWidget {
@@ -9,7 +10,11 @@ class FlgoScreen extends StatefulWidget {
 }
 
 class _FlgoScreenState extends State<FlgoScreen> {
-  List<dynamic> _tanks = [];
+  List<Tank> _tanks = [];
+  /// Latest reading per tankId. Vessel `/tanks` doesn't return nested
+  /// readings, so we fetch `/tank-readings` separately (sorted DESC by date)
+  /// and take the first hit per tank.
+  Map<String, TankReading> _latestReadingByTank = {};
   bool _loading = true;
   String? _error;
 
@@ -22,9 +27,32 @@ class _FlgoScreenState extends State<FlgoScreen> {
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final client = context.read<AuthProvider>().client;
-      final data = await client.get('/tanks');
-      setState(() { _tanks = data as List<dynamic>; });
+      final auth = context.read<AuthProvider>();
+      final client = auth.client;
+      final tankData = await client.get('/tanks');
+      final tanks = (tankData as List<dynamic>)
+          .cast<Map<String, dynamic>>()
+          .map(Tank.fromJson)
+          .toList();
+
+      final readingsUrl = auth.vesselId != null
+          ? '/tank-readings?vesselId=${auth.vesselId}'
+          : '/tank-readings';
+      final readingData = await client.get(readingsUrl);
+      final readings = (readingData as List<dynamic>)
+          .cast<Map<String, dynamic>>()
+          .map(TankReading.fromJson);
+      // Readings come back sorted DESC by readingDate, so the first per
+      // tankId is the latest.
+      final latestByTank = <String, TankReading>{};
+      for (final r in readings) {
+        latestByTank.putIfAbsent(r.tankId, () => r);
+      }
+
+      setState(() {
+        _tanks = tanks;
+        _latestReadingByTank = latestByTank;
+      });
     } catch (e) {
       setState(() { _error = e.toString(); });
     } finally {
@@ -47,26 +75,26 @@ class _FlgoScreenState extends State<FlgoScreen> {
                     : ListView.builder(
                         itemCount: _tanks.length,
                         itemBuilder: (ctx, i) {
-                          final t = _tanks[i] as Map<String, dynamic>;
-                          final lastReading = (t['readings'] as List?)?.firstOrNull;
+                          final t = _tanks[i];
+                          final lastReading = _latestReadingByTank[t.id];
                           return Card(
                             margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                             child: ListTile(
                               leading: const Icon(Icons.water_drop_outlined, color: Color(0xFF1F5B9D)),
-                              title: Text(t['name']?.toString() ?? '—',
+                              title: Text(t.name,
                                   style: const TextStyle(fontWeight: FontWeight.w600)),
                               subtitle: Text(
-                                '${t['tankType'] ?? ''}'
-                                '${t['capacityM3'] != null ? ' · Cap: ${t['capacityM3']} m³' : ''}',
+                                '${t.tankType ?? ''}'
+                                '${t.capacityM3 != null ? ' · Cap: ${t.capacityM3} m³' : ''}',
                               ),
                               trailing: lastReading != null
                                   ? Column(
                                       mainAxisSize: MainAxisSize.min,
                                       crossAxisAlignment: CrossAxisAlignment.end,
                                       children: [
-                                        Text('${lastReading['robMt']} MT',
+                                        Text('${lastReading.robMt} MT',
                                             style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2F7D4F))),
-                                        Text(lastReading['readingDate']?.toString() ?? '',
+                                        Text(lastReading.readingDate,
                                             style: const TextStyle(fontSize: 11, color: Colors.grey)),
                                       ],
                                     )
@@ -85,14 +113,14 @@ class _FlgoScreenState extends State<FlgoScreen> {
     );
   }
 
-  Future<void> _showLogSoundingDialog(BuildContext ctx, Map<String, dynamic> tank) async {
+  Future<void> _showLogSoundingDialog(BuildContext ctx, Tank tank) async {
     final robController = TextEditingController();
     final dateController = TextEditingController(
         text: DateTime.now().toIso8601String().split('T').first);
     final result = await showDialog<bool>(
       context: ctx,
       builder: (dialogCtx) => AlertDialog(
-        title: Text('Log Sounding — ${tank['name']}'),
+        title: Text('Log Sounding — ${tank.name}'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -114,8 +142,8 @@ class _FlgoScreenState extends State<FlgoScreen> {
             onPressed: () async {
               try {
                 await context.read<AuthProvider>().client.post('/tank-readings', {
-                  'tankId': tank['id'],
-                  'vesselId': tank['vesselId'],
+                  'tankId': tank.id,
+                  'vesselId': tank.vesselId,
                   'readingDate': dateController.text,
                   'robMt': robController.text,
                 });

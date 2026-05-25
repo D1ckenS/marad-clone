@@ -1,6 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/certificate.dart';
 import '../providers/auth_provider.dart';
+
+/// Keeps certs whose `expiresAt` is within [withinDays] from [now] (inclusive),
+/// including already-expired ones (negative remaining days). Certs without an
+/// expiry date are dropped — by definition they can't be "expiring soon."
+///
+/// Lives at top level (not as a private static on the State) so it's reachable
+/// from the unit test in `test/cert_filters_test.dart`.
+List<Certificate> filterCertsExpiringWithin(
+  List<Certificate> certs,
+  int withinDays, {
+  DateTime? now,
+}) {
+  final ref = now ?? DateTime.now();
+  return certs.where((c) {
+    final days = c.daysUntilExpiry(now: ref);
+    if (days == null) return false;
+    return days <= withinDays;
+  }).toList();
+}
 
 class CertificatesScreen extends StatefulWidget {
   const CertificatesScreen({super.key});
@@ -9,7 +29,7 @@ class CertificatesScreen extends StatefulWidget {
 }
 
 class _CertificatesScreenState extends State<CertificatesScreen> {
-  List<dynamic> _certs = [];
+  List<Certificate> _certs = [];
   bool _loading = true;
   String? _error;
   bool _expiringOnly = false;
@@ -24,9 +44,17 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
     setState(() { _loading = true; _error = null; });
     try {
       final client = context.read<AuthProvider>().client;
-      final url = _expiringOnly ? '/certificates?expiringWithinDays=90' : '/certificates';
-      final data = await client.get(url);
-      setState(() { _certs = data as List<dynamic>; });
+      // Vessel /certificates ignores ?expiringWithinDays (shore supports it,
+      // vessel doesn't). Always fetch all and filter client-side instead —
+      // dataset is small (cert count per vessel is in the dozens, not millions).
+      final data = await client.get('/certificates');
+      final all = (data as List<dynamic>)
+          .cast<Map<String, dynamic>>()
+          .map(Certificate.fromJson)
+          .toList();
+      setState(() {
+        _certs = _expiringOnly ? filterCertsExpiringWithin(all, 90) : all;
+      });
     } catch (e) {
       setState(() { _error = e.toString(); });
     } finally {
@@ -34,24 +62,18 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
     }
   }
 
-  Color _statusColor(Map<String, dynamic> cert) {
-    final expiresAt = cert['expiresAt'] as String?;
-    if (expiresAt == null) return Colors.grey;
-    final exp = DateTime.tryParse(expiresAt);
-    if (exp == null) return Colors.grey;
-    final days = exp.difference(DateTime.now()).inDays;
+  Color _statusColor(Certificate cert) {
+    final days = cert.daysUntilExpiry();
+    if (days == null) return Colors.grey;
     if (days < 0) return const Color(0xFFAB382E);
     if (days < 30) return const Color(0xFFB5731E);
     if (days < 90) return const Color(0xFF1F5B9D);
     return const Color(0xFF2F7D4F);
   }
 
-  String _expiryLabel(Map<String, dynamic> cert) {
-    final expiresAt = cert['expiresAt'] as String?;
-    if (expiresAt == null) return 'No expiry';
-    final exp = DateTime.tryParse(expiresAt);
-    if (exp == null) return expiresAt;
-    final days = exp.difference(DateTime.now()).inDays;
+  String _expiryLabel(Certificate cert) {
+    final days = cert.daysUntilExpiry();
+    if (days == null) return 'No expiry';
     if (days < 0) return 'EXPIRED ${-days}d ago';
     if (days == 0) return 'Expires TODAY';
     return 'Expires in ${days}d';
@@ -86,27 +108,27 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
                     : ListView.builder(
                         itemCount: _certs.length,
                         itemBuilder: (ctx, i) {
-                          final c = _certs[i] as Map<String, dynamic>;
+                          final c = _certs[i];
                           final color = _statusColor(c);
                           return Card(
                             margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                             child: ListTile(
                               leading: Icon(Icons.verified_outlined, color: color),
                               title: Text(
-                                c['certificateType']?['name']?.toString() ?? 'Certificate',
+                                c.certificateType?.name ?? 'Certificate',
                                 style: const TextStyle(fontWeight: FontWeight.w600),
                               ),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('${c['subjectType']} · #${c['number'] ?? '—'}'),
+                                  Text('${c.subjectType ?? '—'} · #${c.number ?? '—'}'),
                                   Text(_expiryLabel(c),
                                       style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 12)),
                                 ],
                               ),
                               isThreeLine: true,
-                              trailing: c['issuedBy'] != null
-                                  ? Text(c['issuedBy'].toString(),
+                              trailing: c.issuedBy != null
+                                  ? Text(c.issuedBy!,
                                       style: const TextStyle(fontSize: 11, color: Colors.grey))
                                   : null,
                             ),

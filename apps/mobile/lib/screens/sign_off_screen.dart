@@ -103,7 +103,7 @@ class _SignOffScreenState extends State<SignOffScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _SectionHeader(title: 'Work Details'),
+            const _SectionHeader(title: 'Work Details'),
             const SizedBox(height: 12),
             TextFormField(
               controller: _hoursCtrl,
@@ -138,7 +138,7 @@ class _SignOffScreenState extends State<SignOffScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            _SectionHeader(title: 'Photos'),
+            const _SectionHeader(title: 'Photos'),
             const SizedBox(height: 8),
             Row(
               children: [

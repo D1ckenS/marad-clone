@@ -256,6 +256,8 @@ These changed in the P2-2 merge and are easy to get wrong in tests.
 
 **In e2e tests on vessel** — `LoginDto` was renamed to use `identifier:` in PR #29 (modal-enter-key fix) to mirror shore. Vessel users have no `username` column so the identifier is always an email, but the field name is `identifier`. PR #46 fixed the 10 e2e files that still sent `email:`.
 
+**In the Flutter mobile app** — `apps/mobile/lib/providers/auth_provider.dart` posts to vessel `/auth/login` and was sending `email:` until PR #48 fixed it. Regression test in `apps/mobile/test/auth_test.dart` asserts the field set. If you add a new mobile client in the future, send `identifier:` and add the same regression assertion.
+
 ---
 
 ## 25. Domain Package — Rebuild After Adding Exports
