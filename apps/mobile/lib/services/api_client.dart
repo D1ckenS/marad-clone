@@ -40,6 +40,22 @@ class ApiClient {
     return _handle(response);
   }
 
+  Future<dynamic> patch(String path, Map<String, dynamic> body) async {
+    final uri = Uri.parse('$baseUrl$path');
+    final response = await http.patch(
+      uri,
+      headers: _authHeaders,
+      body: jsonEncode(body),
+    );
+    return _handle(response);
+  }
+
+  Future<dynamic> delete(String path) async {
+    final uri = Uri.parse('$baseUrl$path');
+    final response = await http.delete(uri, headers: _authHeaders);
+    return _handle(response);
+  }
+
   /// Sends a multipart POST. [files] are added under [fileField] (default "photos").
   Future<dynamic> postMultipart(
     String path, {

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/language_switcher.dart';
+import '../widgets/sync_status_badge.dart';
 import 'jobs_screen.dart';
 import 'inventory_screen.dart';
 import 'certificates_screen.dart';
@@ -22,6 +23,7 @@ import 'qhse_objectives_screen.dart';
 import 'audits_screen.dart';
 import 'drybms_elements_screen.dart';
 import 'management_reviews_screen.dart';
+import 'purchase_orders_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -54,6 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: Text('app.name'.tr()),
         actions: [
+          const SyncStatusBadge(),
           const LanguageSwitcher(),
           if (auth.email != null)
             Padding(
@@ -133,6 +136,11 @@ class _HomeScreenState extends State<HomeScreen> {
               leading: const Icon(Icons.security_outlined),
               title: Text('drawer.inspections'.tr()),
               onTap: () => _openDrawerDestination(const InspectionsScreen()),
+            ),
+            ListTile(
+              leading: const Icon(Icons.shopping_cart_outlined),
+              title: Text('purchase.title'.tr()),
+              onTap: () => _openDrawerDestination(const PurchaseOrdersScreen()),
             ),
             const Divider(),
             _DrawerSection('drawer.section_records'.tr()),

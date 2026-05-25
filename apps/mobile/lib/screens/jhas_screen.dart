@@ -1,6 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import '../services/api_client.dart';
+import '../services/outbox_service.dart';
 import '../widgets/entity_list_scaffold.dart';
 
 class JhasScreen extends StatelessWidget {
@@ -34,11 +34,11 @@ class JhasScreen extends StatelessWidget {
           ),
         );
       },
-      onCreate: (ctx, client, vesselId) => _showCreateDialog(ctx, client),
+      onCreate: (ctx, outbox, _, vesselId) => _showCreateDialog(ctx, outbox),
     );
   }
 
-  Future<bool?> _showCreateDialog(BuildContext ctx, ApiClient client) async {
+  Future<bool?> _showCreateDialog(BuildContext ctx, OutboxService outbox) async {
     final refCtrl = TextEditingController();
     final titleCtrl = TextEditingController();
     final activityCtrl = TextEditingController();
@@ -133,7 +133,7 @@ class JhasScreen extends StatelessWidget {
                 final ok = await submitCreateForm(
                   sheetCtx: dialogCtx,
                   onSubmit: () async {
-                    await client.post('/jhas', {
+                    await outbox.postOrQueue('/jhas', {
                       'ref': refCtrl.text.trim(),
                       'title': titleCtrl.text.trim(),
                       if (activityCtrl.text.trim().isNotEmpty)

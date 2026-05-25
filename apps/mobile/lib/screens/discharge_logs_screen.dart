@@ -1,6 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import '../services/api_client.dart';
+import '../services/outbox_service.dart';
 import '../widgets/entity_list_scaffold.dart';
 
 class DischargeLogsScreen extends StatelessWidget {
@@ -44,13 +44,13 @@ class DischargeLogsScreen extends StatelessWidget {
           ),
         );
       },
-      onCreate: (ctx, client, vesselId) =>
-          _showCreateDialog(ctx, client, vesselId),
+      onCreate: (ctx, outbox, _, vesselId) =>
+          _showCreateDialog(ctx, outbox, vesselId),
     );
   }
 
   Future<bool?> _showCreateDialog(
-      BuildContext ctx, ApiClient client, String? vesselId) async {
+      BuildContext ctx, OutboxService outbox, String? vesselId) async {
     if (vesselId == null) {
       ScaffoldMessenger.of(ctx).showSnackBar(
         SnackBar(content: Text('common.vessel_context_missing'.tr())),
@@ -122,7 +122,7 @@ class DischargeLogsScreen extends StatelessWidget {
                 final ok = await submitCreateForm(
                   sheetCtx: dialogCtx,
                   onSubmit: () async {
-                    await client.post('/discharge-logs', {
+                    await outbox.postOrQueue('/discharge-logs', {
                       'vesselId': vesselId,
                       'kind': kind,
                       'occurredAt': dateCtrl.text.trim(),

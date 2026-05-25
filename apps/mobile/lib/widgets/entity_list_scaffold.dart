@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_client.dart';
+import '../services/outbox_service.dart';
 
 /// Generic scaffold for "list + pull-to-refresh + FAB → create" screens.
 /// Used by the 7 deferred-stub entity screens (DischargeLog, JHA, etc.) so
@@ -13,8 +14,13 @@ class EntityListScaffold extends StatefulWidget {
   final Widget Function(BuildContext ctx, Map<String, dynamic> item) itemBuilder;
 
   /// Shown when the user taps the FAB. Should return `true` when a new record
-  /// was created so the list refreshes.
-  final Future<bool?> Function(BuildContext ctx, ApiClient client, String? vesselId)
+  /// was created (or queued offline) so the list refreshes.
+  ///
+  /// Callbacks should call `outbox.postOrQueue(path, body)` rather than
+  /// `client.post(...)` directly, so writes survive a Wi-Fi blip
+  /// (REFERENCE.md §9.10).
+  final Future<bool?> Function(
+          BuildContext ctx, OutboxService outbox, ApiClient client, String? vesselId)
       onCreate;
 
   final String? emptyMessage;
@@ -67,7 +73,8 @@ class _EntityListScaffoldState extends State<EntityListScaffold> {
 
   Future<void> _openCreate() async {
     final auth = context.read<AuthProvider>();
-    final created = await widget.onCreate(context, auth.client, auth.vesselId);
+    final outbox = context.read<OutboxService>();
+    final created = await widget.onCreate(context, outbox, auth.client, auth.vesselId);
     if (created == true) _load();
   }
 

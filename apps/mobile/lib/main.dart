@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'app.dart';
 import 'providers/auth_provider.dart';
 import 'services/api_client.dart';
+import 'services/outbox_service.dart';
 
 /// All 8 supported locales (mirrors apps/web-shore/src/locales/*.json).
 /// Arabic is included to exercise RTL.
@@ -26,6 +27,9 @@ void main() async {
   final authProvider = AuthProvider(apiClient);
   await authProvider.init(); // restore token + base URL from secure storage
 
+  final outbox = OutboxService(apiClient);
+  await outbox.init(); // open SQLite + start periodic drain loop
+
   runApp(
     EasyLocalization(
       supportedLocales: supportedLocales,
@@ -35,6 +39,7 @@ void main() async {
         providers: [
           Provider<ApiClient>.value(value: apiClient),
           ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
+          ChangeNotifierProvider<OutboxService>.value(value: outbox),
         ],
         child: const FleetOpsApp(),
       ),
