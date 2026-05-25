@@ -25,9 +25,9 @@ export class UpdatePurchaseOrderDto {
   @IsString()
   poNumber?: string;
 
-  @IsOptional()
-  @IsString()
-  totalAmount?: string;
+  // totalAmount is intentionally NOT writable — it is derived from
+  // SUM(po_lines.totalPrice). See `CreatePurchaseOrderDto` for the
+  // full rationale.
 
   @IsOptional()
   @IsString()

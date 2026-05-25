@@ -7,9 +7,7 @@ export class CreateQuoteDto {
   @IsString()
   supplierId!: string;
 
-  @IsOptional()
-  @IsString()
-  totalAmount?: string;
+  // totalAmount is derived from SUM(quote_lines.totalPrice).
 
   @IsOptional()
   @IsString()

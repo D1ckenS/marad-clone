@@ -8,9 +8,8 @@ export class CreateRequisitionDto {
   @IsString()
   notes?: string;
 
-  @IsOptional()
-  @IsString()
-  totalAmount?: string;
+  // totalAmount is derived from SUM(requisition_lines.totalPrice).
+  // See RequisitionService.recomputeTotal — clients can't set it.
 
   @IsOptional()
   @IsString()

@@ -24,9 +24,8 @@ export class CreatePurchaseOrderDto {
   @IsString()
   poNumber?: string;
 
-  @IsOptional()
-  @IsString()
-  totalAmount?: string;
+  // totalAmount is derived from SUM(po_lines.totalPrice). See
+  // PurchaseOrderService.recomputeTotal — clients can't set it.
 
   @IsOptional()
   @IsString()

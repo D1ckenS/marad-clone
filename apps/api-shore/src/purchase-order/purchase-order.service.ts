@@ -43,7 +43,9 @@ export class PurchaseOrderService {
           requisitionId: dto.requisitionId ?? null,
           rfqId: dto.rfqId ?? null,
           poNumber: dto.poNumber ?? null,
-          totalAmount: new Prisma.Decimal(dto.totalAmount ?? '0'),
+          // totalAmount starts at 0 and is recomputed by `recomputeTotal`
+          // every time lines are added/updated/removed.
+          totalAmount: new Prisma.Decimal(0),
           currency: dto.currency ?? 'USD',
           orderedByUserId: auth.userId,
           expectedDeliveryAt: dto.expectedDeliveryAt ? new Date(dto.expectedDeliveryAt) : null,
@@ -100,9 +102,7 @@ export class PurchaseOrderService {
           ...(dto.notes !== undefined && { notes: dto.notes }),
           ...(dto.supplierId !== undefined && { supplierId: dto.supplierId }),
           ...(dto.poNumber !== undefined && { poNumber: dto.poNumber }),
-          ...(dto.totalAmount !== undefined && {
-            totalAmount: new Prisma.Decimal(dto.totalAmount),
-          }),
+          // totalAmount is derived (see `recomputeTotal`); not writable here.
           ...(dto.currency !== undefined && { currency: dto.currency }),
           ...(dto.expectedDeliveryAt !== undefined && {
             expectedDeliveryAt: dto.expectedDeliveryAt ? new Date(dto.expectedDeliveryAt) : null,
@@ -127,8 +127,8 @@ export class PurchaseOrderService {
       throw new BadRequestException('Lines can only be added to DRAFT purchase orders');
     const vesselId = requireVesselId(auth);
     const id = newId();
-    return this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.pOLine.create({
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      const line = await tx.pOLine.create({
         data: {
           id,
           tenantId: auth.tenantId!,
@@ -144,8 +144,33 @@ export class PurchaseOrderService {
           requisitionLineId: dto.requisitionLineId ?? null,
           quoteLineId: dto.quoteLineId ?? null,
         },
-      }),
-    );
+      });
+      await PurchaseOrderService.recomputeTotal(tx, poId);
+      return line;
+    });
+  }
+
+  /**
+   * Re-derive a PO's `totalAmount` from `SUM(po_lines.totalPrice WHERE
+   * deleted_at IS NULL)`. Call this in the same transaction as any
+   * mutation that adds/updates/removes a line. The PO's `totalAmount`
+   * column is denormalized for fast list-view rendering — this helper
+   * is the single point that keeps it consistent with the line rows.
+   *
+   * Exposed as `static` so other services (e.g. Quote.convertToPo, the
+   * one-off backfill migration) can call it without an instance.
+   */
+  static async recomputeTotal(tx: Prisma.TransactionClient, poId: string) {
+    const agg = await tx.pOLine.aggregate({
+      where: { poId, deletedAt: null },
+      _sum: { totalPrice: true },
+    });
+    const total = agg._sum.totalPrice ?? new Prisma.Decimal(0);
+    await tx.purchaseOrder.update({
+      where: { id: poId },
+      data: { totalAmount: total },
+    });
+    return total;
   }
 
   async send(auth: AuthContext, id: string) {
