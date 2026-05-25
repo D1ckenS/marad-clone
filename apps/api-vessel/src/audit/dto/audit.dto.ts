@@ -1,4 +1,4 @@
-import { IsDateString, IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsDateString, IsIn, IsOptional, IsString } from 'class-validator';
 
 const AUDIT_KINDS = ['INTERNAL', 'EXTERNAL', 'CLASS', 'FLAG'] as const;
 const AUDIT_STATUSES = ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] as const;
@@ -26,10 +26,8 @@ export class CreateAuditDto {
   @IsIn(AUDIT_STATUSES as unknown as string[])
   status?: AuditStatusLiteral;
 
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  findings?: number;
+  // findings is derived from COUNT(audit_findings WHERE audit_id = X
+  // AND deleted_at IS NULL). See AuditService.recomputeFindings.
 
   @IsOptional()
   @IsString()
@@ -61,10 +59,7 @@ export class UpdateAuditDto {
   @IsIn(AUDIT_STATUSES as unknown as string[])
   status?: AuditStatusLiteral;
 
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  findings?: number;
+  // findings is derived; see CreateAuditDto.
 
   @IsOptional()
   @IsString()

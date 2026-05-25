@@ -296,6 +296,126 @@ describe('Deferred-stub schemas — CRUD via shore HTTP', () => {
     );
   });
 
+  // ── derivation invariants ───────────────────────────────────────────
+  // Regression suite for the audit-finding-count + requisition-line
+  // derivation fixes. `Audit.findings` is no longer a writable DTO
+  // field; it's recomputed from `audit_findings` row count on every
+  // AuditFinding mutation. Same principle as PR #53's totalAmount fix.
+
+  it('Audit.findings: ignored on create, then recomputed when findings are added', async () => {
+    const createRes = await auth(
+      request(app.getHttpServer()).post('/api/v1/audits').send({
+        vesselId,
+        kind: 'CLASS',
+        scope: 'derivation test',
+        scheduledAt: new Date().toISOString(),
+        auditor: 'Inspector A',
+        findings: 999, // ← should be ignored (whitelist strips)
+      }),
+    );
+    expect(createRes.status).toBe(201);
+    expect(createRes.body.findings).toBe(0);
+    const auditId = createRes.body.id as string;
+
+    // Add two findings → parent count becomes 2.
+    for (let i = 0; i < 2; i++) {
+      await auth(
+        request(app.getHttpServer())
+          .post('/api/v1/audit-findings')
+          .send({
+            vesselId,
+            auditId,
+            classification: 'Minor NC',
+            title: `Finding ${i + 1}`,
+            openedAt: new Date().toISOString(),
+          }),
+      );
+    }
+    const afterAdd = await auth(request(app.getHttpServer()).get(`/api/v1/audits/${auditId}`));
+    expect(afterAdd.body.findings).toBe(2);
+
+    // Soft-delete one → count drops to 1.
+    const listFindings = await auth(
+      request(app.getHttpServer()).get(`/api/v1/audit-findings?auditId=${auditId}`),
+    );
+    const firstFindingId = (listFindings.body as { id: string }[])[0]!.id;
+    await auth(request(app.getHttpServer()).delete(`/api/v1/audit-findings/${firstFindingId}`));
+
+    const afterDelete = await auth(request(app.getHttpServer()).get(`/api/v1/audits/${auditId}`));
+    expect(afterDelete.body.findings).toBe(1);
+  });
+
+  it('Audit.findings: PATCH with client-supplied findings is silently ignored', async () => {
+    const createRes = await auth(
+      request(app.getHttpServer()).post('/api/v1/audits').send({
+        vesselId,
+        kind: 'INTERNAL',
+        scope: 'patch-ignore test',
+        scheduledAt: new Date().toISOString(),
+        auditor: 'Inspector B',
+      }),
+    );
+    const auditId = createRes.body.id as string;
+    await auth(
+      request(app.getHttpServer()).post('/api/v1/audit-findings').send({
+        vesselId,
+        auditId,
+        classification: 'Major NC',
+        title: 'Real one',
+        openedAt: new Date().toISOString(),
+      }),
+    );
+    await auth(
+      request(app.getHttpServer())
+        .patch(`/api/v1/audits/${auditId}`)
+        .send({ findings: 9999, notes: 'updated' }),
+    );
+    const after = await auth(request(app.getHttpServer()).get(`/api/v1/audits/${auditId}`));
+    expect(after.body.findings).toBe(1);
+    expect(after.body.notes).toBe('updated');
+  });
+
+  it('Requisition.removeLine: recomputes the parent totalAmount', async () => {
+    // The DRAFT-status check is the only gate on removeLine; no approval
+    // flow needed for this regression.
+    const reqRes = await auth(
+      request(app.getHttpServer()).post('/api/v1/requisitions').send({
+        title: 'removeLine recompute test',
+        currency: 'USD',
+        requestedAt: new Date().toISOString(),
+      }),
+    );
+    const reqId = reqRes.body.id as string;
+
+    const lineARes = await auth(
+      request(app.getHttpServer()).post(`/api/v1/requisitions/${reqId}/lines`).send({
+        description: 'A',
+        quantity: '1',
+        estimatedUnitPrice: '100',
+        estimatedTotalPrice: '100',
+      }),
+    );
+    await auth(
+      request(app.getHttpServer()).post(`/api/v1/requisitions/${reqId}/lines`).send({
+        description: 'B',
+        quantity: '1',
+        estimatedUnitPrice: '200',
+        estimatedTotalPrice: '200',
+      }),
+    );
+    const total1 = await auth(request(app.getHttpServer()).get(`/api/v1/requisitions/${reqId}`));
+    expect(parseFloat(total1.body.totalAmount)).toBe(300);
+
+    // Remove line A → total drops to 200.
+    await auth(
+      request(app.getHttpServer()).delete(
+        `/api/v1/requisitions/${reqId}/lines/${lineARes.body.id}`,
+      ),
+    );
+    const total2 = await auth(request(app.getHttpServer()).get(`/api/v1/requisitions/${reqId}`));
+    expect(parseFloat(total2.body.totalAmount)).toBe(200);
+  });
+
   it('RLS policies exist for all 12 new tables', async () => {
     const tables = [
       'surveys',
