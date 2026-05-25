@@ -401,5 +401,15 @@ describe('P1-8 purchase API — Postgres', () => {
       .set('Authorization', `Bearer ${pmToken}`);
     expect(parseFloat(poGet.body.totalAmount)).toBe(350);
     expect(poGet.body.lines.length).toBe(2);
+
+    // HLC regression — previously convertToPo set `hlc: quoteId` which
+    // both corrupted causality and bypassed the outbox. Now each row
+    // gets a fresh HLC from `recorder.recordUpsert`.
+    expect(poGet.body.hlc).toBeTruthy();
+    expect(poGet.body.hlc).not.toBe(quoteId);
+    for (const line of poGet.body.lines as { hlc: string }[]) {
+      expect(line.hlc).toBeTruthy();
+      expect(line.hlc).not.toBe(quoteId);
+    }
   });
 });

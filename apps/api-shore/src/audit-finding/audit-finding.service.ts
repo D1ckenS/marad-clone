@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { newId } from '@fleetops/domain';
 import type { AuthContext } from '../auth/auth-context';
+import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateAuditFindingDto, UpdateAuditFindingDto } from './dto/audit-finding.dto';
 
@@ -9,8 +11,8 @@ export class AuditFindingService {
   constructor(private readonly prisma: PrismaService) {}
 
   create(auth: AuthContext, dto: CreateAuditFindingDto) {
-    return this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.auditFinding.create({
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      const row = await tx.auditFinding.create({
         data: {
           id: newId(),
           tenantId: auth.tenantId!,
@@ -25,8 +27,10 @@ export class AuditFindingService {
           dueAt: dto.dueAt ? new Date(dto.dueAt) : null,
           closedAt: dto.closedAt ? new Date(dto.closedAt) : null,
         },
-      }),
-    );
+      });
+      await AuditService.recomputeFindings(tx as Prisma.TransactionClient, row.auditId);
+      return row;
+    });
   }
 
   findAll(auth: AuthContext, query: { vesselId?: string; auditId?: string }) {
@@ -54,9 +58,9 @@ export class AuditFindingService {
   }
 
   async update(auth: AuthContext, id: string, dto: UpdateAuditFindingDto) {
-    await this.findOne(auth, id);
-    return this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.auditFinding.update({
+    const existing = await this.findOne(auth, id);
+    return this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      const row = await tx.auditFinding.update({
         where: { id },
         data: {
           ...(dto.auditId !== undefined && { auditId: dto.auditId }),
@@ -73,14 +77,22 @@ export class AuditFindingService {
             closedAt: dto.closedAt === null ? null : new Date(dto.closedAt),
           }),
         },
-      }),
-    );
+      });
+      // Reparenting (auditId changed): recompute both parents so neither
+      // ends up with a stale findings count.
+      if (dto.auditId !== undefined && dto.auditId !== existing.auditId) {
+        await AuditService.recomputeFindings(tx as Prisma.TransactionClient, existing.auditId);
+      }
+      await AuditService.recomputeFindings(tx as Prisma.TransactionClient, row.auditId);
+      return row;
+    });
   }
 
   async softDelete(auth: AuthContext, id: string) {
-    await this.findOne(auth, id);
-    await this.prisma.withTenant(auth.tenantId!, (tx) =>
-      tx.auditFinding.update({ where: { id }, data: { deletedAt: new Date() } }),
-    );
+    const existing = await this.findOne(auth, id);
+    await this.prisma.withTenant(auth.tenantId!, async (tx) => {
+      await tx.auditFinding.update({ where: { id }, data: { deletedAt: new Date() } });
+      await AuditService.recomputeFindings(tx as Prisma.TransactionClient, existing.auditId);
+    });
   }
 }

@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, isNull } from 'drizzle-orm';
 import { newId } from '@fleetops/domain';
 import type { AuthContext } from '../auth/auth-context';
 import { DrizzleService } from '../db/drizzle.service';
-import { auditFindings } from '../db/schema';
+import { auditFindings, audits } from '../db/schema';
 import { OutboxRecorder } from '../sync/outbox-recorder';
 import type { CreateAuditFindingDto, UpdateAuditFindingDto } from './dto/audit-finding.dto';
 
@@ -51,6 +51,7 @@ export class AuditFindingService {
         })
         .returning()
         .all();
+      recomputeAuditFindings(tx, row?.auditId ?? null);
       return row;
     });
   }
@@ -110,6 +111,11 @@ export class AuditFindingService {
         .where(eq(auditFindings.id, id))
         .returning()
         .all();
+      // Reparenting: recompute both old + new parent counts.
+      if (dto.auditId !== undefined && dto.auditId !== existing.auditId) {
+        recomputeAuditFindings(tx, existing.auditId);
+      }
+      recomputeAuditFindings(tx, row?.auditId ?? null);
       return row;
     });
   }
@@ -127,6 +133,34 @@ export class AuditFindingService {
         .set({ deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
         .where(eq(auditFindings.id, id))
         .run();
+      recomputeAuditFindings(tx, existing.auditId);
     });
   }
+}
+
+/**
+ * Re-derive `audits.findings` from
+ * `COUNT(audit_findings WHERE audit_id = X AND deleted_at IS NULL)`.
+ * Called inside every AuditFinding create/update/softDelete transaction
+ * so the parent's denormalised count stays consistent. If `auditId` is
+ * null (finding logged without a parent audit) this is a no-op.
+ *
+ * Standalone function rather than a method on `AuditService` so we don't
+ * need to wire AuditService through DI just for this one-liner.
+ */
+function recomputeAuditFindings(
+  tx: Parameters<Parameters<DrizzleService['db']['transaction']>[0]>[0],
+  auditId: string | null,
+) {
+  if (!auditId) return;
+  const result = tx
+    .select({ n: count() })
+    .from(auditFindings)
+    .where(and(eq(auditFindings.auditId, auditId), isNull(auditFindings.deletedAt)))
+    .get();
+  const n = result?.n ?? 0;
+  tx.update(audits)
+    .set({ findings: n, updatedAt: new Date().toISOString() })
+    .where(eq(audits.id, auditId))
+    .run();
 }

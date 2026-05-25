@@ -30,7 +30,9 @@ export class AuditService {
         scheduledAt: dto.scheduledAt,
         auditor: dto.auditor,
         status: dto.status ?? 'SCHEDULED',
-        findings: dto.findings ?? 0,
+        // findings starts at 0; recomputed by `recomputeFindings` whenever
+        // an audit_findings row is added or soft-deleted.
+        findings: 0,
         notes: dto.notes ?? null,
       };
       let hlc: string | null = null;
@@ -92,7 +94,7 @@ export class AuditService {
     if (dto.scheduledAt !== undefined) fields['scheduledAt'] = dto.scheduledAt;
     if (dto.auditor !== undefined) fields['auditor'] = dto.auditor;
     if (dto.status !== undefined) fields['status'] = dto.status;
-    if (dto.findings !== undefined) fields['findings'] = dto.findings;
+    // findings is derived; see `recomputeFindings`.
     if (dto.notes !== undefined) fields['notes'] = dto.notes;
 
     const vesselForSync = existing.vesselId ?? auth.vesselId ?? null;
@@ -136,4 +138,9 @@ export class AuditService {
         .run();
     });
   }
+
+  // NOTE: `findings` is derived from audit_findings row count. The
+  // recompute helper lives in audit-finding/audit-finding.service.ts
+  // since that's where the mutations happen — keeping the recompute next
+  // to the only thing that triggers it.
 }

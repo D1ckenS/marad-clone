@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { newId } from '@fleetops/domain';
 import type { AuthContext } from '../auth/auth-context';
 import { PrismaService } from '../prisma/prisma.service';
@@ -20,7 +21,10 @@ export class AuditService {
           scheduledAt: new Date(dto.scheduledAt),
           auditor: dto.auditor,
           status: dto.status ?? 'SCHEDULED',
-          findings: dto.findings ?? 0,
+          // findings starts at 0; AuditFindingService.{create,softDelete}
+          // call `recomputeFindings` whenever an audit_findings row is
+          // added or removed.
+          findings: 0,
           notes: dto.notes ?? null,
         },
       }),
@@ -64,7 +68,7 @@ export class AuditService {
           ...(dto.scheduledAt !== undefined && { scheduledAt: new Date(dto.scheduledAt) }),
           ...(dto.auditor !== undefined && { auditor: dto.auditor }),
           ...(dto.status !== undefined && { status: dto.status }),
-          ...(dto.findings !== undefined && { findings: dto.findings }),
+          // findings is derived; see `recomputeFindings`.
           ...(dto.notes !== undefined && { notes: dto.notes }),
         },
       }),
@@ -76,5 +80,23 @@ export class AuditService {
     await this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.audit.update({ where: { id }, data: { deletedAt: new Date() } }),
     );
+  }
+
+  /**
+   * Re-derive `audits.findings` from
+   * `COUNT(audit_findings WHERE audit_id = X AND deleted_at IS NULL)`.
+   * Call this in the same transaction as any AuditFinding mutation.
+   * If `auditId` is null (a finding logged standalone, no parent audit),
+   * this is a no-op.
+   */
+  static async recomputeFindings(tx: Prisma.TransactionClient, auditId: string | null) {
+    if (!auditId) return;
+    const count = await tx.auditFinding.count({
+      where: { auditId, deletedAt: null },
+    });
+    await tx.audit.update({
+      where: { id: auditId },
+      data: { findings: count },
+    });
   }
 }

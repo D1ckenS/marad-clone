@@ -120,6 +120,13 @@
       "when": 1779638400000,
       "tag": "0016_backfill_derived_totals",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1779724800000,
+      "tag": "0017_backfill_audit_findings",
+      "breakpoints": true
     }
   ]
 }
