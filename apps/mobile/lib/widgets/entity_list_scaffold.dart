@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -94,7 +95,7 @@ class _EntityListScaffoldState extends State<EntityListScaffold> {
                           SizedBox(
                             height: MediaQuery.of(context).size.height * 0.5,
                             child: Center(
-                              child: Text(widget.emptyMessage ?? 'No records.'),
+                              child: Text(widget.emptyMessage ?? 'common.no_data'.tr()),
                             ),
                           ),
                         ],
@@ -108,7 +109,7 @@ class _EntityListScaffoldState extends State<EntityListScaffold> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openCreate,
         icon: const Icon(Icons.add),
-        label: Text(widget.createTooltip ?? 'Add'),
+        label: Text(widget.createTooltip ?? 'common.add'.tr()),
       ),
     );
   }

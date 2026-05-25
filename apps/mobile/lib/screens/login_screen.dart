@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -46,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Connection error: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text('barcode_scan.connection_error'.tr(namedArgs: {'error': '$e'})), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -78,40 +79,40 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'Vessel Companion',
+                  Text(
+                    'app.tagline'.tr(),
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
+                    style: const TextStyle(color: Colors.grey),
                   ),
                   const SizedBox(height: 32),
                   TextFormField(
                     controller: _tenantCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Company ID',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.business),
+                    decoration: InputDecoration(
+                      labelText: 'auth.tenant_id'.tr(),
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.business),
                     ),
                     textInputAction: TextInputAction.next,
-                    validator: (v) => (v?.trim().isEmpty ?? true) ? 'Required' : null,
+                    validator: (v) => (v?.trim().isEmpty ?? true) ? '!' : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _emailCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.email_outlined),
+                    decoration: InputDecoration(
+                      labelText: 'auth.email'.tr(),
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.email_outlined),
                     ),
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
-                    validator: (v) => (v?.trim().isEmpty ?? true) ? 'Required' : null,
+                    validator: (v) => (v?.trim().isEmpty ?? true) ? '!' : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _passwordCtrl,
                     obscureText: _obscurePassword,
                     decoration: InputDecoration(
-                      labelText: 'Password',
+                      labelText: 'auth.password'.tr(),
                       border: const OutlineInputBorder(),
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
@@ -124,7 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     textInputAction: TextInputAction.done,
                     onFieldSubmitted: (_) => _login(),
-                    validator: (v) => (v?.isEmpty ?? true) ? 'Required' : null,
+                    validator: (v) => (v?.isEmpty ?? true) ? '!' : null,
                   ),
                   const SizedBox(height: 8),
                   // Advanced: vessel API URL toggle
@@ -132,7 +133,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: () => setState(() => _showApiUrl = !_showApiUrl),
                     icon: Icon(_showApiUrl ? Icons.expand_less : Icons.expand_more, size: 16),
                     label: Text(
-                      _showApiUrl ? 'Hide advanced' : 'Advanced (API URL)',
+                      'auth.advanced'.tr(),
                       style: const TextStyle(fontSize: 12),
                     ),
                     style: TextButton.styleFrom(
@@ -144,15 +145,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _apiUrlCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Vessel API URL',
+                      decoration: InputDecoration(
+                        labelText: 'auth.vessel_api_url'.tr(),
                         hintText: 'http://192.168.1.1:3001',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.wifi),
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.wifi),
                       ),
                       keyboardType: TextInputType.url,
                       validator: (v) =>
-                          (v?.trim().isEmpty ?? true) ? 'Required' : null,
+                          (v?.trim().isEmpty ?? true) ? '!' : null,
                     ),
                   ],
                   const SizedBox(height: 24),
@@ -168,7 +169,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: CircularProgressIndicator(
                                 strokeWidth: 2, color: Colors.white),
                           )
-                        : const Text('Sign In'),
+                        : Text('auth.sign_in'.tr()),
                   ),
                 ],
               ),

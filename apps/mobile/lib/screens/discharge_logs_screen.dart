@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import '../services/api_client.dart';
 import '../widgets/entity_list_scaffold.dart';
@@ -11,10 +12,10 @@ class DischargeLogsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return EntityListScaffold(
-      title: 'Discharge Logs (MARPOL)',
+      title: 'discharge_logs.title'.tr(),
       endpoint: '/discharge-logs',
-      createTooltip: 'Log Discharge',
-      emptyMessage: 'No discharge logs yet.',
+      createTooltip: 'discharge_logs.create_button'.tr(),
+      emptyMessage: 'discharge_logs.empty'.tr(),
       itemBuilder: (ctx, item) {
         final compliant = item['compliant'] as bool?;
         final color = compliant == false
@@ -52,7 +53,7 @@ class DischargeLogsScreen extends StatelessWidget {
       BuildContext ctx, ApiClient client, String? vesselId) async {
     if (vesselId == null) {
       ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('No vessel context — cannot create.')),
+        SnackBar(content: Text('common.vessel_context_missing'.tr())),
       );
       return false;
     }
@@ -68,7 +69,7 @@ class DischargeLogsScreen extends StatelessWidget {
       context: ctx,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (stateCtx, setSt) => AlertDialog(
-          title: const Text('Log Discharge'),
+          title: Text('discharge_logs.create_title'.tr()),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -115,7 +116,7 @@ class DischargeLogsScreen extends StatelessWidget {
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(dialogCtx, false),
-                child: const Text('Cancel')),
+                child: Text('common.cancel'.tr())),
             FilledButton(
               onPressed: () async {
                 final ok = await submitCreateForm(
@@ -135,7 +136,7 @@ class DischargeLogsScreen extends StatelessWidget {
                 );
                 if (ok && dialogCtx.mounted) Navigator.pop(dialogCtx, true);
               },
-              child: const Text('Save'),
+              child: Text('common.save'.tr()),
             ),
           ],
         ),

@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import '../services/api_client.dart';
 import '../widgets/entity_list_scaffold.dart';
@@ -11,10 +12,10 @@ class InspectionsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return EntityListScaffold(
-      title: 'Inspections (PSC / Vetting / Flag)',
+      title: 'inspections.title'.tr(),
       endpoint: '/inspections',
-      createTooltip: 'Log Inspection',
-      emptyMessage: 'No inspections yet.',
+      createTooltip: 'inspections.create_button'.tr(),
+      emptyMessage: 'inspections.empty'.tr(),
       itemBuilder: (ctx, item) {
         final detained = item['detained'] == true;
         final deficiencies = item['deficiencies'] is num ? item['deficiencies'] : 0;
@@ -53,7 +54,7 @@ class InspectionsScreen extends StatelessWidget {
       BuildContext ctx, ApiClient client, String? vesselId) async {
     if (vesselId == null) {
       ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('No vessel context — cannot create.')),
+        SnackBar(content: Text('common.vessel_context_missing'.tr())),
       );
       return false;
     }
@@ -72,7 +73,7 @@ class InspectionsScreen extends StatelessWidget {
       context: ctx,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (stateCtx, setSt) => AlertDialog(
-          title: const Text('Log Inspection'),
+          title: Text('inspections.create_title'.tr()),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -141,7 +142,7 @@ class InspectionsScreen extends StatelessWidget {
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(dialogCtx, false),
-                child: const Text('Cancel')),
+                child: Text('common.cancel'.tr())),
             FilledButton(
               onPressed: () async {
                 final ok = await submitCreateForm(
@@ -166,7 +167,7 @@ class InspectionsScreen extends StatelessWidget {
                 );
                 if (ok && dialogCtx.mounted) Navigator.pop(dialogCtx, true);
               },
-              child: const Text('Save'),
+              child: Text('common.save'.tr()),
             ),
           ],
         ),

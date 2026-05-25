@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/crew_member.dart';
@@ -42,7 +43,7 @@ class _RestHoursScreenState extends State<RestHoursScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Crew Rest Hours')),
+      appBar: AppBar(title: Text('rest_hours.title'.tr())),
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading
@@ -50,7 +51,7 @@ class _RestHoursScreenState extends State<RestHoursScreen> {
             : _error != null
                 ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
                 : _crew.isEmpty
-                    ? const Center(child: Text('No crew members found.'))
+                    ? Center(child: Text('rest_hours.empty'.tr()))
                     : ListView.builder(
                         itemCount: _crew.length,
                         itemBuilder: (ctx, i) {
@@ -95,7 +96,7 @@ class _RestHoursScreenState extends State<RestHoursScreen> {
                 child: Row(
                   children: [
                     Expanded(child: Text(
-                      'Log Rest Hours — ${member.fullName}',
+                      'rest_hours.log_dialog_title'.tr(namedArgs: {'crew': member.fullName}),
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                     )),
                     IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(sheetCtx)),
@@ -109,10 +110,10 @@ class _RestHoursScreenState extends State<RestHoursScreen> {
                   decoration: const InputDecoration(labelText: 'Date (YYYY-MM-DD)', border: OutlineInputBorder()),
                 ),
               ),
-              const Padding(
-                padding: EdgeInsets.all(12),
-                child: Text('Mark hours worked (checked = worked, unchecked = resting):',
-                    style: TextStyle(fontSize: 12, color: Colors.grey)),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text('rest_hours.hint_mark_hours'.tr(),
+                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
               ),
               Expanded(
                 child: GridView.builder(
@@ -138,7 +139,7 @@ class _RestHoursScreenState extends State<RestHoursScreen> {
                         children: [
                           Text('${h.toString().padLeft(2, '0')}:00',
                               style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                          Text(workedHours[h] ? 'Work' : 'Rest',
+                          Text(workedHours[h] ? 'rest_hours.work'.tr() : 'rest_hours.rest'.tr(),
                               style: TextStyle(fontSize: 9, color: workedHours[h] ? const Color(0xFFB5731E) : const Color(0xFF2F7D4F))),
                         ],
                       ),
@@ -176,7 +177,7 @@ class _RestHoursScreenState extends State<RestHoursScreen> {
                         if (sheetCtx.mounted) {
                           Navigator.pop(sheetCtx);
                           ScaffoldMessenger.of(ctx).showSnackBar(
-                            const SnackBar(content: Text('Rest hours logged successfully')),
+                            SnackBar(content: Text('rest_hours.logged_success'.tr())),
                           );
                         }
                       } catch (e) {
@@ -187,7 +188,7 @@ class _RestHoursScreenState extends State<RestHoursScreen> {
                         }
                       }
                     },
-                    child: const Text('Save Rest Hours'),
+                    child: Text('rest_hours.save_button'.tr()),
                   ),
                 ),
               ),
