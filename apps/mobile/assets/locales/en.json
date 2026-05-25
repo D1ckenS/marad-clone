@@ -151,6 +151,48 @@
     "connection_error": "Connection error: {error}",
     "scan_button": "Scan Barcode"
   },
+  "outbox": {
+    "title": "Pending sync",
+    "tooltip": "{pending} pending, {failed} failed — tap to sync",
+    "empty": "Nothing queued.",
+    "sync_now": "Sync now",
+    "retry": "Retry",
+    "discard": "Discard",
+    "entry_line": "Attempts: {attempts} · queued {when}",
+    "queued_offline": "Saved offline — will sync when reconnected",
+    "queued_offline_short": "Saved offline"
+  },
+  "purchase": {
+    "title": "Purchase Orders",
+    "empty": "No open purchase orders.",
+    "po_label": "PO #{number}",
+    "supplier_label": "Supplier: {name}",
+    "lines_count": "{n} lines",
+    "status_sent": "Sent",
+    "status_acked": "Acknowledged",
+    "status_in_transit": "In transit",
+    "status_partial": "Partially received",
+    "status_closed": "Closed",
+    "receive_title": "Receive {po}",
+    "receive_button": "Receive Items",
+    "submit_receipt": "Submit Receipt",
+    "scan_to_select": "Scan a barcode to highlight a line",
+    "line_ordered": "Ordered: {qty} {unit}",
+    "line_received_so_far": "Received so far: {qty}",
+    "line_receive_now": "Receive now",
+    "line_notes": "Discrepancy / damage notes",
+    "no_po_lines": "This PO has no lines.",
+    "nothing_to_receive": "Enter at least one quantity > 0 to submit.",
+    "receipt_submitted": "Receipt submitted",
+    "barcode_no_match": "Barcode \"{value}\" does not match any line on this PO"
+  },
+  "edit": {
+    "title_prefix": "Edit {what}",
+    "delete_confirm_title": "Delete {what}?",
+    "delete_confirm_body": "This action cannot be undone.",
+    "saved": "Saved",
+    "deleted": "Deleted"
+  },
   "discharge_logs": {
     "title": "Discharge Logs (MARPOL)",
     "empty": "No discharge logs yet.",

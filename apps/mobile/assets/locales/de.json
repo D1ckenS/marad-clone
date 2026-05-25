@@ -151,6 +151,48 @@
     "connection_error": "Verbindungsfehler: {error}",
     "scan_button": "Barcode scannen"
   },
+  "outbox": {
+    "title": "Ausstehende Synchronisation",
+    "tooltip": "{pending} ausstehend, {failed} fehlgeschlagen — tippen zum Synchronisieren",
+    "empty": "Nichts in der Warteschlange.",
+    "sync_now": "Jetzt synchronisieren",
+    "retry": "Wiederholen",
+    "discard": "Verwerfen",
+    "entry_line": "Versuche: {attempts} · eingereiht {when}",
+    "queued_offline": "Offline gespeichert — Synchronisation bei Verbindung",
+    "queued_offline_short": "Offline gespeichert"
+  },
+  "purchase": {
+    "title": "Bestellungen",
+    "empty": "Keine offenen Bestellungen.",
+    "po_label": "PO #{number}",
+    "supplier_label": "Lieferant: {name}",
+    "lines_count": "{n} Zeilen",
+    "status_sent": "Versendet",
+    "status_acked": "Bestätigt",
+    "status_in_transit": "In Transit",
+    "status_partial": "Teilweise empfangen",
+    "status_closed": "Abgeschlossen",
+    "receive_title": "Empfangen {po}",
+    "receive_button": "Artikel empfangen",
+    "submit_receipt": "Empfang absenden",
+    "scan_to_select": "Barcode scannen, um eine Zeile zu markieren",
+    "line_ordered": "Bestellt: {qty} {unit}",
+    "line_received_so_far": "Bisher empfangen: {qty}",
+    "line_receive_now": "Jetzt empfangen",
+    "line_notes": "Abweichung / Schadensnotizen",
+    "no_po_lines": "Diese Bestellung hat keine Zeilen.",
+    "nothing_to_receive": "Mindestens eine Menge > 0 erforderlich.",
+    "receipt_submitted": "Empfang gesendet",
+    "barcode_no_match": "Barcode „{value}\" passt zu keiner Zeile dieser Bestellung"
+  },
+  "edit": {
+    "title_prefix": "{what} bearbeiten",
+    "delete_confirm_title": "{what} löschen?",
+    "delete_confirm_body": "Diese Aktion kann nicht rückgängig gemacht werden.",
+    "saved": "Gespeichert",
+    "deleted": "Gelöscht"
+  },
   "discharge_logs": {
     "title": "Abgabeprotokolle (MARPOL)",
     "empty": "Noch keine Abgabeprotokolle.",

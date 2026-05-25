@@ -151,6 +151,48 @@
     "connection_error": "خطأ في الاتصال: {error}",
     "scan_button": "مسح الباركود"
   },
+  "outbox": {
+    "title": "في انتظار المزامنة",
+    "tooltip": "{pending} في الانتظار، {failed} فاشل — اضغط للمزامنة",
+    "empty": "لا شيء في الطابور.",
+    "sync_now": "مزامنة الآن",
+    "retry": "إعادة المحاولة",
+    "discard": "تجاهل",
+    "entry_line": "محاولات: {attempts} · مُدرج {when}",
+    "queued_offline": "تم الحفظ دون اتصال — ستتم المزامنة عند الاتصال",
+    "queued_offline_short": "تم الحفظ دون اتصال"
+  },
+  "purchase": {
+    "title": "أوامر الشراء",
+    "empty": "لا توجد أوامر شراء مفتوحة.",
+    "po_label": "أمر شراء #{number}",
+    "supplier_label": "المورّد: {name}",
+    "lines_count": "{n} بنود",
+    "status_sent": "مُرسل",
+    "status_acked": "تم الاستلام",
+    "status_in_transit": "في الطريق",
+    "status_partial": "مُستلم جزئيًا",
+    "status_closed": "مُغلق",
+    "receive_title": "استلام {po}",
+    "receive_button": "استلام الأصناف",
+    "submit_receipt": "إرسال الاستلام",
+    "scan_to_select": "امسح الباركود لتمييز بند",
+    "line_ordered": "المطلوب: {qty} {unit}",
+    "line_received_so_far": "المُستلم حتى الآن: {qty}",
+    "line_receive_now": "استلام الآن",
+    "line_notes": "ملاحظات التباين / التلف",
+    "no_po_lines": "لا توجد بنود في أمر الشراء هذا.",
+    "nothing_to_receive": "أدخل كمية > 0 لإرسال الاستلام.",
+    "receipt_submitted": "تم إرسال الاستلام",
+    "barcode_no_match": "الباركود \"{value}\" لا يطابق أي بند في أمر الشراء"
+  },
+  "edit": {
+    "title_prefix": "تعديل {what}",
+    "delete_confirm_title": "حذف {what}؟",
+    "delete_confirm_body": "لا يمكن التراجع عن هذا الإجراء.",
+    "saved": "تم الحفظ",
+    "deleted": "تم الحذف"
+  },
   "discharge_logs": {
     "title": "سجلات التصريف (MARPOL)",
     "empty": "لا توجد سجلات تصريف بعد.",

@@ -1,6 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import '../services/api_client.dart';
+import '../services/outbox_service.dart';
 import '../widgets/entity_list_scaffold.dart';
 
 class AuditsScreen extends StatelessWidget {
@@ -58,13 +58,13 @@ class AuditsScreen extends StatelessWidget {
           ),
         );
       },
-      onCreate: (ctx, client, vesselId) =>
-          _showCreateDialog(ctx, client, vesselId),
+      onCreate: (ctx, outbox, _, vesselId) =>
+          _showCreateDialog(ctx, outbox, vesselId),
     );
   }
 
   Future<bool?> _showCreateDialog(
-      BuildContext ctx, ApiClient client, String? vesselId) async {
+      BuildContext ctx, OutboxService outbox, String? vesselId) async {
     String kind = _kinds.first;
     String status = _statuses.first;
     final scopeCtrl = TextEditingController();
@@ -135,7 +135,7 @@ class AuditsScreen extends StatelessWidget {
                 final ok = await submitCreateForm(
                   sheetCtx: dialogCtx,
                   onSubmit: () async {
-                    await client.post('/audits', {
+                    await outbox.postOrQueue('/audits', {
                       if (vesselId != null) 'vesselId': vesselId,
                       'kind': kind,
                       'scope': scopeCtrl.text.trim(),
