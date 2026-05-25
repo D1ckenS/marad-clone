@@ -1,0 +1,40 @@
+{
+  "app": {
+    "name": "FleetOps",
+    "tagline": "Onboard Companion"
+  },
+  "nav": {
+    "jobs": "Jobs",
+    "inventory": "Inventory",
+    "certs": "Certs",
+    "drills": "Drills",
+    "qhse": "QHSE",
+    "rest_hours": "Rest Hours",
+    "flgo": "FLGO"
+  },
+  "auth": {
+    "tenant_id": "Tenant ID",
+    "email": "Email",
+    "password": "Password",
+    "sign_in": "Sign in",
+    "sign_out": "Sign out",
+    "sign_out_confirm": "Are you sure you want to sign out?",
+    "advanced": "Advanced",
+    "vessel_api_url": "Vessel API URL",
+    "login_failed": "Login failed"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "retry": "Retry",
+    "refresh": "Refresh",
+    "loading": "Loading…",
+    "error": "Error",
+    "language": "Language"
+  },
+  "jobs": {
+    "no_jobs_assigned": "No jobs assigned.",
+    "could_not_reach": "Could not reach vessel API.",
+    "due": "Due"
+  }
+}

@@ -150,3 +150,42 @@ jobs:
         # the port. We only need to make sure the JWT pem files exist
         # (done above by gen:jwt-keys).
         run: pnpm --filter api-vessel run test:e2e
+
+  mobile:
+    # Runs the Flutter unit/regression tests under apps/mobile. Kept in a
+    # separate job from `ci` so a green Node toolchain doesn't block on
+    # Flutter SDK download (~600 MB) and vice versa.
+    name: mobile
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          # Pinned to the same minor as local dev (3.44.x). The pubspec
+          # accepts anything >=3.22.0 but newer stable surfaces APIs we
+          # already use (initialValue: on DropdownButtonFormField,
+          # Color.withValues(alpha:), etc.). Bump deliberately when the
+          # Flutter team cuts a new stable.
+          flutter-version: '3.44.x'
+          channel: stable
+          cache: true
+
+      - name: Flutter pub get
+        working-directory: apps/mobile
+        run: flutter pub get
+
+      - name: Flutter analyze
+        working-directory: apps/mobile
+        # --no-fatal-infos so SDK-version deprecation hints don't block CI.
+        # Real warnings + errors still fail the build.
+        run: flutter analyze --no-fatal-infos
+
+      - name: Flutter test
+        working-directory: apps/mobile
+        run: flutter test

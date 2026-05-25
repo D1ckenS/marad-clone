@@ -26,7 +26,6 @@ class _AdjustStockScreenState extends State<AdjustStockScreen> {
   final _notesCtrl = TextEditingController();
   String _movementType = 'ADJUSTMENT';
   String? _selectedLocationId;
-  String? _selectedLocationName;
   List<_Location> _locations = [];
   bool _loadingLocations = false;
   bool _submitting = false;
@@ -37,7 +36,6 @@ class _AdjustStockScreenState extends State<AdjustStockScreen> {
   void initState() {
     super.initState();
     _selectedLocationId = widget.locationId;
-    _selectedLocationName = widget.locationName;
     if (widget.locationId == null) _fetchLocations();
   }
 
@@ -63,14 +61,6 @@ class _AdjustStockScreenState extends State<AdjustStockScreen> {
     } finally {
       if (mounted) setState(() => _loadingLocations = false);
     }
-  }
-
-  String? _nameForId(String? id) {
-    if (id == null) return null;
-    for (final loc in _locations) {
-      if (loc.id == id) return loc.name;
-    }
-    return null;
   }
 
   Future<void> _submit() async {
@@ -190,7 +180,6 @@ class _AdjustStockScreenState extends State<AdjustStockScreen> {
                 onChanged: (v) {
                   setState(() {
                     _selectedLocationId = v;
-                    _selectedLocationName = _nameForId(v);
                   });
                 },
                 validator: (v) => v == null ? 'Select a location' : null,
