@@ -1,0 +1,40 @@
+{
+  "app": {
+    "name": "FleetOps",
+    "tagline": "Boord-metgezel"
+  },
+  "nav": {
+    "jobs": "Taken",
+    "inventory": "Voorraad",
+    "certs": "Certificaten",
+    "drills": "Oefeningen",
+    "qhse": "QHSE",
+    "rest_hours": "Rusturen",
+    "flgo": "FLGO"
+  },
+  "auth": {
+    "tenant_id": "Tenant-ID",
+    "email": "E-mail",
+    "password": "Wachtwoord",
+    "sign_in": "Inloggen",
+    "sign_out": "Uitloggen",
+    "sign_out_confirm": "Weet u zeker dat u wilt uitloggen?",
+    "advanced": "Geavanceerd",
+    "vessel_api_url": "Vaartuig-API-URL",
+    "login_failed": "Inloggen mislukt"
+  },
+  "common": {
+    "cancel": "Annuleren",
+    "save": "Opslaan",
+    "retry": "Opnieuw",
+    "refresh": "Vernieuwen",
+    "loading": "Laden…",
+    "error": "Fout",
+    "language": "Taal"
+  },
+  "jobs": {
+    "no_jobs_assigned": "Geen taken toegewezen.",
+    "could_not_reach": "Kan vaartuig-API niet bereiken.",
+    "due": "Vervalt"
+  }
+}

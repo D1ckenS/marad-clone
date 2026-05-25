@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../utils/request_bodies.dart';
 
 class ChecklistsScreen extends StatefulWidget {
   const ChecklistsScreen({super.key});
@@ -136,13 +137,28 @@ class _ChecklistsScreenState extends State<ChecklistsScreen> {
                 child: FilledButton(
                   onPressed: () async {
                     try {
-                      final client = ctx.read<AuthProvider>().client;
+                      final auth = ctx.read<AuthProvider>();
+                      final signedByUserId = auth.userId;
+                      if (signedByUserId == null) {
+                        ScaffoldMessenger.of(sheetCtx).showSnackBar(
+                          const SnackBar(
+                            content: Text('Cannot sign: no user id in session token.'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+                      final now = DateTime.now();
                       // Sign each checked item
                       for (final item in responses.where((r) => r['checked'] == true && r['signedAt'] == null)) {
-                        await client.post('/checklist-instances/${cl['id']}/sign-item', {
-                          'itemId': item['itemId'],
-                          'checked': true,
-                        });
+                        await auth.client.post(
+                          '/checklist-instances/${cl['id']}/sign-item',
+                          buildSignChecklistItemBody(
+                            itemId: item['itemId'] as String,
+                            signedByUserId: signedByUserId,
+                            signedAt: now,
+                          ),
+                        );
                       }
                       if (sheetCtx.mounted) Navigator.pop(sheetCtx);
                       _load();

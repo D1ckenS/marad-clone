@@ -1,7 +1,7 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../utils/request_bodies.dart';
 
 class RestHoursScreen extends StatefulWidget {
   const RestHoursScreen({super.key});
@@ -147,11 +147,26 @@ class _RestHoursScreenState extends State<RestHoursScreen> {
                   child: FilledButton(
                     onPressed: () async {
                       try {
-                        await ctx.read<AuthProvider>().client.post('/rest-hour-entries', {
-                          'crewMemberId': member['id'],
-                          'date': dateController.text,
-                          'hoursWorkedJson': jsonEncode(workedHours),
-                        });
+                        final auth = ctx.read<AuthProvider>();
+                        final vesselId = auth.vesselId ?? (member['vesselId'] as String?);
+                        if (vesselId == null) {
+                          ScaffoldMessenger.of(sheetCtx).showSnackBar(
+                            const SnackBar(
+                              content: Text('Cannot log rest hours: vessel context missing.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+                        await auth.client.post(
+                          '/rest-hour-entries',
+                          buildRestHoursBody(
+                            vesselId: vesselId,
+                            crewMemberId: member['id'] as String,
+                            date: dateController.text,
+                            hoursWorked: workedHours,
+                          ),
+                        );
                         if (sheetCtx.mounted) {
                           Navigator.pop(sheetCtx);
                           ScaffoldMessenger.of(ctx).showSnackBar(
