@@ -45,7 +45,8 @@ export class PurchaseOrderService {
           requisitionId: dto.requisitionId ?? null,
           rfqId: dto.rfqId ?? null,
           poNumber: dto.poNumber ?? null,
-          totalAmount: dto.totalAmount ?? '0',
+          // totalAmount derived from line sums; see `recomputeTotal`.
+          totalAmount: '0',
           currency: dto.currency ?? 'USD',
           orderedByUserId: auth.userId,
           expectedDeliveryAt: dto.expectedDeliveryAt ?? null,
@@ -119,7 +120,7 @@ export class PurchaseOrderService {
         ...(dto.notes !== undefined && { notes: dto.notes }),
         ...(dto.supplierId !== undefined && { supplierId: dto.supplierId }),
         ...(dto.poNumber !== undefined && { poNumber: dto.poNumber }),
-        ...(dto.totalAmount !== undefined && { totalAmount: dto.totalAmount }),
+        // totalAmount is derived; see `recomputeTotal`.
         ...(dto.currency !== undefined && { currency: dto.currency }),
         ...(dto.expectedDeliveryAt !== undefined && {
           expectedDeliveryAt: dto.expectedDeliveryAt ?? null,
@@ -148,26 +149,52 @@ export class PurchaseOrderService {
     if (po.status !== 'DRAFT')
       throw new BadRequestException('Lines can only be added to DRAFT purchase orders');
     const vesselId = requireVesselId(auth);
-    const [row] = this.drizzle.db
-      .insert(poLines)
-      .values({
-        id: newId(),
-        tenantId: auth.tenantId!,
-        vesselId,
-        poId,
-        partId: dto.partId ?? null,
-        description: dto.description,
-        quantity: dto.quantity,
-        unit: dto.unit ?? 'pcs',
-        unitPrice: dto.unitPrice,
-        totalPrice: dto.totalPrice,
-        currency: dto.currency ?? 'USD',
-        requisitionLineId: dto.requisitionLineId ?? null,
-        quoteLineId: dto.quoteLineId ?? null,
-      })
-      .returning()
+    return this.drizzle.db.transaction((tx) => {
+      const [row] = tx
+        .insert(poLines)
+        .values({
+          id: newId(),
+          tenantId: auth.tenantId!,
+          vesselId,
+          poId,
+          partId: dto.partId ?? null,
+          description: dto.description,
+          quantity: dto.quantity,
+          unit: dto.unit ?? 'pcs',
+          unitPrice: dto.unitPrice,
+          totalPrice: dto.totalPrice,
+          currency: dto.currency ?? 'USD',
+          requisitionLineId: dto.requisitionLineId ?? null,
+          quoteLineId: dto.quoteLineId ?? null,
+        })
+        .returning()
+        .all();
+      this.recomputeTotal(tx, poId);
+      return row;
+    });
+  }
+
+  /**
+   * Re-derive `purchase_orders.totalAmount` from
+   * `SUM(po_lines.totalPrice WHERE deleted_at IS NULL)`. Vessel SQLite
+   * stores numerics as strings, so we sum in JS rather than SQL — this
+   * matches the existing pattern used in `receive()` for received-vs-
+   * ordered totals.
+   */
+  private recomputeTotal(
+    tx: Parameters<Parameters<typeof this.drizzle.db.transaction>[0]>[0],
+    poId: string,
+  ) {
+    const lines = tx
+      .select({ totalPrice: poLines.totalPrice })
+      .from(poLines)
+      .where(and(eq(poLines.poId, poId), isNull(poLines.deletedAt)))
       .all();
-    return row;
+    const total = lines.reduce((sum, l) => sum + parseFloat(l.totalPrice ?? '0'), 0).toFixed(2);
+    tx.update(purchaseOrders)
+      .set({ totalAmount: total, updatedAt: new Date().toISOString() })
+      .where(eq(purchaseOrders.id, poId))
+      .run();
   }
 
   send(auth: AuthContext, id: string) {

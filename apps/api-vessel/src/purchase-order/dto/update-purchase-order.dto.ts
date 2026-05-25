@@ -25,9 +25,7 @@ export class UpdatePurchaseOrderDto {
   @IsString()
   poNumber?: string;
 
-  @IsOptional()
-  @IsString()
-  totalAmount?: string;
+  // totalAmount is derived; see CreatePurchaseOrderDto.
 
   @IsOptional()
   @IsString()

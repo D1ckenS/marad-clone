@@ -33,7 +33,8 @@ export class RequisitionService {
         vesselId,
         title: dto.title,
         status: 'DRAFT' as const,
-        totalAmount: dto.totalAmount ?? '0',
+        // totalAmount derived from line sums; never sourced from input.
+        totalAmount: '0',
         currency: dto.currency ?? 'USD',
         requestedAt: dto.requestedAt,
         approvalFlowId: dto.approvalFlowId ?? null,
@@ -53,7 +54,7 @@ export class RequisitionService {
           title: dto.title,
           notes: dto.notes ?? null,
           status: 'DRAFT',
-          totalAmount: new Prisma.Decimal(dto.totalAmount ?? '0'),
+          totalAmount: new Prisma.Decimal(0),
           currency: dto.currency ?? 'USD',
           requestedByUserId: auth.userId ?? null,
           requestedAt: new Date(dto.requestedAt),
@@ -102,9 +103,7 @@ export class RequisitionService {
         data: {
           ...(dto.title !== undefined && { title: dto.title }),
           ...(dto.notes !== undefined && { notes: dto.notes }),
-          ...(dto.totalAmount !== undefined && {
-            totalAmount: new Prisma.Decimal(dto.totalAmount),
-          }),
+          // totalAmount derived; see `recomputeTotal`.
           ...(dto.currency !== undefined && { currency: dto.currency }),
           ...(dto.approvalFlowId !== undefined && { approvalFlowId: dto.approvalFlowId }),
         },
@@ -141,7 +140,7 @@ export class RequisitionService {
         id,
         fields,
       );
-      return tx.requisitionLine.create({
+      const line = await tx.requisitionLine.create({
         data: {
           id,
           tenantId: auth.tenantId!,
@@ -162,7 +161,29 @@ export class RequisitionService {
           hlc,
         },
       });
+      await RequisitionService.recomputeTotal(tx as Prisma.TransactionClient, requisitionId);
+      return line;
     });
+  }
+
+  /**
+   * Re-derive `Requisition.totalAmount` from
+   * `SUM(requisition_lines.estimatedTotalPrice WHERE deleted_at IS NULL)`.
+   * Note that requisition lines store `estimatedTotalPrice` (nullable)
+   * rather than the firm `totalPrice` PO/Quote lines use — the requisition
+   * total is therefore a best-estimate, by design.
+   */
+  static async recomputeTotal(tx: Prisma.TransactionClient, requisitionId: string) {
+    const agg = await tx.requisitionLine.aggregate({
+      where: { requisitionId, deletedAt: null },
+      _sum: { estimatedTotalPrice: true },
+    });
+    const total = agg._sum.estimatedTotalPrice ?? new Prisma.Decimal(0);
+    await tx.requisition.update({
+      where: { id: requisitionId },
+      data: { totalAmount: total },
+    });
+    return total;
   }
 
   async removeLine(auth: AuthContext, requisitionId: string, lineId: string) {

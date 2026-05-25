@@ -111,7 +111,6 @@ describe('P1-8 purchase API — Postgres', () => {
       .set('Authorization', `Bearer ${pmToken}`)
       .send({
         title: 'Engine spares Q3',
-        totalAmount: '25000',
         currency: 'EUR',
         requestedAt: new Date().toISOString(),
         approvalFlowId: flowId,
@@ -120,11 +119,17 @@ describe('P1-8 purchase API — Postgres', () => {
     const reqId = reqRes.body.id;
     expect(reqRes.body.status).toBe('DRAFT');
 
-    // Add a line
+    // Add a line — total recomputes from estimatedTotalPrice (€25k)
     const lineRes = await request(app.getHttpServer())
       .post(`/api/v1/requisitions/${reqId}/lines`)
       .set('Authorization', `Bearer ${pmToken}`)
-      .send({ description: 'Fuel filters', quantity: '50', unit: 'pcs' });
+      .send({
+        description: 'Fuel filters',
+        quantity: '50',
+        unit: 'pcs',
+        estimatedUnitPrice: '500',
+        estimatedTotalPrice: '25000',
+      });
     expect(lineRes.status).toBe(201);
 
     // Submit
@@ -154,12 +159,22 @@ describe('P1-8 purchase API — Postgres', () => {
       .set('Authorization', `Bearer ${pmToken}`)
       .send({
         title: 'High-value spare',
-        totalAmount: '60000',
         currency: 'EUR',
         requestedAt: new Date().toISOString(),
         approvalFlowId: flowId,
       });
     const reqId = reqRes.body.id;
+
+    // Add a line worth €60k — total recomputes via service.
+    await request(app.getHttpServer())
+      .post(`/api/v1/requisitions/${reqId}/lines`)
+      .set('Authorization', `Bearer ${pmToken}`)
+      .send({
+        description: 'Main engine overhaul',
+        quantity: '1',
+        estimatedUnitPrice: '60000',
+        estimatedTotalPrice: '60000',
+      });
 
     await request(app.getHttpServer())
       .post(`/api/v1/requisitions/${reqId}/submit`)
@@ -280,5 +295,111 @@ describe('P1-8 purchase API — Postgres', () => {
       .post(`/api/v1/purchase-orders/${poId}/send`)
       .set('Authorization', `Bearer ${pmToken}`);
     expect(res.status).toBe(400);
+  });
+
+  // ── totalAmount derivation invariant ─────────────────────────────────
+  // Regression suite: totalAmount must always be SUM(lines.totalPrice).
+  // Client-supplied values are silently dropped by the whitelist; the
+  // service recomputes on every line mutation. See
+  // `PurchaseOrderService.recomputeTotal`.
+
+  it('PO totalAmount: starts at 0; ignores client-supplied totalAmount on create', async () => {
+    const poRes = await request(app.getHttpServer())
+      .post('/api/v1/purchase-orders')
+      .set('Authorization', `Bearer ${pmToken}`)
+      .send({ title: 'totals-test', totalAmount: '9999' });
+    expect(poRes.status).toBe(201);
+    expect(poRes.body.totalAmount).toBe('0');
+  });
+
+  it('PO totalAmount: recomputed after addLine', async () => {
+    const poRes = await request(app.getHttpServer())
+      .post('/api/v1/purchase-orders')
+      .set('Authorization', `Bearer ${pmToken}`)
+      .send({ title: 'totals-add-line' });
+    const poId = poRes.body.id;
+    await request(app.getHttpServer())
+      .post(`/api/v1/purchase-orders/${poId}/lines`)
+      .set('Authorization', `Bearer ${pmToken}`)
+      .send({ description: 'A', quantity: '5', unitPrice: '10', totalPrice: '50' });
+    await request(app.getHttpServer())
+      .post(`/api/v1/purchase-orders/${poId}/lines`)
+      .set('Authorization', `Bearer ${pmToken}`)
+      .send({ description: 'B', quantity: '3', unitPrice: '20', totalPrice: '60' });
+
+    const getRes = await request(app.getHttpServer())
+      .get(`/api/v1/purchase-orders/${poId}`)
+      .set('Authorization', `Bearer ${pmToken}`);
+    expect(parseFloat(getRes.body.totalAmount)).toBe(110);
+  });
+
+  it('PO totalAmount: client-supplied totalAmount on update is silently ignored', async () => {
+    const poRes = await request(app.getHttpServer())
+      .post('/api/v1/purchase-orders')
+      .set('Authorization', `Bearer ${pmToken}`)
+      .send({ title: 'totals-update' });
+    const poId = poRes.body.id;
+    await request(app.getHttpServer())
+      .post(`/api/v1/purchase-orders/${poId}/lines`)
+      .set('Authorization', `Bearer ${pmToken}`)
+      .send({ description: 'X', quantity: '1', unitPrice: '7', totalPrice: '7' });
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/purchase-orders/${poId}`)
+      .set('Authorization', `Bearer ${pmToken}`)
+      .send({ notes: 'updated', totalAmount: '999999' });
+
+    const getRes = await request(app.getHttpServer())
+      .get(`/api/v1/purchase-orders/${poId}`)
+      .set('Authorization', `Bearer ${pmToken}`);
+    expect(parseFloat(getRes.body.totalAmount)).toBe(7);
+    expect(getRes.body.notes).toBe('updated');
+  });
+
+  it('Quote→PO conversion: PO totalAmount = SUM(po_lines.totalPrice), not the quote header total', async () => {
+    // Set up RFQ + supplier
+    const suppRes = await request(app.getHttpServer())
+      .post('/api/v1/suppliers')
+      .set('Authorization', `Bearer ${pmToken}`)
+      .send({ name: 'Delta Convert' });
+    const supplierId = suppRes.body.id;
+    const rfqRes = await request(app.getHttpServer())
+      .post('/api/v1/rfqs')
+      .set('Authorization', `Bearer ${pmToken}`)
+      .send({ title: 'rfq-convert', supplierIds: [supplierId] });
+    const rfqId = rfqRes.body.id;
+
+    // Quote with 2 lines summing to 350 — but try to force header to 9999
+    const quoteRes = await request(app.getHttpServer())
+      .post('/api/v1/quotes')
+      .set('Authorization', `Bearer ${pmToken}`)
+      .send({ rfqId, supplierId, totalAmount: '9999' });
+    const quoteId = quoteRes.body.id;
+    expect(quoteRes.body.totalAmount).toBe('0'); // dropped by whitelist + recompute
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/quotes/${quoteId}/lines`)
+      .set('Authorization', `Bearer ${pmToken}`)
+      .send({ description: 'L1', quantity: '2', unitPrice: '100', totalPrice: '200' });
+    await request(app.getHttpServer())
+      .post(`/api/v1/quotes/${quoteId}/lines`)
+      .set('Authorization', `Bearer ${pmToken}`)
+      .send({ description: 'L2', quantity: '3', unitPrice: '50', totalPrice: '150' });
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/quotes/${quoteId}/accept`)
+      .set('Authorization', `Bearer ${pmToken}`);
+
+    const convertRes = await request(app.getHttpServer())
+      .post(`/api/v1/quotes/${quoteId}/convert-to-po`)
+      .set('Authorization', `Bearer ${pmToken}`);
+    expect(convertRes.status).toBe(201);
+    const poId = convertRes.body.id;
+
+    const poGet = await request(app.getHttpServer())
+      .get(`/api/v1/purchase-orders/${poId}`)
+      .set('Authorization', `Bearer ${pmToken}`);
+    expect(parseFloat(poGet.body.totalAmount)).toBe(350);
+    expect(poGet.body.lines.length).toBe(2);
   });
 });

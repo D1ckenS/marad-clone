@@ -130,7 +130,7 @@ describe('P3-3 Multi-step approval flows e2e', () => {
       .send({
         vesselId,
         title: 'Multi-step requisition',
-        totalAmount: '5000',
+        // totalAmount is derived; this flow's steps don't check amount.
         currency: 'USD',
         requestedAt: new Date().toISOString(),
         approvalFlowId: flowId,

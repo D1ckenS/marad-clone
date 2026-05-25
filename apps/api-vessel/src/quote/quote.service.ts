@@ -44,7 +44,8 @@ export class QuoteService {
           vesselId,
           rfqId: dto.rfqId,
           supplierId: dto.supplierId,
-          totalAmount: dto.totalAmount ?? '0',
+          // totalAmount derived from line sums; see `recomputeTotal`.
+          totalAmount: '0',
           currency: dto.currency ?? 'USD',
           notes: dto.notes ?? null,
           status: 'PENDING',
@@ -144,8 +145,26 @@ export class QuoteService {
         })
         .returning()
         .all();
+      this.recomputeTotal(tx, quoteId);
       return row;
     });
+  }
+
+  /** Re-derive `quotes.totalAmount` from SUM(quote_lines.totalPrice). */
+  private recomputeTotal(
+    tx: Parameters<Parameters<typeof this.drizzle.db.transaction>[0]>[0],
+    quoteId: string,
+  ) {
+    const lines = tx
+      .select({ totalPrice: quoteLines.totalPrice })
+      .from(quoteLines)
+      .where(and(eq(quoteLines.quoteId, quoteId), isNull(quoteLines.deletedAt)))
+      .all();
+    const total = lines.reduce((sum, l) => sum + parseFloat(l.totalPrice ?? '0'), 0).toFixed(2);
+    tx.update(quotes)
+      .set({ totalAmount: total, updatedAt: new Date().toISOString() })
+      .where(eq(quotes.id, quoteId))
+      .run();
   }
 
   accept(auth: AuthContext, id: string) {
