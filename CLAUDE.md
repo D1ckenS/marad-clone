@@ -113,7 +113,7 @@ The endpoint refuses if (a) `VESSEL_BOOTSTRAP_KEY` is unset, (b) the key doesn't
 ```powershell
 node scripts/seed-vessel-from-shore.mjs `
   --shore http://shore.local:3000 `
-  --shore-admin Ziad --shore-password REDACTED `
+  --shore-admin <SHORE_ADMIN_USERNAME> --shore-password <SHORE_ADMIN_PASSWORD> `
   --tenant 01KQWX2HPGZBJJR9Z8W53SQJM4 `
   --vessel 01KRTJPG2MZK2HZ78AT6KXEP0Y `
   --temp-password ChangeMe2026! `

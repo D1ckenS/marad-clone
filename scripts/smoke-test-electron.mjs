@@ -7,6 +7,7 @@ import { chromium } from 'playwright';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { ABM } from './_smoke-creds.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(__dirname, '..', '.smoke-results');
@@ -39,8 +40,8 @@ page.on('response', (r) => {
 
 await page.goto(`${URL}/login`, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(1500);
-await page.locator('#identifier').fill('zyad');
-await page.locator('#password').fill('REDACTED');
+await page.locator('#identifier').fill(ABM.username);
+await page.locator('#password').fill(ABM.password);
 await page
   .getByRole('button', { name: /sign in/i })
   .first()
