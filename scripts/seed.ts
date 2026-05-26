@@ -26,18 +26,51 @@ async function post<T>(path: string, body: unknown, token?: string): Promise<T> 
 async function main() {
   console.log('🌱 Seeding local database…\n');
 
-  // 1. Create tenant + initial TENANT_ADMIN
-  const bootstrap = await post<{ tenant: { id: string }; admin: { id: string } }>('/tenants', {
-    name: 'Demo Shipping Co.',
-    admin: { email: 'admin@demo.local', password: 'Admin1234!' },
+  // 0. Bootstrap a SUPER_ADMIN. POST /tenants is now SUPER_ADMIN-gated (B3),
+  //    so we need a token from an account with no tenant scope first.
+  const bootstrapKey = process.env['PLATFORM_BOOTSTRAP_KEY'];
+  if (!bootstrapKey) {
+    throw new Error(
+      'PLATFORM_BOOTSTRAP_KEY is not set — add it to apps/api-shore/.env and restart api-shore',
+    );
+  }
+  const superAdminEmail = 'seed-superadmin@demo.local';
+  const superAdminPassword = 'SuperAdmin1234!';
+  try {
+    await post('/auth/bootstrap-super-admin', {
+      bootstrapKey,
+      email: superAdminEmail,
+      username: 'seed-superadmin',
+      password: superAdminPassword,
+    });
+    console.log('✓ Super-admin created');
+  } catch (err) {
+    // 409 if it already exists; that's fine — we'll log in below.
+    if (!(err instanceof Error) || !err.message.includes('409')) throw err;
+    console.log('✓ Super-admin already exists');
+  }
+  const superAdminLogin = await post<{ access_token: string }>('/auth/login', {
+    identifier: superAdminEmail,
+    password: superAdminPassword,
   });
+  const superAdminToken = superAdminLogin.access_token;
+
+  // 1. Create tenant + initial TENANT_ADMIN (super-admin authenticated)
+  const bootstrap = await post<{ tenant: { id: string }; admin: { id: string } }>(
+    '/tenants',
+    {
+      name: 'Demo Shipping Co.',
+      admin: { email: 'admin@demo.local', username: 'demo-admin', password: 'Admin1234!' },
+    },
+    superAdminToken,
+  );
   const tenantId = bootstrap.tenant.id;
   console.log(`✓ Tenant created       id=${tenantId}`);
 
   // 2. Log in as TENANT_ADMIN to get a token for creating resources
   const adminLogin = await post<{ access_token: string }>('/auth/login', {
     tenantId,
-    email: 'admin@demo.local',
+    identifier: 'admin@demo.local',
     password: 'Admin1234!',
   });
   const adminToken = adminLogin.access_token;
@@ -57,6 +90,7 @@ async function main() {
     '/users',
     {
       email: 'master@demo.local',
+      username: 'demo-master',
       password: 'Master1234!',
       role: 'MASTER',
       vesselId,
@@ -70,6 +104,7 @@ async function main() {
     '/users',
     {
       email: 'chief@demo.local',
+      username: 'demo-chief',
       password: 'Chief1234!',
       role: 'CHIEF_ENGINEER',
       vesselId,

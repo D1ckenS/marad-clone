@@ -4,14 +4,24 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { UserService } from '../src/user/user.service';
 
 let app: INestApplication;
 let prisma: PrismaService;
 
 // Captured during setup so afterAll can clean up.
-const created = { tenantId: '', adminUserId: '', vesselId: '', chiefUserId: '' };
+const created = {
+  tenantId: '',
+  adminUserId: '',
+  vesselId: '',
+  chiefUserId: '',
+  superAdminUserId: '',
+};
+let superAdminToken = '';
 let adminToken = '';
 let chiefToken = '';
+
+const SUPER_ADMIN_EMAIL = 'superadmin@fleetops-app-e2e.test';
 
 beforeAll(async () => {
   const moduleRef = await Test.createTestingModule({
@@ -24,6 +34,23 @@ beforeAll(async () => {
   await app.init();
 
   prisma = moduleRef.get(PrismaService);
+
+  // B3: POST /tenants is now SUPER_ADMIN-gated. Bootstrap a super-admin
+  // directly via UserService (skips the PLATFORM_BOOTSTRAP_KEY env dance)
+  // and log in to grab a token usable for the POST /tenants call below.
+  const users = moduleRef.get(UserService);
+  const superAdmin = await users.createSuperAdmin(
+    SUPER_ADMIN_EMAIL,
+    'SuperP@ss1',
+    'superadmin-e2e',
+  );
+  created.superAdminUserId = superAdmin.id;
+
+  const loginRes = await request(app.getHttpServer())
+    .post('/api/v1/auth/login')
+    .send({ identifier: SUPER_ADMIN_EMAIL, password: 'SuperP@ss1' })
+    .expect(200);
+  superAdminToken = loginRes.body.access_token as string;
 });
 
 afterAll(async () => {
@@ -37,15 +64,35 @@ afterAll(async () => {
       .catch(() => null);
     await prisma.tenant.delete({ where: { id: created.tenantId } }).catch(() => null);
   }
+  if (created.superAdminUserId) {
+    await prisma
+      .$transaction(async (tx) => {
+        await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = ''`);
+        await tx.$executeRawUnsafe(`SET LOCAL app.tenant_id = ''`);
+        await tx.user.delete({ where: { id: created.superAdminUserId } });
+      })
+      .catch(() => null);
+  }
   await app.close();
 });
 
 const api = () => request(app.getHttpServer());
 
 describe('P0-7 + P1-2b e2e — bootstrap → JWT → CRUD', () => {
-  it('POST /tenants — bootstraps tenant + initial TENANT_ADMIN', async () => {
+  it('POST /tenants — without JWT returns 401 (B3)', async () => {
+    await api()
+      .post('/api/v1/tenants')
+      .send({
+        name: 'Unauthenticated',
+        admin: { email: 'x@y.z', username: 'x', password: 'AdminP@ss1' },
+      })
+      .expect(401);
+  });
+
+  it('POST /tenants — SUPER_ADMIN bootstraps tenant + initial TENANT_ADMIN', async () => {
     const res = await api()
       .post('/api/v1/tenants')
+      .set('Authorization', `Bearer ${superAdminToken}`)
       .send({
         name: 'Acme Shipping',
         admin: {
@@ -191,6 +238,17 @@ describe('P0-7 + P1-2b e2e — bootstrap → JWT → CRUD', () => {
       .set('Authorization', `Bearer ${refresh}`)
       .send({ name: 'Hijacked' })
       .expect(401);
+  });
+
+  it('POST /tenants — TENANT_ADMIN token returns 403 (B3)', async () => {
+    await api()
+      .post('/api/v1/tenants')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        name: 'Privilege Escalation Attempt',
+        admin: { email: 'x@y.z', username: 'x', password: 'AdminP@ss1' },
+      })
+      .expect(403);
   });
 
   it('GET /tenants/self — returns the JWT holder’s tenant', async () => {

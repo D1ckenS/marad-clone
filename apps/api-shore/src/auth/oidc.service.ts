@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   Logger,
   ServiceUnavailableException,
@@ -129,11 +130,20 @@ export class OidcService {
 
   // ── Config helpers ─────────────────────────────────────────────────────────
 
+  /**
+   * Admin-facing list of SSO configs. The `clientSecret` is projected out and
+   * replaced with `hasSecret: boolean` so a leaked admin token can't exfiltrate
+   * the IDP shared secret over the network (B4).
+   */
   async getSsoConfigs(tenantId: string) {
     try {
-      return await this.prisma.withTenant(tenantId, (tx) =>
+      const configs = await this.prisma.withTenant(tenantId, (tx) =>
         tx.tenantSsoConfig.findMany({ where: { tenantId } }),
       );
+      return configs.map(({ clientSecret, ...rest }) => ({
+        ...rest,
+        hasSecret: Boolean(clientSecret),
+      }));
     } catch {
       return [];
     }
@@ -145,7 +155,7 @@ export class OidcService {
       provider: SsoProvider;
       discoveryUrl: string;
       clientId: string;
-      clientSecret: string;
+      clientSecret?: string;
       redirectUri: string;
       enabled?: boolean;
     },
@@ -153,13 +163,40 @@ export class OidcService {
     // Invalidate cached client when config changes.
     clientCache.delete(`${dto.discoveryUrl}:${dto.clientId}`);
 
-    return this.prisma.withTenant(tenantId, (tx) =>
-      tx.tenantSsoConfig.upsert({
+    return this.prisma.withTenant(tenantId, async (tx) => {
+      const existing = await tx.tenantSsoConfig.findUnique({
         where: { tenantId_provider: { tenantId, provider: dto.provider } },
-        create: { id: newId(), tenantId, ...dto, enabled: dto.enabled ?? true },
-        update: { ...dto },
-      }),
-    );
+      });
+      const trimmedSecret = dto.clientSecret?.trim() ?? '';
+
+      if (!existing && !trimmedSecret) {
+        throw new BadRequestException('clientSecret is required to create a new SSO config');
+      }
+
+      const baseFields = {
+        discoveryUrl: dto.discoveryUrl,
+        clientId: dto.clientId,
+        redirectUri: dto.redirectUri,
+        enabled: dto.enabled ?? true,
+      };
+      const created = await tx.tenantSsoConfig.upsert({
+        where: { tenantId_provider: { tenantId, provider: dto.provider } },
+        create: {
+          id: newId(),
+          tenantId,
+          provider: dto.provider,
+          ...baseFields,
+          clientSecret: trimmedSecret,
+        },
+        // Only overwrite the secret if a non-empty new one was supplied —
+        // preserves the existing secret when admins edit other fields.
+        update: trimmedSecret ? { ...baseFields, clientSecret: trimmedSecret } : baseFields,
+      });
+
+      // Strip secret on the way out, same shape as getSsoConfigs (B4).
+      const { clientSecret, ...rest } = created;
+      return { ...rest, hasSecret: Boolean(clientSecret) };
+    });
   }
 
   private async loadConfig(tenantId: string, provider: SsoProvider) {

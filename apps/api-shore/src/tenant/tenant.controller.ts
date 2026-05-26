@@ -15,8 +15,17 @@ export class TenantController {
     private readonly users: UserService,
   ) {}
 
-  /** Bootstrap endpoint — open so the first admin can be created. */
+  /**
+   * SUPER_ADMIN: create a new tenant with its initial TENANT_ADMIN user.
+   *
+   * Was previously unauthenticated (B3): anyone reaching the shore API could
+   * create tenants + admins, opening a DoS-via-storage and trivial-account-
+   * creation attack. First-tenant bootstrap now happens via POST
+   * `/auth/bootstrap-super-admin` (key-gated) → log in as SUPER_ADMIN → call
+   * this endpoint.
+   */
   @Post()
+  @UseGuards(JwtAuthGuard, requireRole('SUPER_ADMIN'))
   create(@Body() dto: CreateTenantDto) {
     return this.tenants.create(dto);
   }
