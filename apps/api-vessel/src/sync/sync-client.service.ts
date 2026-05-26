@@ -3,6 +3,7 @@ import {
   NodemailerImapProvider,
   SmtpSyncTransport,
   SyncEngine,
+  syncClientCredentials,
   type SyncDelta,
   type SyncTransport,
 } from '@fleetops/sync-engine';
@@ -93,11 +94,16 @@ export class SyncClientService implements OnApplicationBootstrap, OnApplicationS
     vesselId: string;
     nodeId: string;
   }): Promise<void> {
+    // B1: TLS material is loaded from SYNC_TLS_{CA,CERT,KEY}_PATH if present;
+    // refuse-to-boot when NODE_ENV=production and any are missing. Lifted out
+    // of the retry loop so a bad cert config fails fast instead of looping.
+    const credentials = syncClientCredentials();
     while (!this.stopping) {
       try {
         const transport = new GrpcSyncTransport({
           protoPath: process.env['SYNC_PROTO_PATH'] ?? PROTO_PATH_DEFAULT,
           serverAddress: process.env['SHORE_SYNC_URL'] ?? 'localhost:50051',
+          credentials,
           hello: { tenantId: opts.tenantId, vesselId: opts.vesselId, nodeId: opts.nodeId },
           ...(process.env['SYNC_AUTH_TOKEN'] !== undefined && {
             authToken: process.env['SYNC_AUTH_TOKEN'],
