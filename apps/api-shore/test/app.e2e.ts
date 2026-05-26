@@ -258,4 +258,45 @@ describe('P0-7 + P1-2b e2e — bootstrap → JWT → CRUD', () => {
       .expect(200);
     expect(res.body.id).toBe(created.tenantId);
   });
+
+  // Regression: SUPER_ADMIN has tenantId=null. Before this fix, GET /users/me
+  // for super-admins bypassed `withTenant`, leaving `app.current_tenant_id`
+  // unset — RLS then filtered the user row out and the endpoint returned 404.
+  // The web ProfilePage silently swallowed it and sat on "Loading" forever.
+  it('GET /users/me — SUPER_ADMIN can load their own profile', async () => {
+    const res = await api()
+      .get('/api/v1/users/me')
+      .set('Authorization', `Bearer ${superAdminToken}`)
+      .expect(200);
+    expect(res.body).toMatchObject({
+      id: created.superAdminUserId,
+      email: SUPER_ADMIN_EMAIL,
+      role: 'SUPER_ADMIN',
+    });
+  });
+
+  it('PATCH /users/me — SUPER_ADMIN can change their own password', async () => {
+    const res = await api()
+      .patch('/api/v1/users/me')
+      .set('Authorization', `Bearer ${superAdminToken}`)
+      .send({ currentPassword: 'SuperP@ss1', newPassword: 'SuperP@ss2!' })
+      .expect(200);
+    expect(typeof res.body.access_token).toBe('string');
+    // Verify the new password works.
+    await api()
+      .post('/api/v1/auth/login')
+      .send({ identifier: SUPER_ADMIN_EMAIL, password: 'SuperP@ss2!' })
+      .expect(200);
+  });
+
+  it('GET /users/me — TENANT_ADMIN can still load their own profile', async () => {
+    const res = await api()
+      .get('/api/v1/users/me')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(res.body).toMatchObject({
+      id: created.adminUserId,
+      role: 'TENANT_ADMIN',
+    });
+  });
 });
