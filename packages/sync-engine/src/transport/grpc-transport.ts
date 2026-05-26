@@ -133,6 +133,13 @@ export interface SyncServerOptions {
    * caller's concern.
    */
   blob?: BlobServerHandler;
+  /**
+   * Server credentials. When omitted, the server runs **insecure** — only
+   * safe for unit / integration tests on loopback. Production wiring
+   * should pass `syncServerCredentials()` from `./tls.js`, which reads
+   * `SYNC_TLS_{CA,CERT,KEY}_PATH` and enforces mTLS (B1).
+   */
+  credentials?: grpc.ServerCredentials;
 }
 
 export interface BlobMetaWire {
@@ -218,8 +225,9 @@ export async function startSyncServer(
     },
   });
 
+  const creds = opts.credentials ?? grpc.ServerCredentials.createInsecure();
   const port = await new Promise<number>((resolve, reject) => {
-    server.bindAsync(bindAddress, grpc.ServerCredentials.createInsecure(), (err, p) => {
+    server.bindAsync(bindAddress, creds, (err, p) => {
       if (err) reject(err);
       else resolve(p);
     });
@@ -373,6 +381,13 @@ export interface GrpcClientTransportOptions {
   hello: { tenantId: string; vesselId: string; nodeId: string };
   cursors?: Record<string, string>;
   authToken?: string; // bearer; stored in stream metadata
+  /**
+   * Channel credentials. When omitted, the client runs **insecure** — only
+   * safe for unit / integration tests on loopback. Production wiring
+   * should pass `syncClientCredentials()` from `./tls.js`, which reads
+   * `SYNC_TLS_{CA,CERT,KEY}_PATH` and presents a vessel client cert (B1).
+   */
+  credentials?: grpc.ChannelCredentials;
 }
 
 /**
@@ -393,7 +408,7 @@ export class GrpcSyncTransport implements SyncTransport {
     const ClientCtor = def.SyncService;
     const client = new ClientCtor(
       this.opts.serverAddress,
-      grpc.credentials.createInsecure(),
+      this.opts.credentials ?? grpc.credentials.createInsecure(),
     ) as unknown as grpc.Client & {
       Stream: () => grpc.ClientDuplexStream<ClientMessage, ServerMessage>;
     };

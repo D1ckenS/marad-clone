@@ -1,4 +1,9 @@
-import { SyncEngine, startSyncServer, type SyncDelta } from '@fleetops/sync-engine';
+import {
+  SyncEngine,
+  startSyncServer,
+  syncServerCredentials,
+  type SyncDelta,
+} from '@fleetops/sync-engine';
 import {
   Inject,
   Injectable,
@@ -54,8 +59,13 @@ export class SyncGatewayService implements OnApplicationBootstrap, OnApplication
     const port = process.env['SYNC_GRPC_PORT'] ?? '50051';
     const protoPath = process.env['SYNC_PROTO_PATH'] ?? PROTO_PATH_DEFAULT;
 
+    // B1: TLS material is loaded from SYNC_TLS_{CA,CERT,KEY}_PATH if present;
+    // refuse-to-boot when NODE_ENV=production and any are missing. Tests +
+    // local dev with the vars unset get insecure credentials.
+    const credentials = syncServerCredentials();
     const { port: bound, shutdown } = await startSyncServer(`0.0.0.0:${port}`, {
       protoPath,
+      credentials,
       blob: this.blobs.handle,
       onStreamOpen: async (hello, send) => {
         const key = `${hello.tenantId}:${hello.vesselId}`;

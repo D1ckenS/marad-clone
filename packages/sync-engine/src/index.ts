@@ -16,6 +16,12 @@ export {
   type BlobUploadResult,
 } from './transport/grpc-transport.js';
 export {
+  loadSyncTlsMaterial,
+  syncServerCredentials,
+  syncClientCredentials,
+  type SyncTlsMaterial,
+} from './transport/tls.js';
+export {
   SmtpSyncTransport,
   encodeBatch,
   decodeBatch,

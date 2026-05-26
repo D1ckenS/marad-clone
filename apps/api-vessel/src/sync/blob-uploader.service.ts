@@ -5,6 +5,7 @@ import { GetObjectCommand, S3Client, type GetObjectCommandOutput } from '@aws-sd
 import { and, asc, eq, isNull, lte, or, sql } from 'drizzle-orm';
 import * as grpc from '@grpc/grpc-js';
 import { loadSync } from '@grpc/proto-loader';
+import { syncClientCredentials } from '@fleetops/sync-engine';
 import { DrizzleService } from '../db/drizzle.service';
 import { blobOutbox } from '../db/schema';
 
@@ -278,10 +279,10 @@ export class BlobUploaderService implements OnApplicationBootstrap, OnApplicatio
     };
     const Ctor = proto.fleetops.sync.v1.BlobService;
     const address = process.env['SHORE_SYNC_URL'] ?? 'localhost:50051';
-    this.client = new Ctor(
-      address,
-      grpc.credentials.createInsecure(),
-    ) as unknown as BlobServiceClient;
+    // B1: mTLS when SYNC_TLS_{CA,CERT,KEY}_PATH are set; refuse-to-boot in
+    // production when missing. Same helper the sync client uses so vessel
+    // presents the same client cert on both channels.
+    this.client = new Ctor(address, syncClientCredentials()) as unknown as BlobServiceClient;
     return this.client;
   }
 }
