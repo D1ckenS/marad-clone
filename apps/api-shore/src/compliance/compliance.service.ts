@@ -109,22 +109,36 @@ export class ComplianceService {
   private async checkImmutabilityTrigger(): Promise<DnvCheck> {
     const rows = await this.prisma.$queryRaw<{ trigger_name: string }[]>`
       SELECT trigger_name FROM information_schema.triggers
-      WHERE trigger_name = 'job_histories_immutable'
+      WHERE trigger_name IN ('job_histories_immutable', 'job_histories_no_delete')
         AND event_object_table = 'job_histories'
     `;
-    const present = rows.length > 0;
+    const names = rows.map((r) => r.trigger_name);
+    const updatePresent = names.includes('job_histories_immutable');
+    const deletePresent = names.includes('job_histories_no_delete');
+    // Both must pass — DELETE without UPDATE means tampering by overwrite is
+    // possible; UPDATE without DELETE means the audit trail can be erased
+    // entirely. Either failure mode breaks the CG-0339 evidence pack (B8).
+    const present = updatePresent && deletePresent;
+    const evidence: string[] = [];
+    if (updatePresent) {
+      evidence.push('PostgreSQL BEFORE UPDATE trigger "job_histories_immutable" verified present');
+    } else {
+      evidence.push('TRIGGER "job_histories_immutable" NOT FOUND on job_histories');
+    }
+    if (deletePresent) {
+      evidence.push(
+        'PostgreSQL BEFORE DELETE trigger "job_histories_no_delete" verified present (B8)',
+      );
+    } else {
+      evidence.push('TRIGGER "job_histories_no_delete" NOT FOUND on job_histories');
+    }
     return {
       requirement: 'CG-0339 §4.1 — Job history immutability (database-level enforcement)',
       status: present ? 'PASS' : 'FAIL',
-      evidence: present
-        ? [
-            'PostgreSQL BEFORE UPDATE/DELETE trigger "job_histories_immutable" verified present on job_histories table',
-            'Trigger raises exception on any modification attempt, preventing tampering',
-          ]
-        : ['TRIGGER "job_histories_immutable" NOT FOUND on job_histories table'],
+      evidence,
       detail: present
-        ? 'Database trigger prevents any UPDATE or DELETE on job_histories rows after creation'
-        : 'CRITICAL: Install immutability trigger before type-approval submission',
+        ? 'Database triggers prevent any UPDATE or DELETE on job_histories rows after creation'
+        : 'CRITICAL: Install both immutability triggers before type-approval submission',
     };
   }
 

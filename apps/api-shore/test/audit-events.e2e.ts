@@ -138,7 +138,9 @@ describe('P2-5 DNV evidence pack — shore', () => {
     };
     expect(pack.standard).toBe('DNV CG-0339');
     expect(pack.vessel.id).toBe(vesselId);
-    expect(pack.immutabilityVerification.trigger).toBe('job_histories_immutable');
+    // B8: evidence pack now reports both triggers.
+    expect(pack.immutabilityVerification.trigger).toContain('job_histories_immutable');
+    expect(pack.immutabilityVerification.trigger).toContain('job_histories_no_delete');
     expect(pack.immutabilityVerification.verified).toBe(true);
     expect(pack.summary.totalJobsCompleted).toBeGreaterThan(0);
     expect(pack.jobHistories.length).toBeGreaterThan(0);
@@ -162,6 +164,43 @@ describe('P2-5 DNV evidence pack — shore', () => {
         `,
       ),
     ).rejects.toThrow();
+  });
+
+  it('job_histories_no_delete trigger prevents DELETE on JobHistory (B8)', async () => {
+    const jobHistories = await prisma.withTenant(tenantId, (tx) =>
+      tx.jobHistory.findMany({ where: { tenantId, vesselId } }),
+    );
+    expect(jobHistories.length).toBeGreaterThan(0);
+    const histId = jobHistories[0]!.id;
+
+    // Attempt raw DELETE via Prisma — should raise due to BEFORE DELETE
+    // trigger. The trigger function unconditionally RAISEs so deletes are
+    // impossible even from the DB owner.
+    await expect(
+      prisma.withTenant(
+        tenantId,
+        (tx) =>
+          tx.$executeRaw`
+          DELETE FROM job_histories WHERE id = ${histId}
+        `,
+      ),
+    ).rejects.toThrow(/immutable/i);
+
+    // Row must still be there.
+    const after = await prisma.withTenant(tenantId, (tx) =>
+      tx.jobHistory.findUnique({ where: { id: histId } }),
+    );
+    expect(after).not.toBeNull();
+  });
+
+  it('both immutability triggers are registered on job_histories (B8)', async () => {
+    const rows = await prisma.$queryRaw<Array<{ tgname: string }>>`
+      SELECT tgname FROM pg_trigger
+      WHERE tgrelid = 'job_histories'::regclass AND NOT tgisinternal
+    `;
+    const names = rows.map((r) => r.tgname);
+    expect(names).toContain('job_histories_immutable');
+    expect(names).toContain('job_histories_no_delete');
   });
 
   it('verifies RLS policy on audit_events', async () => {
