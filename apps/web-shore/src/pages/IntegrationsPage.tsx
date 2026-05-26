@@ -8,7 +8,9 @@ interface SsoConfig {
   provider: 'ENTRA' | 'GOOGLE';
   discoveryUrl: string;
   clientId: string;
-  clientSecret: string;
+  // B4: GET /auth/oidc/configs no longer returns clientSecret. The form is
+  // pre-filled empty and the admin must re-type the secret on every save.
+  hasSecret?: boolean;
   redirectUri: string;
   enabled: boolean;
 }
@@ -252,7 +254,9 @@ function ProviderForm({
   buildDiscoveryUrl?: ((dirId: string) => string) | undefined;
 }) {
   const [clientId, setClientId] = useState(initial?.clientId ?? '');
-  const [clientSecret, setClientSecret] = useState(initial?.clientSecret ?? '');
+  // Server never returns clientSecret (B4). Field is always blank on load;
+  // admin retypes it to rotate, or leaves it blank to keep the existing one.
+  const [clientSecret, setClientSecret] = useState('');
   const [redirectUri, setRedirectUri] = useState(initial?.redirectUri ?? DEFAULT_REDIRECT_URI);
   const [dirId, setDirId] = useState('');
   const [saving, setSaving] = useState(false);
@@ -323,7 +327,7 @@ function ProviderForm({
       <div
         style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4, marginBottom: 8 }}
       >
-        <StatusBadge ok={Boolean(clientId && clientSecret)} />
+        <StatusBadge ok={Boolean(clientId && (clientSecret || initial?.hasSecret))} />
         {msg && (
           <span
             style={{

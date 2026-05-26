@@ -96,6 +96,9 @@ describe('SSO config', () => {
     expect(res.body.clientId).toBe('test-entra-client-id');
     expect(res.body.provider).toBe('ENTRA');
     expect(res.body.tenantId).toBe(tenantId);
+    // B4: upsert response must not echo the secret back.
+    expect(res.body.clientSecret).toBeUndefined();
+    expect(res.body.hasSecret).toBe(true);
   });
 
   it('upserts Google SSO config', async () => {
@@ -114,7 +117,7 @@ describe('SSO config', () => {
     expect(res.body.provider).toBe('GOOGLE');
   });
 
-  it('reads back both SSO configs', async () => {
+  it('reads back both SSO configs — clientSecret is stripped (B4)', async () => {
     const res = await request(app.getHttpServer())
       .get('/api/v1/auth/oidc/configs')
       .set('Authorization', `Bearer ${token}`);
@@ -124,6 +127,55 @@ describe('SSO config', () => {
     const providers = (res.body as { provider: string }[]).map((c) => c.provider);
     expect(providers).toContain('ENTRA');
     expect(providers).toContain('GOOGLE');
+    for (const config of res.body as Record<string, unknown>[]) {
+      expect(config['clientSecret']).toBeUndefined();
+      expect(config['hasSecret']).toBe(true);
+    }
+  });
+
+  it('CREW token gets 403 on GET /auth/oidc/configs (B4)', async () => {
+    // Provision a CREW user in the same tenant + mint a token.
+    const crewHash = await bcrypt.hash('CrewP@ss!1', 12);
+    const crewId = ulid();
+    await prisma.withTenant(tenantId, async (tx) => {
+      await tx.user.create({
+        data: {
+          id: crewId,
+          tenantId,
+          vesselId,
+          email: 'crew-oidc@test.shore',
+          username: 'crew-oidc',
+          passwordHash: crewHash,
+          role: 'CREW',
+        },
+      });
+    });
+    const loginRes = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ tenantId, identifier: 'crew-oidc@test.shore', password: 'CrewP@ss!1' });
+    const crewToken = (loginRes.body as { access_token: string }).access_token;
+
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/auth/oidc/configs')
+      .set('Authorization', `Bearer ${crewToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('upsert preserves existing secret when clientSecret omitted (B4)', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/auth/oidc/config')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        provider: 'ENTRA',
+        discoveryUrl: 'https://login.microsoftonline.com/test-directory-id/v2.0',
+        clientId: 'test-entra-client-id-renamed',
+        // no clientSecret — must NOT clear the existing one
+        redirectUri: 'https://shore.fleetops.test/auth/callback',
+        enabled: true,
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.clientId).toBe('test-entra-client-id-renamed');
+    expect(res.body.hasSecret).toBe(true);
   });
 
   it('beginLogin returns 503 when external IDP is unreachable in test env', async () => {
