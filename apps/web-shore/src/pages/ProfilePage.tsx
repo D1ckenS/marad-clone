@@ -22,6 +22,7 @@ export function ProfilePage() {
   const { login } = useAuth();
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -44,7 +45,11 @@ export function ProfilePage() {
         setLastName(p.lastName ?? '');
         setEmail(p.email);
       })
-      .catch(() => {});
+      .catch((err) => {
+        // Previously this catch was a no-op, so any error left the page
+        // stuck on "Loading" forever. Surface it instead.
+        setLoadError(err instanceof Error ? err.message : 'Failed to load profile.');
+      });
   }, []);
 
   async function handleInfoSave(e: React.FormEvent) {
@@ -89,6 +94,23 @@ export function ProfilePage() {
     } finally {
       setPwLoading(false);
     }
+  }
+
+  if (loadError) {
+    return (
+      <div
+        style={{
+          color: '#AB382E',
+          background: '#FDF2F1',
+          fontSize: 14,
+          padding: '12px 16px',
+          borderRadius: 6,
+          maxWidth: 480,
+        }}
+      >
+        {loadError}
+      </div>
+    );
   }
 
   if (!profile) {

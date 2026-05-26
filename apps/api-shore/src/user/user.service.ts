@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { newId } from '@fleetops/domain';
 import { PrismaService } from '../prisma/prisma.service';
@@ -194,18 +194,45 @@ export class UserService {
       lastName: true,
       role: true,
     };
+    // SUPER_ADMINs have tenantId=null. Since P5-4 made the `fleetops` role
+    // NOSUPERUSER, a bare prisma.user.findFirst hits RLS and returns null —
+    // the policy needs `app.current_tenant_id = ''` to bypass (same pattern
+    // as createSuperAdmin / findSuperAdminByIdentifier).
     const user = tenantId
       ? await this.prisma.withTenant(tenantId, (tx) => tx.user.findFirst({ where, select }))
-      : await this.prisma.user.findFirst({ where, select });
+      : await this.prisma.$transaction(async (tx) => {
+          await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = ''`);
+          await tx.$executeRawUnsafe(`SET LOCAL app.tenant_id = ''`);
+          return tx.user.findFirst({ where, select });
+        });
     if (!user) throw new NotFoundException('User not found');
     return user;
   }
 
   async updateMe(userId: string, tenantId: string | null, dto: UpdateProfileDto) {
     const where = { id: userId, deletedAt: null as Date | null };
-    const existing = tenantId
-      ? await this.prisma.withTenant(tenantId, (tx) => tx.user.findFirst({ where }))
-      : await this.prisma.user.findFirst({ where });
+    const updateSelect = {
+      id: true,
+      tenantId: true,
+      vesselId: true,
+      email: true,
+      username: true,
+      firstName: true,
+      lastName: true,
+      role: true,
+    };
+
+    // Same RLS bypass as getMe for SUPER_ADMIN — find + update both need it.
+    const runTxn = <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> =>
+      tenantId
+        ? this.prisma.withTenant(tenantId, fn)
+        : this.prisma.$transaction(async (tx) => {
+            await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = ''`);
+            await tx.$executeRawUnsafe(`SET LOCAL app.tenant_id = ''`);
+            return fn(tx);
+          });
+
+    const existing = await runTxn((tx) => tx.user.findFirst({ where }));
     if (!existing) throw new NotFoundException('User not found');
 
     if (dto.newPassword) {
@@ -225,37 +252,9 @@ export class UserService {
     if (dto.email !== undefined) data['email'] = dto.email;
     if (dto.newPassword) data['passwordHash'] = await bcrypt.hash(dto.newPassword, SALT_ROUNDS);
 
-    const updated = tenantId
-      ? await this.prisma.withTenant(tenantId, (tx) =>
-          tx.user.update({
-            where: { id: userId },
-            data,
-            select: {
-              id: true,
-              tenantId: true,
-              vesselId: true,
-              email: true,
-              username: true,
-              firstName: true,
-              lastName: true,
-              role: true,
-            },
-          }),
-        )
-      : await this.prisma.user.update({
-          where: { id: userId },
-          data,
-          select: {
-            id: true,
-            tenantId: true,
-            vesselId: true,
-            email: true,
-            username: true,
-            firstName: true,
-            lastName: true,
-            role: true,
-          },
-        });
+    const updated = await runTxn((tx) =>
+      tx.user.update({ where: { id: userId }, data, select: updateSelect }),
+    );
 
     return updated;
   }
