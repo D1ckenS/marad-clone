@@ -1,6 +1,8 @@
-// Tests end-to-end business flows over the live API as tenant admin (zyad).
+// Tests end-to-end business flows over the live API as the ABM tenant admin.
 // Covers: vessel listing, create requisition, fetch maintenance components, sign-off,
 // inventory movement, certificate listing, fleetview summary perf.
+
+import { ABM } from './_smoke-creds.mjs';
 
 const API = 'http://localhost:3000/api/v1';
 
@@ -22,7 +24,7 @@ async function get(path, tok, vesselId) {
 }
 
 const t0 = Date.now();
-const login = await post('/auth/login', { identifier: 'zyad', password: 'abm12345' });
+const login = await post('/auth/login', { identifier: ABM.username, password: ABM.password });
 const tok = login.access_token;
 console.log(`✓ login (${Date.now() - t0}ms)`);
 

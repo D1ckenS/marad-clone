@@ -80,6 +80,11 @@ jobs:
       - name: Format check
         run: pnpm run format:check
 
+      - name: Guard — no leaked credentials in tracked source (B5)
+        # Fails the build if any of the historically-leaked passwords/emails
+        # reappear under scripts/, apps/, or packages/. Cheap, runs every PR.
+        run: pnpm run guard:secrets
+
       # ── E2E setup ──────────────────────────────────────────────────────────
 
       - name: Generate RS256 JWT keypair

@@ -28,7 +28,8 @@
     "seed": "tsx scripts/seed.ts",
     "soak:sync": "tsx scripts/sync-soak-test.ts",
     "typecheck:all": "pnpm run typecheck && pnpm -r --workspace-concurrency=1 run typecheck",
-    "ci:full": "pnpm run lint && pnpm run typecheck:all && pnpm run test && pnpm run format:check"
+    "guard:secrets": "node scripts/guard-no-leaked-secrets.mjs",
+    "ci:full": "pnpm run lint && pnpm run typecheck:all && pnpm run test && pnpm run format:check && pnpm run guard:secrets"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

@@ -1,19 +1,24 @@
 // Build-time seed: creates a fresh vessel.db pre-populated with a demo
-// tenant, vessel, and a few login-ready users. Shipped in the installer as
-// extraResources/api-vessel/seed-vessel.db; index.ts copies it to userData
-// on first launch when no local vessel.db exists yet.
+// tenant, vessel, and three login-ready users (one super-admin + two tenant
+// admins). Shipped in the installer as extraResources/api-vessel/seed-vessel.db;
+// index.ts copies it to userData on first launch when no local vessel.db
+// exists yet.
 //
-// Anyone who installs the .exe can immediately log in with one of these
-// (login accepts either the username OR the email):
+// Credentials (B5): read from SMOKE_* env vars when set, otherwise the script
+// generates random passwords + a default username/email per user and prints
+// the credentials to stdout AND writes them to seed-demo-credentials.txt next
+// to the .db file (both in the gitignored api-vessel-bundle/ dir). The three
+// roles created are:
 //
-//   Ziad       (zeyad_yasser2010@yahoo.com)  /  FleetOps123   SUPER_ADMIN  (no tenant)
-//   abdallah   (abdallah@asm.com.jo)         /  asm12345      TENANT_ADMIN (ABM)
-//   zyad       (zyad@abmaritime.com.jo)      /  abm12345      TENANT_ADMIN (ABM)
+//   SUPER_ADMIN  (no tenant)        — SMOKE_SUPER_*
+//   TENANT_ADMIN (ABM tenant)       — SMOKE_ABM_*
+//   TENANT_ADMIN (ASM-like alt user — SMOKE_ASM_*); same ABM tenant for now
 //
-// No setup wizard, no env vars, no shore connection required.
+// No setup wizard, no shore connection required.
 
 import { execSync } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -92,39 +97,65 @@ const { migrate } = apiVesselReq('drizzle-orm/better-sqlite3/migrator');
 const wrapped = drizzle.drizzle(db);
 migrate(wrapped, { migrationsFolder: MIGRATIONS_DIR });
 
-// Seed rows. One tenant (ABM), one vessel (UR), three users — including the
-// SUPER_ADMIN Ziad who has no tenant (matches shore design).
+// Seed rows. One tenant (ABM), one vessel (UR), three users — including a
+// SUPER_ADMIN with no tenant (matches shore design).
 const TENANT_ID = '01KQWX2HPGZBJJR9Z8W53SQJM4';
 const VESSEL_ID = '01KRTJPG2MZK2HZ78AT6KXEP0Y';
 const now = new Date().toISOString();
 
+// Random-password generator for the env-var-unset path. URL-safe, ~16 chars
+// of entropy — long enough that a short human-memorable string can't recur
+// by accident.
+function randomPw() {
+  return randomBytes(12).toString('base64url');
+}
+
+function resolveCreds(prefix, fallback) {
+  const username = process.env[`SMOKE_${prefix}_USERNAME`] ?? fallback.username;
+  const email = process.env[`SMOKE_${prefix}_EMAIL`] ?? fallback.email;
+  const password = process.env[`SMOKE_${prefix}_PASSWORD`];
+  return {
+    username,
+    email,
+    password: password ?? randomPw(),
+    generated: password === undefined,
+  };
+}
+
+const superCreds = resolveCreds('SUPER', {
+  username: 'demo-super',
+  email: 'demo-super@fleetops.local',
+});
+const abmCreds = resolveCreds('ABM', {
+  username: 'demo-abm',
+  email: 'demo-abm@fleetops.local',
+});
+const asmCreds = resolveCreds('ASM', {
+  username: 'demo-asm',
+  email: 'demo-asm@fleetops.local',
+});
+
 const seedUsers = [
   {
-    id: 'usr_ziad_super____________01',
+    id: 'usr_demo_super____________01',
     tenantId: null,
     vesselId: null,
-    username: 'Ziad',
-    email: 'zeyad_yasser2010@yahoo.com',
-    password: 'FleetOps123',
     role: 'SUPER_ADMIN',
+    ...superCreds,
   },
   {
-    id: 'usr_abdallah______________01',
+    id: 'usr_demo_abm______________01',
     tenantId: TENANT_ID,
     vesselId: VESSEL_ID,
-    username: 'abdallah',
-    email: 'abdallah@asm.com.jo',
-    password: 'asm12345',
     role: 'TENANT_ADMIN',
+    ...abmCreds,
   },
   {
-    id: 'usr_zyad__________________01',
+    id: 'usr_demo_asm______________01',
     tenantId: TENANT_ID,
     vesselId: VESSEL_ID,
-    username: 'zyad',
-    email: 'zyad@abmaritime.com.jo',
-    password: 'abm12345',
     role: 'TENANT_ADMIN',
+    ...asmCreds,
   },
 ];
 
@@ -156,13 +187,32 @@ const count = db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
 db.pragma('wal_checkpoint(TRUNCATE)');
 db.close();
 
-console.log(`[seed-demo-db] seeded ${count} users in ${SEED_DB}`);
-console.log(
-  '[seed-demo-db]   Ziad     (zeyad_yasser2010@yahoo.com)  / FleetOps123   SUPER_ADMIN (no tenant)',
-);
-console.log(
-  '[seed-demo-db]   abdallah (abdallah@asm.com.jo)         / asm12345      TENANT_ADMIN (ABM)',
-);
-console.log(
-  '[seed-demo-db]   zyad     (zyad@abmaritime.com.jo)      / abm12345      TENANT_ADMIN (ABM)',
-);
+// Print credentials and, when any were generated, persist them next to the
+// .db so the operator can retrieve them later. The bundle dir is gitignored.
+const anyGenerated = seedUsers.some((u) => u.generated);
+const lines = [
+  `[seed-demo-db] seeded ${count} users in ${SEED_DB}`,
+  ...seedUsers.map(
+    (u) =>
+      `[seed-demo-db]   ${u.role.padEnd(12)} ${u.username} (${u.email}) / ${u.password}${
+        u.generated ? '  (generated)' : ''
+      }`,
+  ),
+];
+for (const line of lines) console.log(line);
+
+if (anyGenerated) {
+  const credsFile = path.join(BUNDLE_DIR, 'seed-demo-credentials.txt');
+  const body =
+    'Generated seed credentials (gitignored — do not commit this file).\n' +
+    'Override by setting SMOKE_{SUPER,ABM,ASM}_{USERNAME,EMAIL,PASSWORD} before re-seeding.\n\n' +
+    seedUsers
+      .map(
+        (u) =>
+          `${u.role}\n  username: ${u.username}\n  email:    ${u.email}\n  password: ${u.password}\n`,
+      )
+      .join('\n');
+  writeFileSync(credsFile, body, 'utf8');
+  console.log(`[seed-demo-db] wrote generated creds to ${credsFile}`);
+  console.log('[seed-demo-db] ⚠  this file is gitignored — keep it out of screenshots / chat');
+}

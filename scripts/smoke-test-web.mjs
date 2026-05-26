@@ -8,6 +8,7 @@ import { chromium } from 'playwright';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { SUPER, ABM } from './_smoke-creds.mjs';
 
 const WEB = process.env.WEB || 'http://localhost:5342';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -158,8 +159,8 @@ const browser = await chromium.launch({ headless: true });
 {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await ctx.newPage();
-  console.log('=== Tenant admin pass (zyad / abm12345) ===');
-  await loginAs(page, { identifier: 'zyad', password: 'abm12345' });
+  console.log(`=== Tenant admin pass (${ABM.username}) ===`);
+  await loginAs(page, { identifier: ABM.username, password: ABM.password });
   await selectFirstVessel(page);
   for (const p of tenantPages) {
     await visit(page, p.path, `tenant-${p.name}`);
@@ -171,8 +172,8 @@ const browser = await chromium.launch({ headless: true });
 {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await ctx.newPage();
-  console.log('\n=== Super admin pass (Ziad / FleetOps123) ===');
-  await loginAs(page, { identifier: 'Ziad', password: 'FleetOps123' });
+  console.log(`\n=== Super admin pass (${SUPER.username}) ===`);
+  await loginAs(page, { identifier: SUPER.username, password: SUPER.password });
   for (const p of adminPages) {
     await visit(page, p.path, `admin-${p.name}`);
   }
