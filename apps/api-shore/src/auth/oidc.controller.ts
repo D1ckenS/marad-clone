@@ -2,6 +2,7 @@ import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { IsBoolean, IsEnum, IsOptional, IsString, IsUrl } from 'class-validator';
 import { SsoProvider } from '@prisma/client';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { requireRole } from './role.guard';
 import { AuthCtx } from './auth-ctx.decorator';
 import type { AuthContext } from './auth-context';
 import { OidcService } from './oidc.service';
@@ -24,8 +25,11 @@ class UpsertSsoConfigDto {
   @IsString()
   clientId!: string;
 
+  // Optional on update so admins can edit other fields without re-typing the
+  // secret. Required when no config exists yet — enforced in OidcService (B4).
+  @IsOptional()
   @IsString()
-  clientSecret!: string;
+  clientSecret?: string;
 
   @IsString()
   redirectUri!: string;
@@ -52,15 +56,18 @@ export class OidcController {
     return this.oidc.completeLogin(dto.code, dto.state);
   }
 
-  /** Get all SSO configs for the caller's tenant. */
-  @UseGuards(JwtAuthGuard)
+  /**
+   * Admin-only: list SSO configs for the caller's tenant. `clientSecret` is
+   * stripped from the response (B4) — only `hasSecret: boolean` is returned.
+   */
+  @UseGuards(JwtAuthGuard, requireRole('TENANT_ADMIN', 'SUPER_ADMIN'))
   @Get('configs')
   getConfigs(@AuthCtx() auth: AuthContext) {
     return this.oidc.getSsoConfigs(auth.tenantId!);
   }
 
-  /** Upsert an SSO config for a specific provider. */
-  @UseGuards(JwtAuthGuard)
+  /** Admin-only: upsert an SSO config for a specific provider. */
+  @UseGuards(JwtAuthGuard, requireRole('TENANT_ADMIN', 'SUPER_ADMIN'))
   @Post('config')
   upsertConfig(@AuthCtx() auth: AuthContext, @Body() dto: UpsertSsoConfigDto) {
     return this.oidc.upsertSsoConfig(auth.tenantId!, dto);

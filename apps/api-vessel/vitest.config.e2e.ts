@@ -13,8 +13,9 @@ export default defineConfig({
       // so they have access to the matching private key. In production
       // the vessel never sees the private key.
       JWT_PRIVATE_KEY_PATH: '../../keys/jwt-private.pem',
-      // Vessel-local password login (legacy / dev path).
-      VESSEL_LOCAL_JWT_SECRET: 'test-vessel-local-secret',
+      // Vessel-local password login (legacy / dev path). Must be ≥32 chars
+      // and not the dev default (enforced by requireVesselJwtSecret — B2).
+      VESSEL_LOCAL_JWT_SECRET: 'test-vessel-local-secret-0123456789abcdef',
       VESSEL_LOCAL_JWT_TTL_MS: '28800000',
       PORT: '3002',
     },

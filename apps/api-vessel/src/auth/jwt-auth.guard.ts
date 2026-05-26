@@ -3,6 +3,7 @@ import * as jwt from 'jsonwebtoken';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { AuthContext } from './auth-context';
+import { requireVesselJwtSecret } from './secrets';
 
 type ShoreClaims = {
   sub: string;
@@ -51,6 +52,7 @@ function resolveVesselId(
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   private readonly publicKey: string;
+  private readonly localSecret: string;
 
   constructor() {
     const p = process.env['JWT_PUBLIC_KEY_PATH'];
@@ -58,6 +60,7 @@ export class JwtAuthGuard implements CanActivate {
       throw new Error('JWT_PUBLIC_KEY_PATH is required (provision from shore via gen:jwt-keys)');
     }
     this.publicKey = readFileSync(resolve(process.cwd(), p), 'utf-8');
+    this.localSecret = requireVesselJwtSecret();
   }
 
   canActivate(ctx: ExecutionContext): boolean {
@@ -93,10 +96,8 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     // 2. Vessel-local HS256.
-    const localSecret =
-      process.env['VESSEL_LOCAL_JWT_SECRET'] ?? 'vessel-local-dev-secret-change-me';
     try {
-      const payload = jwt.verify(token, localSecret, {
+      const payload = jwt.verify(token, this.localSecret, {
         algorithms: ['HS256'],
         issuer: 'fleetops-vessel',
       }) as VesselLocalClaims;

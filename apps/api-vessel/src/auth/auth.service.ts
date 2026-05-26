@@ -11,6 +11,7 @@ import { DrizzleService } from '../db/drizzle.service';
 import { tenants, users, vessels } from '../db/schema';
 import { UserService } from '../user/user.service';
 import type { BootstrapAdminDto } from './dto/bootstrap-admin.dto';
+import { requireVesselJwtSecret } from './secrets';
 
 export type ShoreJwtPayload = {
   sub: string;
@@ -32,11 +33,15 @@ const VESSEL_LOCAL_TTL_S = Math.floor(
 
 @Injectable()
 export class AuthService {
+  private readonly localSecret: string;
+
   constructor(
     private readonly users: UserService,
     private readonly drizzle: DrizzleService,
     private readonly jwt: JwtService,
-  ) {}
+  ) {
+    this.localSecret = requireVesselJwtSecret();
+  }
 
   /**
    * First-launch provisioning. Creates a tenant + vessel (idempotent on id)
@@ -156,8 +161,6 @@ export class AuthService {
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
 
-    const localSecret =
-      process.env['VESSEL_LOCAL_JWT_SECRET'] ?? 'vessel-local-dev-secret-change-me';
     const access_token = this.jwt.sign(
       {
         sub: user.id,
@@ -168,7 +171,7 @@ export class AuthService {
         type: 'vessel-local',
       },
       {
-        secret: localSecret,
+        secret: this.localSecret,
         algorithm: 'HS256',
         expiresIn: VESSEL_LOCAL_TTL_S,
         issuer: 'fleetops-vessel',
