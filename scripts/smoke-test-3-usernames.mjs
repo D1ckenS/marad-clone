@@ -1,9 +1,10 @@
-// Test each of the 3 seeded usernames (the way Ziad would type them) against
-// the bundled vessel API via the Electron renderer proxy.
+// Test each of the 3 seeded usernames (the way the operator would type them)
+// against the bundled vessel API via the Electron renderer proxy.
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { SUPER, ABM, ASM } from './_smoke-creds.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const log = readFileSync(path.join(HERE, '..', '.smoke-results', 'electron-v7.log'), 'utf8');
@@ -13,15 +14,15 @@ const URL = `http://127.0.0.1:${m[1]}`;
 console.log(`target: ${URL}`);
 
 const cases = [
-  { identifier: 'Ziad', password: 'FleetOps123', expect: 'SUPER_ADMIN' },
-  { identifier: 'abdallah', password: 'asm12345', expect: 'TENANT_ADMIN' },
-  { identifier: 'zyad', password: 'abm12345', expect: 'TENANT_ADMIN' },
+  { identifier: SUPER.username, password: SUPER.password, expect: 'SUPER_ADMIN' },
+  { identifier: ASM.username, password: ASM.password, expect: 'TENANT_ADMIN' },
+  { identifier: ABM.username, password: ABM.password, expect: 'TENANT_ADMIN' },
   // and confirm the same accounts also work via email
-  { identifier: 'zeyad_yasser2010@yahoo.com', password: 'FleetOps123', expect: 'SUPER_ADMIN' },
-  { identifier: 'abdallah@asm.com.jo', password: 'asm12345', expect: 'TENANT_ADMIN' },
-  { identifier: 'zyad@abmaritime.com.jo', password: 'abm12345', expect: 'TENANT_ADMIN' },
+  { identifier: SUPER.email, password: SUPER.password, expect: 'SUPER_ADMIN' },
+  { identifier: ASM.email, password: ASM.password, expect: 'TENANT_ADMIN' },
+  { identifier: ABM.email, password: ABM.password, expect: 'TENANT_ADMIN' },
   // and confirm a bad password fails
-  { identifier: 'zyad', password: 'wrong', expect: 'FAIL' },
+  { identifier: ABM.username, password: 'wrong', expect: 'FAIL' },
 ];
 
 let pass = 0;

@@ -3,12 +3,13 @@
 //   - first launch copies seed-vessel.db into userData
 //   - SPA setup-status reports needsBootstrap=false (seed has users)
 //   - SPA renders /login (no setup wizard)
-//   - login with zyad@abmaritime.com.jo / abm12345 → /dashboard
+//   - login with the ABM tenant admin's email → /dashboard
 
 import { chromium } from 'playwright';
 import { readFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ABM } from './_smoke-creds.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(HERE, '..', '.smoke-results');
@@ -48,9 +49,9 @@ await page.goto(`${URL}/login`, { waitUntil: 'networkidle' });
 console.log(`  /login URL after load: ${page.url()}`);
 await page.screenshot({ path: path.join(OUT, 'seeded-1-login.png'), fullPage: true });
 
-// 3. Log in as zyad
-await page.locator('#identifier').fill('zyad@abmaritime.com.jo');
-await page.locator('#password').fill('abm12345');
+// 3. Log in as the ABM tenant admin (by email)
+await page.locator('#identifier').fill(ABM.email);
+await page.locator('#password').fill(ABM.password);
 await page
   .getByRole('button', { name: /sign in/i })
   .first()
