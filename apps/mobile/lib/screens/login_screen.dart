@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_client.dart';
+import '../services/pairing_payload.dart';
+import 'pairing_scan_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,7 +14,10 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _apiUrlCtrl = TextEditingController(text: 'http://192.168.1.1:3001');
+  // H15: no hardcoded LAN default. Operator either scans the pairing QR
+  // (from the vessel SPA's `/mobile-pair` page) or expands "Advanced"
+  // and types the URL manually.
+  final _apiUrlCtrl = TextEditingController();
   final _tenantCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
@@ -29,8 +34,35 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  Future<void> _scanPairing() async {
+    final payload = await Navigator.of(context).push<PairingPayload>(
+      MaterialPageRoute(builder: (_) => const PairingScanScreen()),
+    );
+    if (payload == null || !mounted) return;
+    setState(() {
+      _apiUrlCtrl.text = payload.baseUrl;
+      _tenantCtrl.text = payload.tenantId;
+      _showApiUrl = true;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('auth.pairing_qr_loaded'.tr())),
+    );
+  }
+
   Future<void> _login() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    // H15: baseUrl is no longer defaulted; require it explicitly so the
+    // operator gets a clear error instead of an obscure connection failure.
+    if (_apiUrlCtrl.text.trim().isEmpty) {
+      setState(() => _showApiUrl = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('auth.api_url_required'.tr()),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
     setState(() => _loading = true);
     try {
       await context.read<AuthProvider>().login(
@@ -84,7 +116,18 @@ class _LoginScreenState extends State<LoginScreen> {
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: Colors.grey),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
+                  // H15: QR pairing — scan from the vessel SPA's
+                  // /mobile-pair page to fill baseUrl + tenantId in one tap.
+                  OutlinedButton.icon(
+                    onPressed: _loading ? null : _scanPairing,
+                    icon: const Icon(Icons.qr_code_scanner),
+                    label: Text('auth.scan_pairing_qr'.tr()),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   TextFormField(
                     controller: _tenantCtrl,
                     decoration: InputDecoration(

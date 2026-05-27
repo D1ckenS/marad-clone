@@ -25,6 +25,7 @@ import { FlgoPage } from './pages/FlgoPage.js';
 import { BiPage } from './pages/BiPage.js';
 import { CompliancePage } from './pages/CompliancePage.js';
 import { ProfilePage } from './pages/ProfilePage.js';
+import { MobilePairPage } from './pages/MobilePairPage.js';
 import type { NavItem } from '@fleetops/ui-kit';
 
 // ─── Role helpers ─────────────────────────────────────────────────────────────
@@ -141,6 +142,7 @@ function ProtectedContent() {
       ? [
           { label: t('nav.vessels_users'), href: '/vessels', code: 'VS' },
           { label: t('nav.integrations'), href: '/integrations', code: 'IT' },
+          { label: t('nav.mobile_pair'), href: '/mobile-pair', code: 'MP' },
         ]
       : []),
     ...(isRole(role, SUPER_ADMIN_ONLY)
@@ -267,6 +269,14 @@ function ProtectedContent() {
           }
         />
         <Route path="profile" element={<ProfilePage />} />
+        <Route
+          path="mobile-pair"
+          element={
+            <RequireRole roles={VESSEL_ADMIN_ROLES}>
+              <MobilePairPage />
+            </RequireRole>
+          }
+        />
         <Route
           path="*"
           element={<Navigate to={isSuperAdmin ? 'companies' : 'dashboard'} replace />}

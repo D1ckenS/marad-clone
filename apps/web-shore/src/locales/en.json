@@ -17,6 +17,7 @@
     "compliance": "Compliance",
     "vessels_users": "Vessels & Users",
     "integrations": "Integrations",
+    "mobile_pair": "Mobile pairing",
     "companies": "Companies",
     "platform_admin": "Platform Admin"
   },
@@ -1012,6 +1013,17 @@
     "admin_username": "Admin username",
     "admin_password": "Admin password",
     "create_company": "Create company"
+  },
+  "mobile_pair": {
+    "title": "Mobile device pairing",
+    "subtitle": "Display this QR on the laptop screen and scan it with the FleetOps mobile app to fill in the vessel API URL and tenant ID in one step.",
+    "base_url_label": "Vessel API URL (reachable from the crew's phone)",
+    "base_url_hint": "Defaults to this page's host on port 3001. Change it if the api-vessel is bound to a different LAN address.",
+    "tenant_id_label": "Tenant ID",
+    "scan_instructions": "Open the FleetOps mobile app, tap \"Scan pairing QR\" on the login screen, and point the camera at this code.",
+    "fill_fields_first": "Fill in the API URL and tenant ID above to generate the QR.",
+    "manual_entry_summary": "Show plain text (for manual entry)",
+    "reset_button": "Reset to defaults"
   },
   "integrations": {
     "title": "Integrations",

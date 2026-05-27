@@ -38,7 +38,18 @@
     "sign_out_confirm": "Are you sure you want to sign out?",
     "advanced": "Advanced",
     "vessel_api_url": "Vessel API URL",
-    "login_failed": "Login failed"
+    "login_failed": "Login failed",
+    "scan_pairing_qr": "Scan pairing QR",
+    "pairing_qr_loaded": "Vessel URL and tenant ID loaded from QR.",
+    "api_url_required": "Vessel API URL is required. Scan the pairing QR or enter it under Advanced."
+  },
+  "pairing_scan": {
+    "title": "Scan pairing QR",
+    "hint": "Point camera at the pairing QR on the vessel laptop",
+    "reading": "Reading QR…",
+    "invalid_qr": "Not a FleetOps pairing QR. Open the Mobile Pairing page on the vessel laptop.",
+    "toggle_torch": "Toggle torch",
+    "switch_camera": "Switch camera"
   },
   "common": {
     "cancel": "Cancel",

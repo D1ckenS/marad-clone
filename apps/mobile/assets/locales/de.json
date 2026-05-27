@@ -38,7 +38,18 @@
     "sign_out_confirm": "Möchten Sie sich wirklich abmelden?",
     "advanced": "Erweitert",
     "vessel_api_url": "Schiffs-API-URL",
-    "login_failed": "Anmeldung fehlgeschlagen"
+    "login_failed": "Anmeldung fehlgeschlagen",
+    "scan_pairing_qr": "Kopplungs-QR scannen",
+    "pairing_qr_loaded": "Schiffs-URL und Mandanten-ID aus QR geladen.",
+    "api_url_required": "Schiffs-API-URL erforderlich. Kopplungs-QR scannen oder unter Erweitert eingeben."
+  },
+  "pairing_scan": {
+    "title": "Kopplungs-QR scannen",
+    "hint": "Kamera auf den Kopplungs-QR am Schiffslaptop richten",
+    "reading": "QR wird gelesen…",
+    "invalid_qr": "Kein FleetOps-Kopplungs-QR. Öffnen Sie die Seite „Mobil-Kopplung“ am Schiffslaptop.",
+    "toggle_torch": "Taschenlampe",
+    "switch_camera": "Kamera wechseln"
   },
   "common": {
     "cancel": "Abbrechen",
