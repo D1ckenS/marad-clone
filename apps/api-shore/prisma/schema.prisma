@@ -1951,6 +1951,12 @@ model ClassSocietyConnector {
   apiEndpoint         String?     @map("api_endpoint")
   vesselRegistrations Json        @map("vessel_registrations") @default("{}")
   enabled             Boolean     @default(true)
+  // H9: shared secret for the society's webhook callbacks. The operator
+  // generates a random value when configuring the connector and shares
+  // it with the society. Inbound webhooks must echo it in the
+  // `X-FleetOps-Webhook-Secret` header — when null, the webhook
+  // endpoint refuses every callback for that connector.
+  webhookSecret       String?     @map("webhook_secret")
   createdAt           DateTime    @default(now()) @map("created_at")
   updatedAt           DateTime    @updatedAt @map("updated_at")
 
@@ -1973,6 +1979,16 @@ model ClassSocietySubmission {
   submittedAt     DateTime?                     @map("submitted_at")
   responseCode    Int?                          @map("response_code")
   responseMessage String?                       @map("response_message")
+  // H9: lifecycle tracking. lastPolledAt is set every time the cron asks
+  // the society for status; webhookReceivedAt is set when the society
+  // pushes a status update via POST /class-society/webhook/:society.
+  // Either path can transition the submission from SUBMITTED →
+  // ACCEPTED / REJECTED. externalRef is the society's own reference
+  // number (e.g. DNV survey number), captured from the SUBMIT response
+  // or the webhook body and used as the polling key.
+  externalRef       String?   @map("external_ref")
+  lastPolledAt      DateTime? @map("last_polled_at")
+  webhookReceivedAt DateTime? @map("webhook_received_at")
   createdAt       DateTime                      @default(now()) @map("created_at")
   updatedAt       DateTime                      @updatedAt @map("updated_at")
 
@@ -1981,6 +1997,10 @@ model ClassSocietySubmission {
   connector       ClassSocietyConnector         @relation(fields: [connectorId], references: [id])
 
   @@index([tenantId, vesselId, society])
+  // H9: poller scans for SUBMITTED rows ordered by lastPolledAt asc nulls
+  // first; this partial-ish index keeps the scan O(pending) instead of
+  // O(all-history).
+  @@index([status, lastPolledAt], name: "class_society_submissions_polling_idx")
   @@map("class_society_submissions")
 }
 

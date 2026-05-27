@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { AuditInterceptor } from './audit-event/audit.interceptor';
@@ -78,6 +79,10 @@ import { VesselModule } from './vessel/vessel.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    // H9: ScheduleModule.forRoot() must be at the root for @Cron decorators
+    // anywhere in the app to fire. Currently used by ClassSocietyPollerService;
+    // future cron jobs can hook in without re-registering.
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 10 }]),
     LoggerModule.forRoot({
       pinoHttp: {

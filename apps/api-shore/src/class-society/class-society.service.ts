@@ -1,5 +1,5 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { ClassSociety, ClassSocietyReportType } from '@prisma/client';
+import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { ClassSociety, ClassSocietyReportType, ClassSocietySubmissionStatus } from '@prisma/client';
 import { newId } from '@fleetops/domain';
 import type { AuthContext } from '../auth/auth-context';
 import { PrismaService } from '../prisma/prisma.service';
@@ -36,6 +36,7 @@ export class ClassSocietyService {
       apiEndpoint?: string;
       vesselRegistrations?: Record<string, string>;
       enabled?: boolean;
+      webhookSecret?: string;
     },
   ) {
     return this.prisma.withTenant(auth.tenantId!, (tx) =>
@@ -49,6 +50,7 @@ export class ClassSocietyService {
           apiEndpoint: dto.apiEndpoint ?? null,
           vesselRegistrations: (dto.vesselRegistrations as never) ?? {},
           enabled: dto.enabled ?? true,
+          webhookSecret: dto.webhookSecret ?? null,
         },
         update: {
           ...(dto.apiKey !== undefined && { apiKey: dto.apiKey }),
@@ -57,6 +59,7 @@ export class ClassSocietyService {
             vesselRegistrations: dto.vesselRegistrations as never,
           }),
           ...(dto.enabled !== undefined && { enabled: dto.enabled }),
+          ...(dto.webhookSecret !== undefined && { webhookSecret: dto.webhookSecret }),
         },
       }),
     );
@@ -136,6 +139,10 @@ export class ClassSocietyService {
 
       const responseText = await res.text().catch(() => '');
       const status = res.ok ? 'SUBMITTED' : 'ERROR';
+      // H9: capture the society's external reference number so the cron
+      // poller knows what to ask about. Best-effort JSON parse — every
+      // society returns a different shape, common keys are tried in order.
+      const externalRef = extractExternalRef(responseText);
 
       return this.prisma.withTenant(auth.tenantId!, (tx) =>
         tx.classSocietySubmission.update({
@@ -145,6 +152,7 @@ export class ClassSocietyService {
             submittedAt: new Date(),
             responseCode: res.status,
             responseMessage: responseText.slice(0, 500),
+            ...(externalRef !== null && { externalRef }),
             updatedAt: new Date(),
           },
         }),
@@ -405,4 +413,231 @@ export class ClassSocietyService {
     const regs = (connector?.vesselRegistrations ?? {}) as Record<string, string>;
     return regs[vesselId] ?? null;
   }
+
+  // ── H9: lifecycle (polling + webhook) ──────────────────────────────────────
+
+  /**
+   * Pulled out for use by both the cron poller and ad-hoc admin calls.
+   * Scans the oldest-polled SUBMITTED rows across ALL tenants, asks the
+   * society's status endpoint, and transitions to ACCEPTED / REJECTED.
+   * No tenant context required — the poller runs as a system process.
+   *
+   * Returns counts so the cron has something to log + tests can assert.
+   */
+  async pollPendingSubmissions(batchSize = 50): Promise<{
+    polled: number;
+    accepted: number;
+    rejected: number;
+    errors: number;
+  }> {
+    // System-wide scan across ALL tenants. Bypass RLS via the empty-string
+    // `app.current_tenant_id` sentinel — same pattern used by createSuperAdmin
+    // and getMe (the policy explicitly allows '' as a bypass for system
+    // processes). Subsequent per-row updates use withTenant(row.tenantId)
+    // so the write is RLS-checked normally.
+    const rows = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = ''`);
+      await tx.$executeRawUnsafe(`SET LOCAL app.tenant_id = ''`);
+      return tx.classSocietySubmission.findMany({
+        where: { status: 'SUBMITTED' },
+        include: { connector: true },
+        orderBy: [{ lastPolledAt: { sort: 'asc', nulls: 'first' } }, { submittedAt: 'asc' }],
+        take: batchSize,
+      });
+    });
+    if (rows.length === 0) return { polled: 0, accepted: 0, rejected: 0, errors: 0 };
+
+    let accepted = 0;
+    let rejected = 0;
+    let errors = 0;
+
+    for (const row of rows) {
+      const endpoint = row.connector.apiEndpoint ?? DEFAULT_ENDPOINTS[row.society];
+      if (!endpoint || !row.connector.apiKey || !row.externalRef) {
+        // Nothing to poll — record the attempt timestamp so we don't busy-loop.
+        await this.prisma.withTenant(row.tenantId, (tx) =>
+          tx.classSocietySubmission.update({
+            where: { id: row.id },
+            data: { lastPolledAt: new Date() },
+          }),
+        );
+        continue;
+      }
+
+      try {
+        const res = await fetch(
+          `${endpoint}/submissions/${encodeURIComponent(row.externalRef)}/status`,
+          {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${row.connector.apiKey}` },
+            signal: AbortSignal.timeout(15_000),
+          },
+        );
+        const body = await res.text().catch(() => '');
+        const status = mapPolledStatus(body, res.status);
+        if (status === null) {
+          // Society returned a non-terminal status (still PENDING / IN_REVIEW
+          // / etc.) — just bump lastPolledAt.
+          await this.prisma.withTenant(row.tenantId, (tx) =>
+            tx.classSocietySubmission.update({
+              where: { id: row.id },
+              data: { lastPolledAt: new Date(), responseCode: res.status },
+            }),
+          );
+          continue;
+        }
+        await this.prisma.withTenant(row.tenantId, (tx) =>
+          tx.classSocietySubmission.update({
+            where: { id: row.id },
+            data: {
+              status,
+              lastPolledAt: new Date(),
+              responseCode: res.status,
+              responseMessage: body.slice(0, 500),
+              updatedAt: new Date(),
+            },
+          }),
+        );
+        if (status === 'ACCEPTED') accepted++;
+        else if (status === 'REJECTED') rejected++;
+      } catch (err) {
+        errors++;
+        this.logger.warn({
+          msg: 'Class society poll failed',
+          society: row.society,
+          submissionId: row.id,
+          err: err instanceof Error ? err.message : String(err),
+        });
+        await this.prisma.withTenant(row.tenantId, (tx) =>
+          tx.classSocietySubmission.update({
+            where: { id: row.id },
+            data: { lastPolledAt: new Date() },
+          }),
+        );
+      }
+    }
+
+    return { polled: rows.length, accepted, rejected, errors };
+  }
+
+  /**
+   * Apply an inbound webhook from a class society. Authenticated by
+   * matching the `X-FleetOps-Webhook-Secret` header against the per-
+   * connector `webhookSecret`. Tenant is resolved from `externalRef`
+   * (looked up across all connectors of that society) — class societies
+   * don't know our tenantId so this is the only safe way to route.
+   *
+   * Returns the updated submission row; throws UnauthorizedException on
+   * bad secret, NotFoundException on unknown externalRef.
+   */
+  async applyWebhook(
+    society: ClassSociety,
+    headerSecret: string | undefined,
+    body: { externalRef: string; status: 'ACCEPTED' | 'REJECTED'; message?: string },
+  ) {
+    if (!headerSecret) throw new UnauthorizedException('Missing X-FleetOps-Webhook-Secret');
+    if (!body.externalRef) throw new NotFoundException('webhook body missing externalRef');
+
+    // Find the submission via externalRef + society. The society doesn't
+    // know our tenantId, so this lookup has to cross all tenants — bypass
+    // RLS with the empty-string sentinel. Once we have submission.tenantId
+    // the subsequent update is RLS-checked normally via withTenant.
+    const submission = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = ''`);
+      await tx.$executeRawUnsafe(`SET LOCAL app.tenant_id = ''`);
+      return tx.classSocietySubmission.findFirst({
+        where: { society, externalRef: body.externalRef },
+        include: { connector: true },
+      });
+    });
+    if (!submission) {
+      throw new NotFoundException(
+        `No submission for ${society}/${body.externalRef} — webhook arrived for unknown ref`,
+      );
+    }
+    if (
+      !submission.connector.webhookSecret ||
+      submission.connector.webhookSecret !== headerSecret
+    ) {
+      throw new UnauthorizedException('Invalid X-FleetOps-Webhook-Secret');
+    }
+
+    return this.prisma.withTenant(submission.tenantId, (tx) =>
+      tx.classSocietySubmission.update({
+        where: { id: submission.id },
+        data: {
+          status: body.status,
+          webhookReceivedAt: new Date(),
+          responseMessage: body.message?.slice(0, 500) ?? submission.responseMessage,
+          updatedAt: new Date(),
+        },
+      }),
+    );
+  }
+}
+
+// ── H9 helpers ───────────────────────────────────────────────────────────────
+
+/**
+ * Best-effort extraction of a society-assigned reference from a submission
+ * response body. Each society returns a different shape; we try the common
+ * keys in order. Returns null when nothing recognisable is found.
+ */
+function extractExternalRef(responseText: string): string | null {
+  if (!responseText) return null;
+  try {
+    const parsed = JSON.parse(responseText) as Record<string, unknown>;
+    for (const key of [
+      'submissionId',
+      'submission_id',
+      'reference',
+      'referenceNumber',
+      'reference_number',
+      'id',
+      'externalRef',
+      'external_ref',
+    ]) {
+      const v = parsed[key];
+      if (typeof v === 'string' && v.length > 0) return v;
+      if (typeof v === 'number') return String(v);
+    }
+  } catch {
+    // not JSON — give up; operator can backfill manually if needed
+  }
+  return null;
+}
+
+/**
+ * Translate the society's status endpoint response into our terminal
+ * states. Returns null for non-terminal responses so the poller leaves
+ * the row as SUBMITTED and tries again next tick.
+ *
+ * Each society has its own taxonomy; this matches the common subset.
+ * Extend per-society as we learn the real shapes during pilot.
+ */
+function mapPolledStatus(
+  responseText: string,
+  httpStatus: number,
+): ClassSocietySubmissionStatus | null {
+  // Non-2xx: leave SUBMITTED so the next poll can retry. 404 is a special
+  // case — the society doesn't know about the externalRef, which means our
+  // submit succeeded but the row never landed on their side. Mark as
+  // REJECTED so an operator looks at it.
+  if (httpStatus === 404) return 'REJECTED';
+  if (httpStatus >= 400) return null;
+  try {
+    const parsed = JSON.parse(responseText) as Record<string, unknown>;
+    const raw = parsed['status'] ?? parsed['state'] ?? parsed['decision'];
+    if (typeof raw !== 'string') return null;
+    const norm = raw.toUpperCase();
+    if (['ACCEPTED', 'APPROVED', 'CLOSED', 'COMPLETE', 'COMPLETED'].includes(norm)) {
+      return 'ACCEPTED';
+    }
+    if (['REJECTED', 'DENIED', 'FAILED', 'INVALID'].includes(norm)) {
+      return 'REJECTED';
+    }
+  } catch {
+    /* leave as SUBMITTED */
+  }
+  return null;
 }

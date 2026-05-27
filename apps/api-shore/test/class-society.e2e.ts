@@ -220,3 +220,168 @@ describe('Class Society Submissions', () => {
     expect(rows.length).toBe(1);
   });
 });
+
+// ── H9: lifecycle polling + webhook ─────────────────────────────────────────
+
+describe('H9 — class-society lifecycle polling + webhook', () => {
+  const webhookSecret = 'h9-webhook-secret-123';
+  const externalRef = 'DNV-EXT-REF-001';
+  let submissionId: string;
+  const originalFetch = globalThis.fetch;
+
+  beforeAll(async () => {
+    // Configure the DNV connector with a known API endpoint + webhook secret.
+    // The endpoint won't actually be hit because we stub global.fetch in
+    // each test.
+    await request(app.getHttpServer())
+      .post('/api/v1/class-society/connectors')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        society: 'DNV',
+        apiKey: 'h9-dnv-key',
+        apiEndpoint: 'https://stub.example.test/dnv/v1',
+        webhookSecret,
+        vesselRegistrations: { [vesselId]: 'DNV-CLASS-001' },
+        enabled: true,
+      });
+
+    // Submit one row with a known externalRef so polling + webhook tests
+    // have something to target. Stub fetch so the POST returns the
+    // externalRef we want.
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ submissionId: externalRef }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      })) as typeof globalThis.fetch;
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/class-society/submit')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ vesselId, society: 'DNV', reportType: 'PMS_EVIDENCE', submit: true });
+    expect(res.status).toBe(201);
+    expect(res.body.status).toBe('SUBMITTED');
+    submissionId = (res.body as { id: string }).id;
+    globalThis.fetch = originalFetch;
+  });
+
+  afterAll(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it('captures externalRef from the submit response', async () => {
+    const row = await prisma.withTenant(tenantId, (tx) =>
+      tx.classSocietySubmission.findUnique({ where: { id: submissionId } }),
+    );
+    expect(row?.externalRef).toBe(externalRef);
+    expect(row?.status).toBe('SUBMITTED');
+  });
+
+  it('webhook: missing X-FleetOps-Webhook-Secret → 401', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/class-society/webhook/DNV')
+      .send({ externalRef, status: 'ACCEPTED' });
+    expect(res.status).toBe(401);
+  });
+
+  it('webhook: wrong X-FleetOps-Webhook-Secret → 401', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/class-society/webhook/DNV')
+      .set('X-FleetOps-Webhook-Secret', 'wrong')
+      .send({ externalRef, status: 'ACCEPTED' });
+    expect(res.status).toBe(401);
+  });
+
+  it('webhook: unknown externalRef → 404', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/class-society/webhook/DNV')
+      .set('X-FleetOps-Webhook-Secret', webhookSecret)
+      .send({ externalRef: 'no-such-ref', status: 'ACCEPTED' });
+    expect(res.status).toBe(404);
+  });
+
+  it('webhook: valid secret + known externalRef → ACCEPTED + webhookReceivedAt set', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/class-society/webhook/DNV')
+      .set('X-FleetOps-Webhook-Secret', webhookSecret)
+      .send({ externalRef, status: 'ACCEPTED', message: 'survey complete' });
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('ACCEPTED');
+    expect(res.body.webhookReceivedAt).not.toBeNull();
+    expect(res.body.responseMessage).toBe('survey complete');
+  });
+
+  it('poller: maps "APPROVED" status payload → ACCEPTED', async () => {
+    // Reset the row to SUBMITTED so the poller has something to do.
+    await prisma.withTenant(tenantId, (tx) =>
+      tx.classSocietySubmission.update({
+        where: { id: submissionId },
+        data: { status: 'SUBMITTED', lastPolledAt: null, webhookReceivedAt: null },
+      }),
+    );
+
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ status: 'APPROVED' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })) as typeof globalThis.fetch;
+
+    const { ClassSocietyService } = await import('../src/class-society/class-society.service');
+    const svc = new ClassSocietyService(prisma);
+    const result = await svc.pollPendingSubmissions(10);
+    expect(result.accepted).toBeGreaterThanOrEqual(1);
+
+    const row = await prisma.withTenant(tenantId, (tx) =>
+      tx.classSocietySubmission.findUnique({ where: { id: submissionId } }),
+    );
+    expect(row?.status).toBe('ACCEPTED');
+    expect(row?.lastPolledAt).not.toBeNull();
+    globalThis.fetch = originalFetch;
+  });
+
+  it('poller: maps 404 from society → REJECTED', async () => {
+    await prisma.withTenant(tenantId, (tx) =>
+      tx.classSocietySubmission.update({
+        where: { id: submissionId },
+        data: { status: 'SUBMITTED', lastPolledAt: null },
+      }),
+    );
+
+    globalThis.fetch = (async () => new Response('', { status: 404 })) as typeof globalThis.fetch;
+    const { ClassSocietyService } = await import('../src/class-society/class-society.service');
+    const svc = new ClassSocietyService(prisma);
+    const result = await svc.pollPendingSubmissions(10);
+    expect(result.rejected).toBeGreaterThanOrEqual(1);
+
+    const row = await prisma.withTenant(tenantId, (tx) =>
+      tx.classSocietySubmission.findUnique({ where: { id: submissionId } }),
+    );
+    expect(row?.status).toBe('REJECTED');
+    globalThis.fetch = originalFetch;
+  });
+
+  it('poller: non-terminal status ("PENDING") leaves status as SUBMITTED but bumps lastPolledAt', async () => {
+    await prisma.withTenant(tenantId, (tx) =>
+      tx.classSocietySubmission.update({
+        where: { id: submissionId },
+        data: { status: 'SUBMITTED', lastPolledAt: null },
+      }),
+    );
+
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ status: 'PENDING' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })) as typeof globalThis.fetch;
+    const { ClassSocietyService } = await import('../src/class-society/class-society.service');
+    const svc = new ClassSocietyService(prisma);
+    const before = new Date();
+    await svc.pollPendingSubmissions(10);
+
+    const row = await prisma.withTenant(tenantId, (tx) =>
+      tx.classSocietySubmission.findUnique({ where: { id: submissionId } }),
+    );
+    expect(row?.status).toBe('SUBMITTED');
+    expect(row?.lastPolledAt).not.toBeNull();
+    expect(row!.lastPolledAt!.getTime()).toBeGreaterThanOrEqual(before.getTime() - 1000);
+    globalThis.fetch = originalFetch;
+  });
+});
