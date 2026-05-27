@@ -1,0 +1,267 @@
+name: Nightly
+
+# Runs every day at 02:30 UTC + on demand. The point isn't to duplicate the
+# per-PR CI suite — it's to catch regressions the PR suite can't reach:
+#   - soak-sync exercises the CRDT engine + gRPC wire under a 30-min
+#     simulated workload that's too slow / nondeterministic for per-PR.
+#   - boot-shore actually starts the production build (`node dist/main.js`)
+#     against a real Postgres and hits the API over HTTP. The per-PR e2e
+#     uses NestJS test modules in-process; it can't catch env-var /
+#     dist-bundle / boot-order regressions like the H2 / B11 class of bugs.
+#
+# Failures show up in the Actions tab. Wiring a Slack / email webhook is a
+# follow-up — needs a SLACK_WEBHOOK secret from the operator.
+
+on:
+  schedule:
+    # Daily at 02:30 UTC. Off-peak everywhere; ~30min after the typical
+    # last-merge-of-the-day so latest main has a chance to settle.
+    - cron: '30 2 * * *'
+  workflow_dispatch: # ad-hoc trigger from the Actions UI
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false # let in-flight nightlies finish even if a new one queues
+
+jobs:
+  # ── Soak the sync engine: in-process CRDT + gRPC wire roundtrip ─────────────
+  soak-sync:
+    name: soak-sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run sync soak
+        # tsx runs the .ts script directly. The soak is in-process —
+        # no DB / API needed. Exit 0 on convergence, exit 1 on any
+        # divergence detected after the simulated horizon.
+        run: pnpm run soak:sync
+
+  # ── Boot the production build of api-shore and hit it with curl ─────────────
+  boot-shore:
+    name: boot-shore
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: marad
+          POSTGRES_PASSWORD: marad
+          POSTGRES_DB: fleetops_shore
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U marad -d fleetops_shore"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build api-shore (production tsconfig)
+        # `pnpm --filter api-shore run build` → dist/main.js. This is the
+        # exact artifact the prod runtime would use. We deliberately run
+        # `node dist/main.js` below — not nest start --watch — to catch
+        # build-time / dist-bundle regressions.
+        run: pnpm --filter api-shore run build
+
+      - name: Generate RS256 JWT keypair
+        run: pnpm -w run gen:jwt-keys
+
+      - name: Bootstrap test DB — create non-superuser fleetops role
+        env:
+          PGPASSWORD: marad
+        run: |
+          psql -h localhost -p 5433 -U marad -d fleetops_shore <<'SQL'
+          CREATE ROLE fleetops WITH LOGIN PASSWORD 'fleetops_dev' NOSUPERUSER;
+          GRANT CONNECT ON DATABASE fleetops_shore TO fleetops;
+          GRANT USAGE, CREATE ON SCHEMA public TO fleetops;
+          SQL
+
+      - name: Apply Prisma migrations
+        env:
+          DATABASE_URL: postgresql://marad:marad@localhost:5433/fleetops_shore
+        run: pnpm --filter api-shore exec prisma migrate deploy
+
+      - name: Grant DML on migrated tables to fleetops
+        env:
+          PGPASSWORD: marad
+        run: |
+          psql -h localhost -p 5433 -U marad -d fleetops_shore <<'SQL'
+          GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO fleetops;
+          GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO fleetops;
+          ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO fleetops;
+          ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO fleetops;
+          SQL
+
+      - name: Boot api-shore from dist/main.js
+        # Background the process so the workflow can poll it. The PID is
+        # captured for the kill step. We deliberately keep NODE_ENV=test
+        # so assertProductionEnv() (H2) doesn't trip without the prod
+        # secrets configured — the goal here is "the bundle boots", not
+        # "the bundle passes prod-env validation" (a separate concern).
+        env:
+          DATABASE_URL: postgresql://fleetops:fleetops_dev@localhost:5433/fleetops_shore
+          JWT_PRIVATE_KEY_PATH: ../../keys/jwt-private.pem
+          JWT_PUBLIC_KEY_PATH: ../../keys/jwt-public.pem
+          JWT_ACCESS_TTL_MS: '900000'
+          JWT_REFRESH_TTL_MS: '2592000000'
+          S3_ENDPOINT: http://localhost:9999
+          S3_ACCESS_KEY_ID: stub
+          S3_SECRET_ACCESS_KEY: stub
+          S3_BUCKET: stub-bucket
+          S3_REGION: us-east-1
+          S3_FORCE_PATH_STYLE: '1'
+          PLATFORM_BOOTSTRAP_KEY: nightly-bootstrap-key
+          PORT: '3000'
+          NODE_ENV: test
+        run: |
+          cd apps/api-shore
+          nohup node dist/main.js > /tmp/api-shore.log 2>&1 &
+          echo $! > /tmp/api-shore.pid
+          cd ../..
+
+      - name: Wait for api-shore to respond
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS -o /dev/null http://localhost:3000/api/v1/tenants/self 2>/dev/null; then
+              echo "api-shore is up (got non-401/non-network response on attempt $i)"
+              exit 0
+            fi
+            # 401 is a successful response too — server is up, just demanding auth.
+            code=$(curl -sS -o /dev/null -w '%{http_code}' http://localhost:3000/api/v1/tenants/self || echo '000')
+            if [ "$code" = "401" ]; then
+              echo "api-shore is up (401 on protected endpoint, attempt $i)"
+              exit 0
+            fi
+            echo "wait $i: code=$code"
+            sleep 2
+          done
+          echo "api-shore did not respond after 60s — dumping log:"
+          cat /tmp/api-shore.log || true
+          exit 1
+
+      - name: Smoke — bootstrap super-admin via key endpoint
+        # Confirms the bootstrap path the runbook documents still works
+        # end-to-end against the booted process. This is the same shape
+        # PR #55 (B3) wired up — a regression here means deploy-time
+        # admin bootstrap is broken.
+        run: |
+          set -e
+          response=$(curl -fsS -X POST http://localhost:3000/api/v1/auth/bootstrap-super-admin \
+            -H 'Content-Type: application/json' \
+            -d '{"bootstrapKey":"nightly-bootstrap-key","email":"smoke@nightly.test","username":"nightly-su","password":"NightlyP@ss1"}')
+          echo "$response"
+          echo "$response" | grep -q '"role":"SUPER_ADMIN"' || { echo "missing SUPER_ADMIN role in response"; exit 1; }
+
+      - name: Smoke — login + tenant create + vessel create
+        # Walks the canonical "fresh deploy" path: super-admin logs in,
+        # creates a tenant + initial admin, then logs in as the admin
+        # and creates a vessel. Equivalent to what an operator would do
+        # on first install.
+        run: |
+          set -e
+          # Super-admin login
+          su_token=$(curl -fsS -X POST http://localhost:3000/api/v1/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"identifier":"smoke@nightly.test","password":"NightlyP@ss1"}' \
+            | node -e "let s=''; process.stdin.on('data',d=>s+=d).on('end',()=>{const j=JSON.parse(s); process.stdout.write(j.access_token||'')})")
+          [ -n "$su_token" ] || { echo "super-admin login failed"; cat /tmp/api-shore.log; exit 1; }
+          echo "su login ok"
+
+          # Create tenant
+          tenant_resp=$(curl -fsS -X POST http://localhost:3000/api/v1/tenants \
+            -H "Authorization: Bearer $su_token" \
+            -H 'Content-Type: application/json' \
+            -d '{"name":"Nightly Test Co","admin":{"email":"admin@nightly.test","username":"nightly-admin","password":"AdminP@ss1"}}')
+          tenant_id=$(echo "$tenant_resp" | node -e "let s=''; process.stdin.on('data',d=>s+=d).on('end',()=>{process.stdout.write(JSON.parse(s).tenant.id)})")
+          [ -n "$tenant_id" ] || { echo "tenant create failed: $tenant_resp"; exit 1; }
+          echo "tenant created: $tenant_id"
+
+          # Admin login
+          admin_token=$(curl -fsS -X POST http://localhost:3000/api/v1/auth/login \
+            -H 'Content-Type: application/json' \
+            -d "{\"tenantId\":\"$tenant_id\",\"identifier\":\"admin@nightly.test\",\"password\":\"AdminP@ss1\"}" \
+            | node -e "let s=''; process.stdin.on('data',d=>s+=d).on('end',()=>{process.stdout.write(JSON.parse(s).access_token||'')})")
+          [ -n "$admin_token" ] || { echo "admin login failed"; exit 1; }
+          echo "admin login ok"
+
+          # Create vessel
+          vessel_resp=$(curl -fsS -X POST http://localhost:3000/api/v1/vessels \
+            -H "Authorization: Bearer $admin_token" \
+            -H 'Content-Type: application/json' \
+            -d '{"name":"MV Nightly","imoNumber":"1234567"}')
+          echo "$vessel_resp" | grep -q '"name":"MV Nightly"' || { echo "vessel create failed: $vessel_resp"; exit 1; }
+          echo "vessel created"
+
+      - name: Smoke — confirm security headers on responses (B1/H4)
+        # Quick regression check that helmet is still applied — an
+        # uncaught import-order rearrange could silently drop the
+        # middleware.
+        run: |
+          set -e
+          headers=$(curl -fsS -D - -o /dev/null http://localhost:3000/api/v1/tenants/self || true)
+          echo "$headers"
+          echo "$headers" | grep -qi '^x-frame-options' || { echo "X-Frame-Options missing — helmet regressed"; exit 1; }
+          # X-Powered-By should be absent (helmet strips it).
+          if echo "$headers" | grep -qi '^x-powered-by'; then
+            echo "X-Powered-By present — helmet regressed"
+            exit 1
+          fi
+
+      - name: Stop api-shore
+        if: always()
+        run: |
+          if [ -f /tmp/api-shore.pid ]; then
+            kill "$(cat /tmp/api-shore.pid)" 2>/dev/null || true
+          fi
+
+      - name: Upload api-shore log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-shore-log
+          path: /tmp/api-shore.log
+          retention-days: 7
