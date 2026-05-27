@@ -430,11 +430,20 @@ export class ClassSocietyService {
     rejected: number;
     errors: number;
   }> {
-    const rows = await this.prisma.classSocietySubmission.findMany({
-      where: { status: 'SUBMITTED' },
-      include: { connector: true },
-      orderBy: [{ lastPolledAt: { sort: 'asc', nulls: 'first' } }, { submittedAt: 'asc' }],
-      take: batchSize,
+    // System-wide scan across ALL tenants. Bypass RLS via the empty-string
+    // `app.current_tenant_id` sentinel — same pattern used by createSuperAdmin
+    // and getMe (the policy explicitly allows '' as a bypass for system
+    // processes). Subsequent per-row updates use withTenant(row.tenantId)
+    // so the write is RLS-checked normally.
+    const rows = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = ''`);
+      await tx.$executeRawUnsafe(`SET LOCAL app.tenant_id = ''`);
+      return tx.classSocietySubmission.findMany({
+        where: { status: 'SUBMITTED' },
+        include: { connector: true },
+        orderBy: [{ lastPolledAt: { sort: 'asc', nulls: 'first' } }, { submittedAt: 'asc' }],
+        take: batchSize,
+      });
     });
     if (rows.length === 0) return { polled: 0, accepted: 0, rejected: 0, errors: 0 };
 
@@ -446,10 +455,12 @@ export class ClassSocietyService {
       const endpoint = row.connector.apiEndpoint ?? DEFAULT_ENDPOINTS[row.society];
       if (!endpoint || !row.connector.apiKey || !row.externalRef) {
         // Nothing to poll — record the attempt timestamp so we don't busy-loop.
-        await this.prisma.classSocietySubmission.update({
-          where: { id: row.id },
-          data: { lastPolledAt: new Date() },
-        });
+        await this.prisma.withTenant(row.tenantId, (tx) =>
+          tx.classSocietySubmission.update({
+            where: { id: row.id },
+            data: { lastPolledAt: new Date() },
+          }),
+        );
         continue;
       }
 
@@ -467,22 +478,26 @@ export class ClassSocietyService {
         if (status === null) {
           // Society returned a non-terminal status (still PENDING / IN_REVIEW
           // / etc.) — just bump lastPolledAt.
-          await this.prisma.classSocietySubmission.update({
-            where: { id: row.id },
-            data: { lastPolledAt: new Date(), responseCode: res.status },
-          });
+          await this.prisma.withTenant(row.tenantId, (tx) =>
+            tx.classSocietySubmission.update({
+              where: { id: row.id },
+              data: { lastPolledAt: new Date(), responseCode: res.status },
+            }),
+          );
           continue;
         }
-        await this.prisma.classSocietySubmission.update({
-          where: { id: row.id },
-          data: {
-            status,
-            lastPolledAt: new Date(),
-            responseCode: res.status,
-            responseMessage: body.slice(0, 500),
-            updatedAt: new Date(),
-          },
-        });
+        await this.prisma.withTenant(row.tenantId, (tx) =>
+          tx.classSocietySubmission.update({
+            where: { id: row.id },
+            data: {
+              status,
+              lastPolledAt: new Date(),
+              responseCode: res.status,
+              responseMessage: body.slice(0, 500),
+              updatedAt: new Date(),
+            },
+          }),
+        );
         if (status === 'ACCEPTED') accepted++;
         else if (status === 'REJECTED') rejected++;
       } catch (err) {
@@ -493,10 +508,12 @@ export class ClassSocietyService {
           submissionId: row.id,
           err: err instanceof Error ? err.message : String(err),
         });
-        await this.prisma.classSocietySubmission.update({
-          where: { id: row.id },
-          data: { lastPolledAt: new Date() },
-        });
+        await this.prisma.withTenant(row.tenantId, (tx) =>
+          tx.classSocietySubmission.update({
+            where: { id: row.id },
+            data: { lastPolledAt: new Date() },
+          }),
+        );
       }
     }
 
@@ -521,12 +538,17 @@ export class ClassSocietyService {
     if (!headerSecret) throw new UnauthorizedException('Missing X-FleetOps-Webhook-Secret');
     if (!body.externalRef) throw new NotFoundException('webhook body missing externalRef');
 
-    // Find the submission via externalRef + society. The submission knows
-    // its connectorId, which knows the tenantId — so we can validate the
-    // secret without trusting any tenant claim in the body.
-    const submission = await this.prisma.classSocietySubmission.findFirst({
-      where: { society, externalRef: body.externalRef },
-      include: { connector: true },
+    // Find the submission via externalRef + society. The society doesn't
+    // know our tenantId, so this lookup has to cross all tenants — bypass
+    // RLS with the empty-string sentinel. Once we have submission.tenantId
+    // the subsequent update is RLS-checked normally via withTenant.
+    const submission = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = ''`);
+      await tx.$executeRawUnsafe(`SET LOCAL app.tenant_id = ''`);
+      return tx.classSocietySubmission.findFirst({
+        where: { society, externalRef: body.externalRef },
+        include: { connector: true },
+      });
     });
     if (!submission) {
       throw new NotFoundException(
@@ -540,15 +562,17 @@ export class ClassSocietyService {
       throw new UnauthorizedException('Invalid X-FleetOps-Webhook-Secret');
     }
 
-    return this.prisma.classSocietySubmission.update({
-      where: { id: submission.id },
-      data: {
-        status: body.status,
-        webhookReceivedAt: new Date(),
-        responseMessage: body.message?.slice(0, 500) ?? submission.responseMessage,
-        updatedAt: new Date(),
-      },
-    });
+    return this.prisma.withTenant(submission.tenantId, (tx) =>
+      tx.classSocietySubmission.update({
+        where: { id: submission.id },
+        data: {
+          status: body.status,
+          webhookReceivedAt: new Date(),
+          responseMessage: body.message?.slice(0, 500) ?? submission.responseMessage,
+          updatedAt: new Date(),
+        },
+      }),
+    );
   }
 }
 

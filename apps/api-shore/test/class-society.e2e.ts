@@ -268,7 +268,9 @@ describe('H9 — class-society lifecycle polling + webhook', () => {
   });
 
   it('captures externalRef from the submit response', async () => {
-    const row = await prisma.classSocietySubmission.findUnique({ where: { id: submissionId } });
+    const row = await prisma.withTenant(tenantId, (tx) =>
+      tx.classSocietySubmission.findUnique({ where: { id: submissionId } }),
+    );
     expect(row?.externalRef).toBe(externalRef);
     expect(row?.status).toBe('SUBMITTED');
   });
@@ -309,10 +311,12 @@ describe('H9 — class-society lifecycle polling + webhook', () => {
 
   it('poller: maps "APPROVED" status payload → ACCEPTED', async () => {
     // Reset the row to SUBMITTED so the poller has something to do.
-    await prisma.classSocietySubmission.update({
-      where: { id: submissionId },
-      data: { status: 'SUBMITTED', lastPolledAt: null, webhookReceivedAt: null },
-    });
+    await prisma.withTenant(tenantId, (tx) =>
+      tx.classSocietySubmission.update({
+        where: { id: submissionId },
+        data: { status: 'SUBMITTED', lastPolledAt: null, webhookReceivedAt: null },
+      }),
+    );
 
     globalThis.fetch = (async () =>
       new Response(JSON.stringify({ status: 'APPROVED' }), {
@@ -325,17 +329,21 @@ describe('H9 — class-society lifecycle polling + webhook', () => {
     const result = await svc.pollPendingSubmissions(10);
     expect(result.accepted).toBeGreaterThanOrEqual(1);
 
-    const row = await prisma.classSocietySubmission.findUnique({ where: { id: submissionId } });
+    const row = await prisma.withTenant(tenantId, (tx) =>
+      tx.classSocietySubmission.findUnique({ where: { id: submissionId } }),
+    );
     expect(row?.status).toBe('ACCEPTED');
     expect(row?.lastPolledAt).not.toBeNull();
     globalThis.fetch = originalFetch;
   });
 
   it('poller: maps 404 from society → REJECTED', async () => {
-    await prisma.classSocietySubmission.update({
-      where: { id: submissionId },
-      data: { status: 'SUBMITTED', lastPolledAt: null },
-    });
+    await prisma.withTenant(tenantId, (tx) =>
+      tx.classSocietySubmission.update({
+        where: { id: submissionId },
+        data: { status: 'SUBMITTED', lastPolledAt: null },
+      }),
+    );
 
     globalThis.fetch = (async () => new Response('', { status: 404 })) as typeof globalThis.fetch;
     const { ClassSocietyService } = await import('../src/class-society/class-society.service');
@@ -343,16 +351,20 @@ describe('H9 — class-society lifecycle polling + webhook', () => {
     const result = await svc.pollPendingSubmissions(10);
     expect(result.rejected).toBeGreaterThanOrEqual(1);
 
-    const row = await prisma.classSocietySubmission.findUnique({ where: { id: submissionId } });
+    const row = await prisma.withTenant(tenantId, (tx) =>
+      tx.classSocietySubmission.findUnique({ where: { id: submissionId } }),
+    );
     expect(row?.status).toBe('REJECTED');
     globalThis.fetch = originalFetch;
   });
 
   it('poller: non-terminal status ("PENDING") leaves status as SUBMITTED but bumps lastPolledAt', async () => {
-    await prisma.classSocietySubmission.update({
-      where: { id: submissionId },
-      data: { status: 'SUBMITTED', lastPolledAt: null },
-    });
+    await prisma.withTenant(tenantId, (tx) =>
+      tx.classSocietySubmission.update({
+        where: { id: submissionId },
+        data: { status: 'SUBMITTED', lastPolledAt: null },
+      }),
+    );
 
     globalThis.fetch = (async () =>
       new Response(JSON.stringify({ status: 'PENDING' }), {
@@ -364,7 +376,9 @@ describe('H9 — class-society lifecycle polling + webhook', () => {
     const before = new Date();
     await svc.pollPendingSubmissions(10);
 
-    const row = await prisma.classSocietySubmission.findUnique({ where: { id: submissionId } });
+    const row = await prisma.withTenant(tenantId, (tx) =>
+      tx.classSocietySubmission.findUnique({ where: { id: submissionId } }),
+    );
     expect(row?.status).toBe('SUBMITTED');
     expect(row?.lastPolledAt).not.toBeNull();
     expect(row!.lastPolledAt!.getTime()).toBeGreaterThanOrEqual(before.getTime() - 1000);
