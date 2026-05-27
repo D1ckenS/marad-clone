@@ -128,7 +128,8 @@
     "type_overdue": "Просроченные",
     "type_approval": "Утверждение",
     "type_cert": "Сертификат",
-    "type_finding": "Замечание"
+    "type_finding": "Замечание",
+    "marpol_non_compliant_ytd": "MARPOL non-compliant (YTD)"
   },
   "maintenance": {
     "title": "Техническое обслуживание",
@@ -408,7 +409,9 @@
       "status_cancelled": "Cancelled",
       "error_required": "Scheduled date, kind, scope, surveyor and location are required.",
       "error_create": "Failed to create survey.",
-      "error_update": "Failed to update survey."
+      "error_update": "Failed to update survey.",
+      "field_certificate": "Связанный сертификат",
+      "no_certificate": "— Нет связанного сертификата —"
     },
     "coc_modal": {
       "title_create": "Add condition of class",
@@ -445,7 +448,16 @@
       "error_required": "Inspected-at, port, inspector and status are required.",
       "error_create": "Failed to record inspection.",
       "error_update": "Failed to update inspection."
-    }
+    },
+    "survey_annual": "ЕЖЕГОДНОЕ",
+    "survey_intermediate": "ПРОМЕЖУТОЧНОЕ",
+    "survey_special": "СПЕЦИАЛЬНОЕ",
+    "survey_renewal": "ОБНОВЛЕНИЕ",
+    "status_in": "В",
+    "status_tentative": "ПРЕДВАРИТЕЛЬНО",
+    "conditions_open": "открытые",
+    "conditions_closed": "закрытые",
+    "log_item": "+ Добавить запись"
   },
   "safety": {
     "title": "Безопасность",
@@ -574,7 +586,17 @@
       "error_required": "Name, location and quantity are required.",
       "error_create": "Failed to add safety equipment.",
       "error_update": "Failed to update safety equipment."
-    }
+    },
+    "jha_library": "Библиотека ·",
+    "assessments": "оценок",
+    "select_jha_hint": "Выберите JHA для просмотра матриц рисков и мер",
+    "risk_critical": "КРИТИЧЕСКИЙ",
+    "risk_intolerable": "Недопустимый — требуется немедленный контроль",
+    "risk_substantial": "Существенный — нужен дополнительный контроль",
+    "risk_moderate": "Умеренный — контроль через SOP/СИЗ",
+    "risk_acceptable": "Приемлемый — рутинный контроль",
+    "without_controls": "БЕЗ МЕР",
+    "with_controls": "С ПРИМЕНЁННЫМИ МЕРАМИ"
   },
   "qhse": {
     "title": "QHSE",
@@ -795,7 +817,9 @@
       "error_required": "Kind, scheduled-at and chair are required.",
       "error_create": "Failed to schedule review.",
       "error_update": "Failed to update review."
-    }
+    },
+    "cii_annual_ratio": "Рейтинг CII — годовой коэффициент эффективности",
+    "cii_mepc": "гCO₂ / т·миль · IMO MEPC 337(76)"
   },
   "crewing": {
     "title": "Экипаж",
@@ -915,7 +939,30 @@
     "no_tanks": "Цистерны не настроены.",
     "no_soundings": "Замеров нет.",
     "no_bdn": "Записей BDN нет.",
-    "select_vessel": "Выберите судно для просмотра данных FLGO."
+    "select_vessel": "Выберите судно для просмотра данных FLGO.",
+    "tank_modal": {
+      "new_tank_button": "+ New tank",
+      "title_create": "Create tank",
+      "title_edit": "Edit tank",
+      "field_name": "Tank name",
+      "field_tank_type": "Tank type",
+      "field_fuel_product": "Linked fuel product",
+      "no_fuel_product": "— No linked fuel product —",
+      "field_capacity_m3": "Capacity (m³)",
+      "field_frame_position": "Frame position",
+      "type_hfo": "HFO",
+      "type_mgo": "MGO",
+      "type_lsgo": "LSGO",
+      "type_lsfo": "LSFO",
+      "type_biofuel": "Biofuel",
+      "type_lube_oil": "Lube oil",
+      "type_fresh_water": "Fresh water",
+      "type_ballast": "Ballast",
+      "error_required": "Tank name and type are required.",
+      "error_capacity_number": "Capacity must be a number.",
+      "error_create": "Failed to create tank.",
+      "error_update": "Failed to update tank."
+    }
   },
   "compliance": {
     "title": "Соответствие",
@@ -1063,5 +1110,16 @@
     "passwords_no_match": "Пароли не совпадают.",
     "password_changed": "Пароль изменён.",
     "loading": "Загрузка…"
+  },
+  "mobile_pair": {
+    "title": "Сопряжение мобильного устройства",
+    "subtitle": "Покажите этот QR-код на экране ноутбука и отсканируйте его мобильным приложением FleetOps, чтобы за один шаг заполнить URL API судна и идентификатор организации.",
+    "base_url_label": "URL API судна (доступный с телефона экипажа)",
+    "base_url_hint": "По умолчанию хост этой страницы на порту 3001. Измените, если api-vessel привязан к другому LAN-адресу.",
+    "tenant_id_label": "Идентификатор организации",
+    "scan_instructions": "Откройте мобильное приложение FleetOps, нажмите «Сканировать QR сопряжения» на экране входа и наведите камеру на этот код.",
+    "fill_fields_first": "Заполните URL API и идентификатор организации выше, чтобы создать QR.",
+    "manual_entry_summary": "Показать обычный текст (для ручного ввода)",
+    "reset_button": "Сбросить к значениям по умолчанию"
   }
 }

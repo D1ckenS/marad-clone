@@ -416,6 +416,92 @@ describe('Deferred-stub schemas — CRUD via shore HTTP', () => {
     expect(parseFloat(total2.body.totalAmount)).toBe(200);
   });
 
+  // M6: MARPOL non-compliant discharge wiring — AuditEvent on
+  // non-compliant create + PATCH true→false; YTD widget endpoint;
+  // IOPP-style CSV export.
+  it('discharge-logs: compliant=false on create emits MARPOL_NON_COMPLIANT_DISCHARGE AuditEvent', async () => {
+    const created = await auth(
+      request(app.getHttpServer()).post('/api/v1/discharge-logs').send({
+        vesselId,
+        kind: 'Oil',
+        occurredAt: new Date().toISOString(),
+        location: 'Engine room bilge (M6 test)',
+        volume: '0.2 m³',
+        compliant: false,
+      }),
+    );
+    expect(created.status).toBe(201);
+    const dischargeId = (created.body as { id: string }).id;
+
+    // Audit log is fire-and-forget; allow it to settle before query.
+    await new Promise((r) => setTimeout(r, 50));
+    const audit = await auth(
+      request(app.getHttpServer()).get(
+        '/api/v1/audit-events?action=MARPOL_NON_COMPLIANT_DISCHARGE',
+      ),
+    );
+    expect(audit.status).toBe(200);
+    const events = audit.body as { entityId: string; action: string; metadata: unknown }[];
+    expect(events.some((e) => e.entityId === dischargeId)).toBe(true);
+  });
+
+  it('discharge-logs: PATCH compliant true→false also fires the AuditEvent', async () => {
+    const created = await auth(
+      request(app.getHttpServer()).post('/api/v1/discharge-logs').send({
+        vesselId,
+        kind: 'Garbage',
+        occurredAt: new Date().toISOString(),
+        location: 'Port reception (transition test)',
+        volume: '0.1 m³',
+        compliant: true,
+      }),
+    );
+    const id = (created.body as { id: string }).id;
+
+    await auth(
+      request(app.getHttpServer()).patch(`/api/v1/discharge-logs/${id}`).send({ compliant: false }),
+    );
+    await new Promise((r) => setTimeout(r, 50));
+    const audit = await auth(
+      request(app.getHttpServer()).get(
+        `/api/v1/audit-events?action=MARPOL_NON_COMPLIANT_DISCHARGE`,
+      ),
+    );
+    const events = audit.body as { entityId: string; metadata: { transition?: string } | null }[];
+    expect(
+      events.some(
+        (e) => e.entityId === id && e.metadata?.transition === 'patch-compliant-to-non-compliant',
+      ),
+    ).toBe(true);
+  });
+
+  it('discharge-logs: GET /non-compliant-ytd returns per-vessel breakdown', async () => {
+    const res = await auth(
+      request(app.getHttpServer()).get('/api/v1/discharge-logs/non-compliant-ytd'),
+    );
+    expect(res.status).toBe(200);
+    const body = res.body as {
+      year: number;
+      total: number;
+      byVessel: { vesselId: string; count: number }[];
+    };
+    expect(body.year).toBe(new Date().getUTCFullYear());
+    expect(body.total).toBeGreaterThanOrEqual(2); // From the two prior tests
+    expect(body.byVessel.some((v) => v.vesselId === vesselId)).toBe(true);
+  });
+
+  it('discharge-logs: GET /export.csv returns IOPP-style CSV', async () => {
+    const res = await auth(
+      request(app.getHttpServer()).get(`/api/v1/discharge-logs/export.csv?vesselId=${vesselId}`),
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('text/csv');
+    const csv = res.text;
+    expect(csv).toMatch(/^"Date","Vessel ID","Kind","Location","Volume","Compliant","Notes"\n/);
+    // At least one of the rows we created above should appear
+    expect(csv).toMatch(/"Engine room bilge \(M6 test\)"/);
+  });
+
   it('RLS policies exist for all 12 new tables', async () => {
     const tables = [
       'surveys',

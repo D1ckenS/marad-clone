@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Input, Modal, Select, TextArea } from '@fleetops/ui-kit';
 import { api } from '../api/client.js';
@@ -10,6 +10,12 @@ interface Props {
   onCreated: () => void;
 }
 
+interface CertificateRow {
+  id: string;
+  number: string | null;
+  certificateType: string | null;
+}
+
 const EMPTY = {
   scheduledAt: '',
   kind: '',
@@ -17,6 +23,7 @@ const EMPTY = {
   surveyor: '',
   location: '',
   status: 'SCHEDULED',
+  certificateId: '',
   notes: '',
 };
 
@@ -25,6 +32,36 @@ export function CreateSurveyModal({ open, vesselId, onClose, onCreated }: Props)
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [certificates, setCertificates] = useState<CertificateRow[]>([]);
+
+  // M5: load vessel certificates so the operator can link the survey
+  // to its triggering certificate (class-society renewal trail).
+  useEffect(() => {
+    if (!open || !vesselId) return;
+    let cancelled = false;
+    api
+      .get<CertificateRow[]>(`/certificates?vesselId=${vesselId}`)
+      .then((rows) => {
+        if (!cancelled) setCertificates(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setCertificates([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, vesselId]);
+
+  const certificateOptions = useMemo(
+    () => [
+      { value: '', label: t('certificates.survey_modal.no_certificate') },
+      ...certificates.map((c) => ({
+        value: c.id,
+        label: c.number ? `${c.certificateType ?? '—'} · ${c.number}` : (c.certificateType ?? c.id),
+      })),
+    ],
+    [certificates, t],
+  );
 
   const statusOptions = useMemo(
     () => [
@@ -69,6 +106,7 @@ export function CreateSurveyModal({ open, vesselId, onClose, onCreated }: Props)
         surveyor: form.surveyor.trim(),
         location: form.location.trim(),
         status: form.status,
+        certificateId: form.certificateId || undefined,
         notes: form.notes.trim() || undefined,
       });
       setForm(EMPTY);
@@ -145,6 +183,13 @@ export function CreateSurveyModal({ open, vesselId, onClose, onCreated }: Props)
           options={statusOptions}
           value={form.status}
           onChange={(v) => setForm((f) => ({ ...f, status: v }))}
+        />
+        <Select
+          id="sv-certificate"
+          label={t('certificates.survey_modal.field_certificate')}
+          options={certificateOptions}
+          value={form.certificateId}
+          onChange={(v) => setForm((f) => ({ ...f, certificateId: v }))}
         />
         <TextArea
           id="sv-notes"

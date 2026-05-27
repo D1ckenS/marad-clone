@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   Param,
   Patch,
@@ -29,6 +30,32 @@ export class DischargeLogController {
   @Get()
   findAll(@AuthCtx() auth: AuthContext, @Query('vesselId') vesselId?: string) {
     return this.svc.findAll(auth, { ...(vesselId !== undefined && { vesselId }) });
+  }
+
+  // M6: Fleetview tile data — non-compliant discharge count YTD.
+  // Placed BEFORE the `:id` route so "non-compliant-ytd" isn't
+  // interpreted as an ID by Nest's path matcher.
+  @Get('non-compliant-ytd')
+  nonCompliantYtd(@AuthCtx() auth: AuthContext, @Query('vesselId') vesselId?: string) {
+    return this.svc.nonCompliantYtd(auth, vesselId);
+  }
+
+  // M6: IOPP-format CSV export. Same auth + tenant scope as the list
+  // endpoint; query filter on vesselId + ISO date range.
+  @Get('export.csv')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @Header('Content-Disposition', 'attachment; filename="discharge-logs.csv"')
+  exportCsv(
+    @AuthCtx() auth: AuthContext,
+    @Query('vesselId') vesselId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.svc.exportCsv(auth, {
+      ...(vesselId !== undefined && { vesselId }),
+      ...(from !== undefined && { from }),
+      ...(to !== undefined && { to }),
+    });
   }
 
   @Get(':id')

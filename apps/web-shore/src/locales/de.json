@@ -128,7 +128,8 @@
     "type_overdue": "Überfällig",
     "type_approval": "Genehmigung",
     "type_cert": "Zertifikat",
-    "type_finding": "Befund"
+    "type_finding": "Befund",
+    "marpol_non_compliant_ytd": "MARPOL non-compliant (YTD)"
   },
   "maintenance": {
     "title": "Wartung",
@@ -408,7 +409,9 @@
       "status_cancelled": "Cancelled",
       "error_required": "Scheduled date, kind, scope, surveyor and location are required.",
       "error_create": "Failed to create survey.",
-      "error_update": "Failed to update survey."
+      "error_update": "Failed to update survey.",
+      "field_certificate": "Verknüpftes Zertifikat",
+      "no_certificate": "— Kein verknüpftes Zertifikat —"
     },
     "coc_modal": {
       "title_create": "Add condition of class",
@@ -445,7 +448,16 @@
       "error_required": "Inspected-at, port, inspector and status are required.",
       "error_create": "Failed to record inspection.",
       "error_update": "Failed to update inspection."
-    }
+    },
+    "survey_annual": "JÄHRLICH",
+    "survey_intermediate": "ZWISCHEN",
+    "survey_special": "SONDER",
+    "survey_renewal": "ERNEUERUNG",
+    "status_in": "IN",
+    "status_tentative": "VORLÄUFIG",
+    "conditions_open": "offen",
+    "conditions_closed": "geschlossen",
+    "log_item": "+ Eintrag erfassen"
   },
   "safety": {
     "title": "Sicherheit",
@@ -574,7 +586,17 @@
       "error_required": "Name, location and quantity are required.",
       "error_create": "Failed to add safety equipment.",
       "error_update": "Failed to update safety equipment."
-    }
+    },
+    "jha_library": "Bibliothek ·",
+    "assessments": "Bewertungen",
+    "select_jha_hint": "Wählen Sie eine JHA, um Risikomatrizen und Maßnahmen anzuzeigen",
+    "risk_critical": "KRITISCH",
+    "risk_intolerable": "Untragbar — sofortige Kontrolle erforderlich",
+    "risk_substantial": "Erheblich — zusätzliche Kontrolle erforderlich",
+    "risk_moderate": "Mäßig — Kontrolle über SOPs/PSA",
+    "risk_acceptable": "Akzeptabel — Routinekontrollen",
+    "without_controls": "OHNE MASSNAHMEN",
+    "with_controls": "MIT ANGEWANDTEN MASSNAHMEN"
   },
   "qhse": {
     "title": "QHSE",
@@ -795,7 +817,9 @@
       "error_required": "Kind, scheduled-at and chair are required.",
       "error_create": "Failed to schedule review.",
       "error_update": "Failed to update review."
-    }
+    },
+    "cii_annual_ratio": "CII-Bewertung — jährliche Effizienzquote",
+    "cii_mepc": "gCO₂ / t·sm · IMO MEPC 337(76)"
   },
   "crewing": {
     "title": "Besatzung",
@@ -915,7 +939,30 @@
     "no_tanks": "Keine Tanks konfiguriert.",
     "no_soundings": "Noch keine Peilungen erfasst.",
     "no_bdn": "Noch keine BDN-Einträge.",
-    "select_vessel": "Schiff auswählen, um FLGO-Daten anzuzeigen."
+    "select_vessel": "Schiff auswählen, um FLGO-Daten anzuzeigen.",
+    "tank_modal": {
+      "new_tank_button": "+ New tank",
+      "title_create": "Create tank",
+      "title_edit": "Edit tank",
+      "field_name": "Tank name",
+      "field_tank_type": "Tank type",
+      "field_fuel_product": "Linked fuel product",
+      "no_fuel_product": "— No linked fuel product —",
+      "field_capacity_m3": "Capacity (m³)",
+      "field_frame_position": "Frame position",
+      "type_hfo": "HFO",
+      "type_mgo": "MGO",
+      "type_lsgo": "LSGO",
+      "type_lsfo": "LSFO",
+      "type_biofuel": "Biofuel",
+      "type_lube_oil": "Lube oil",
+      "type_fresh_water": "Fresh water",
+      "type_ballast": "Ballast",
+      "error_required": "Tank name and type are required.",
+      "error_capacity_number": "Capacity must be a number.",
+      "error_create": "Failed to create tank.",
+      "error_update": "Failed to update tank."
+    }
   },
   "compliance": {
     "title": "Konformität",
@@ -1063,5 +1110,16 @@
     "passwords_no_match": "Passwörter stimmen nicht überein.",
     "password_changed": "Passwort geändert.",
     "loading": "Laden…"
+  },
+  "mobile_pair": {
+    "title": "Mobilgerät koppeln",
+    "subtitle": "QR-Code auf dem Laptop-Bildschirm anzeigen und mit der FleetOps-Mobile-App scannen, um Schiffs-API-URL und Mandanten-ID in einem Schritt zu übernehmen.",
+    "base_url_label": "Schiffs-API-URL (vom Crew-Telefon erreichbar)",
+    "base_url_hint": "Standardmäßig der Host dieser Seite auf Port 3001. Ändern, wenn api-vessel an eine andere LAN-Adresse gebunden ist.",
+    "tenant_id_label": "Mandanten-ID",
+    "scan_instructions": "Öffnen Sie die FleetOps-Mobile-App, tippen Sie auf „Kopplungs-QR scannen\" im Anmeldebildschirm und richten Sie die Kamera auf diesen Code.",
+    "fill_fields_first": "API-URL und Mandanten-ID oben ausfüllen, um den QR-Code zu erzeugen.",
+    "manual_entry_summary": "Klartext anzeigen (zur manuellen Eingabe)",
+    "reset_button": "Auf Standard zurücksetzen"
   }
 }
