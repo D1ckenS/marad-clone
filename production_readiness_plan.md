@@ -12,6 +12,45 @@ below is ~5–8 engineering-weeks to paid-pilot-ready.
 
 ---
 
+## STATUS as of 2026-05-27
+
+Most blockers + over half the H-tier are shipped. Section headings
+below are prepended with **✓** when closed, with the merging PR in
+parens. Items without a checkmark are still open.
+
+**Closed (16 / 28 numbered items):**
+
+| Tier         | Closed                                                   |
+| ------------ | -------------------------------------------------------- |
+| **Blockers** | B1, B2, B3, B4, B5, B6, B7, B8, B11 — only B9 + B10 left |
+| **High**     | H1, H2, H3, H4, H5, H8, H9, H10, H14                     |
+| **Medium**   | M1                                                       |
+
+**Open (12 numbered items):**
+
+| Tier         | Open    | Notes                                                             |
+| ------------ | ------- | ----------------------------------------------------------------- |
+| **Blockers** | B9, B10 | Deployment readiness — deferred by Ziad's "everything else first" |
+| **High**     | H6      | Needs Ziad's EV cert purchase (~$300/yr)                          |
+| **High**     | H7      | ~40h mechanical test coverage backfill                            |
+| **High**     | H11     | ISO 27001 docs — mostly writing + business decisions              |
+| **High**     | H12     | Mobile non-EN locale keys — translator work, not code             |
+| **High**     | H13     | Mobile widget tests — ~24h Flutter                                |
+| **High**     | H15     | Mobile QR pairing UX — ~1d                                        |
+| **Medium**   | M2–M8   | Cleanup before GA, not pilot — small UX gaps + flaky perf assert  |
+
+**Next recommended pick for the new session:** start with H13 (mobile
+widget tests) if you want shippable mobile improvement, OR H7 (untested
+controllers) if you want defence depth on the API surface. H11 is
+useful only after you've made the policy decisions it requires.
+
+**Closed PRs for reference:** #55 (Week 1 hardening), #56 (super-admin
+profile RLS fix), #57 (B5 steps 2+3), #58 (B1 mTLS), #59 (B8), #60
+(B6+B7), #61 (H5), #62 (H10), #63 (H8), #64 (H3+H4), #65 (H14), #66
+(H9).
+
+---
+
 ## 0. Read first
 
 - Branch state on entry: `main` (in sync with `origin/main` at
@@ -32,7 +71,7 @@ below is ~5–8 engineering-weeks to paid-pilot-ready.
 
 ## BLOCKERS (must close before any prod install)
 
-### B1. gRPC sync is plaintext
+### ✓ B1. gRPC sync is plaintext — closed via #58
 
 **Where:** `packages/sync-engine/src/transport/grpc-transport.ts:222, 396`
 
@@ -70,7 +109,7 @@ Document the 3 env vars in `.env.example` for both shore and vessel.
 
 ---
 
-### B2. Vessel JWT secret has hardcoded fallback
+### ✓ B2. Vessel JWT secret has hardcoded fallback — closed via #55
 
 **Where:**
 
@@ -98,7 +137,7 @@ Then import + call it in both files instead of the inline default.
 
 ---
 
-### B3. `POST /tenants` is unauthenticated
+### ✓ B3. `POST /tenants` is unauthenticated — closed via #55
 
 **Where:** `apps/api-shore/src/tenant/tenant.controller.ts:19-22`
 
@@ -120,7 +159,7 @@ For first-tenant bootstrap, keep `POST /auth/bootstrap-super-admin` (already key
 
 ---
 
-### B4. OIDC `clientSecret` leaks via `GET /auth/oidc/configs`
+### ✓ B4. OIDC `clientSecret` leaks via `GET /auth/oidc/configs` — closed via #55
 
 **Where:**
 
@@ -148,7 +187,7 @@ Any authenticated user — including CREW — calls `GET /auth/oidc/configs` and
 
 ---
 
-### B5. Real credentials hardcoded in committed smoke-test scripts
+### ✓ B5. Real credentials hardcoded in committed smoke-test scripts — closed: step 1 (rotate) done by Ziad via UI; steps 2+3 (env vars + CI grep guard) in #57; step 4 (`git filter-repo` history rewrite) done out-of-band
 
 **Where:**
 
@@ -173,7 +212,7 @@ Any authenticated user — including CREW — calls `GET /auth/oidc/configs` and
 
 ---
 
-### B6. Sync proto has no `actorUserId` — class-society audit blocker
+### ✓ B6. Sync proto has no `actorUserId` — class-society audit blocker — closed via #60 (wire layer; per-service plumbing of real `req.user.id` into the 45 vessel call sites is a deferred follow-up — 'system' is the current default)
 
 **Where:**
 
@@ -203,7 +242,7 @@ Then:
 
 ---
 
-### B7. `AuditEvent` records only `JOB_SIGNED_OFF` — full audit coverage missing
+### ✓ B7. `AuditEvent` records only `JOB_SIGNED_OFF` — full audit coverage missing — closed via #60
 
 **Where:** the only `audit.record` call across `apps/api-shore/src/` is `apps/api-shore/src/job-history/job-history.service.ts:356`. Every other mutation — login, logout, PATCH on any entity, DELETE, role change, SSO callback, tenant create — generates **zero** `AuditEvent` rows. ISO 27001 A.8.15 + class-society blocker.
 
@@ -223,7 +262,7 @@ Add an admin-only `GET /audit-events?actor=…&entity=…&from=…` endpoint wit
 
 ---
 
-### B8. Immutability trigger doesn't cover DELETE
+### ✓ B8. Immutability trigger doesn't cover DELETE — closed via #59
 
 **Where:** `apps/api-shore/prisma/migrations/20260506173034_add_maintenance_schema/migration.sql:272-298` — trigger is `BEFORE UPDATE` only. e2e `apps/api-shore/test/audit-events.e2e.ts:148-165` asserts UPDATE rejection but **not** DELETE rejection.
 
@@ -283,7 +322,7 @@ CREATE TRIGGER job_histories_no_delete
 
 ---
 
-### B11. Vessel SQLite missing WAL checkpoint on shutdown
+### ✓ B11. Vessel SQLite missing WAL checkpoint on shutdown — closed via #55
 
 **Where:** `apps/api-vessel/src/main.ts` — no `app.enableShutdownHooks()`, no `OnApplicationShutdown` calling `PRAGMA wal_checkpoint(TRUNCATE)`. Abrupt power loss (very common on vessels) → potential corruption of unsynced WAL frames.
 
@@ -311,13 +350,13 @@ async onApplicationShutdown() {
 
 ## HIGH (block customer acceptance test, not install)
 
-### H1. nodemailer CVE-2025-14874 (DoS via addressparser)
+### ✓ H1. nodemailer CVE-2025-14874 (DoS via addressparser) — closed via #55
 
 **Where:** transitive `nodemailer@6.10.1` via `packages/sync-engine`. Single malicious email-style address crashes the process.
 
 **Fix:** `pnpm -w up nodemailer@^7.0.11` (or `^8.0.5` to also clear GHSA-c7w3-x93f-qmm8 and GHSA-vvjj-xcjg-gr5g). Re-run `pnpm audit --prod`.
 
-### H2. No fail-loud env validation on prod boot
+### ✓ H2. No fail-loud env validation on prod boot — closed via #55
 
 **Where:** `apps/api-shore/src/main.ts`, `apps/api-vessel/src/main.ts`, `apps/api-shore/src/storage/storage.module.ts:23-24` (S3 keys silently empty).
 
@@ -348,7 +387,7 @@ function assertProductionEnv() {
 }
 ```
 
-### H3. No CORS configuration on shore
+### ✓ H3. No CORS configuration on shore — closed via #64
 
 **Where:** `apps/api-shore/src/main.ts` has no `app.enableCors()`.
 
@@ -364,13 +403,13 @@ app.enableCors({
 
 Document `CORS_ORIGINS` in `.env.example` (comma-separated list of allowed origins, e.g. `https://app.fleetops.com`).
 
-### H4. Vessel API missing helmet + login rate-limit
+### ✓ H4. Vessel API missing helmet + login rate-limit — closed via #64
 
 **Where:** `apps/api-vessel/src/main.ts` no helmet; `apps/api-vessel/src/app.module.ts` no `ThrottlerModule`.
 
 **Fix:** mirror shore (`apps/api-shore/src/main.ts` for helmet + `apps/api-shore/src/auth/auth.module.ts` for throttler config). Same 10/minute on `/auth/login`. Defense-in-depth even though vessel is loopback by intent.
 
-### H5. Refresh tokens stateless + never revokable
+### ✓ H5. Refresh tokens stateless + never revokable — closed via #61
 
 **Where:** `apps/api-shore/src/auth/auth.service.ts:66-88`. A leaked 30-day refresh token cannot be invalidated short of rotating `JWT_PRIVATE_KEY_PATH` (logs everyone out).
 
@@ -404,13 +443,13 @@ Document `CORS_ORIGINS` in `.env.example` (comma-separated list of allowed origi
 
 **Highest-stakes:** `rest-hour-entry` (MLC compliance auditor-facing), `survey` (class-society audit trail), `condition-of-class` (CoC closure procedure auditable).
 
-### H8. 13 of 16 `tenant-materialisers` untested round-trip
+### ✓ H8. 13 of 16 `tenant-materialisers` untested round-trip — closed via #63
 
 **Where:** `apps/api-vessel/test/tenant-broadcast-sync.e2e.ts` exercises only Jha, DrybmsElement, QhseObjective. The other 13 (MasterComponent, PartCategory, Supplier, ApprovalFlow, ApprovalStep, CertificateType, DrillType, PermitTemplate, ChecklistTemplate, QhseDocument, DocumentRevision, FuelProduct, ManagementReview) are smoke-checked for registry-key existence only.
 
 **Fix:** parametrise the existing Jha test into a table-driven format that iterates all 16 entities. Each iteration: create on shore via real Prisma, force-broadcast, simulate vessel apply via `DrizzleSyncAdapter.applyRemoteDelta`, assert vessel row has the right field values + tenantId.
 
-### H9. Class-society submission is fire-and-forget
+### ✓ H9. Class-society submission is fire-and-forget — closed via #66
 
 **Where:** `apps/api-shore/src/class-society/class-society.service.ts:81-166`. Status only transitions DRAFT → SUBMITTED|ERROR. No ACCEPTED/REJECTED tracking.
 
@@ -420,7 +459,7 @@ Document `CORS_ORIGINS` in `.env.example` (comma-separated list of allowed origi
 2. New webhook receiver `POST /class-society/webhook/:society` for class societies that push status (most do).
 3. Add `lastPolledAt`, `polledStatus`, `webhookReceivedAt` columns + Prisma migration.
 
-### H10. Cert-expiry emails are `EMAIL_STUB` console logs
+### ✓ H10. Cert-expiry emails are `EMAIL_STUB` console logs — closed via #62
 
 **Where:** `apps/api-shore/src/certificate/certificate.service.ts:197` — production cert renewal alerts print to console only.
 
@@ -455,7 +494,7 @@ Document `CORS_ORIGINS` in `.env.example` (comma-separated list of allowed origi
 
 **Fix:** golden + widget tests for the critical-path 8 screens: `login_screen`, `home_screen` tab navigation, `jobs_screen` sign-off flow, `inventory_screen` adjust-stock, `certificates_screen` filter, `po_receive_screen` barcode→GRN, `rest_hours_screen` save flow, `sync_status_badge` retry/discard. Budget ~3 h each = ~24 h.
 
-### H14. 7 smoke-test scripts orphaned from CI
+### ✓ H14. 7 smoke-test scripts orphaned from CI — partially closed via #65 (nightly workflow runs soak:sync + booted-shore smoke; Electron + web SPA smoke still TODO, gated on H6 and Playwright cache setup)
 
 **Where:** `scripts/smoke-test-*.mjs` (electron, bootstrap, web, seeded-login, usernames, flows, spa-username). Run manually, never gated. Electron desktop bundle ships untested per commit.
 
@@ -476,7 +515,7 @@ Document `CORS_ORIGINS` in `.env.example` (comma-separated list of allowed origi
 
 ## MEDIUM (cleanup before GA, not pilot)
 
-### M1. Prune PROGRESS.md §16
+### ✓ M1. Prune PROGRESS.md §16 — closed via #55
 
 6 of 12 outstanding-follow-up bullets are already done. Re-read the list and strikethrough or delete:
 
