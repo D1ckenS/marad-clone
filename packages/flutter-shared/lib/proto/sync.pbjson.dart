@@ -312,6 +312,7 @@ const Delta$json = {
     {'1': 'hlc', '3': 4, '4': 1, '5': 9, '10': 'hlc'},
     {'1': 'node_id', '3': 5, '4': 1, '5': 9, '10': 'nodeId'},
     {'1': 'payload', '3': 6, '4': 1, '5': 12, '10': 'payload'},
+    {'1': 'actor_user_id', '3': 7, '4': 1, '5': 9, '10': 'actorUserId'},
   ],
 };
 
@@ -320,7 +321,8 @@ final $typed_data.Uint8List deltaDescriptor = $convert.base64Decode(
     'CgVEZWx0YRIfCgtlbnRpdHlfdHlwZRgBIAEoCVIKZW50aXR5VHlwZRIbCgllbnRpdHlfaWQYAi'
     'ABKAlSCGVudGl0eUlkEj0KCW9wZXJhdGlvbhgDIAEoDjIfLmZsZWV0b3BzLnN5bmMudjEuU3lu'
     'Y09wZXJhdGlvblIJb3BlcmF0aW9uEhAKA2hsYxgEIAEoCVIDaGxjEhcKB25vZGVfaWQYBSABKA'
-    'lSBm5vZGVJZBIYCgdwYXlsb2FkGAYgASgMUgdwYXlsb2Fk');
+    'lSBm5vZGVJZBIYCgdwYXlsb2FkGAYgASgMUgdwYXlsb2FkEiIKDWFjdG9yX3VzZXJfaWQYByAB'
+    'KAlSC2FjdG9yVXNlcklk');
 
 @$core.Deprecated('Use deltaBatchDescriptor instead')
 const DeltaBatch$json = {

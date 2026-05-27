@@ -11,6 +11,7 @@ import type { Client } from 'openid-client';
 import { SsoProvider } from '@prisma/client';
 import { newId } from '@fleetops/domain';
 import { AuthService } from './auth.service';
+import { AuditEventService } from '../audit-event/audit-event.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserService } from '../user/user.service';
 
@@ -34,6 +35,7 @@ export class OidcService {
     private readonly auth: AuthService,
     private readonly users: UserService,
     private readonly jwt: JwtService,
+    private readonly audit: AuditEventService,
   ) {}
 
   async beginLogin(
@@ -112,6 +114,7 @@ export class OidcService {
       username?: string | null;
       role: string;
     };
+    let provisioned = false;
     try {
       user = await this.users.findByIdentifier(tenantId, email);
     } catch {
@@ -122,8 +125,34 @@ export class OidcService {
           data: { id, tenantId, email, username, passwordHash: null, role: 'CREW' },
         }),
       );
+      provisioned = true;
       this.logger.log({ msg: 'SSO: provisioned new user', tenantId, provider, email });
     }
+
+    // B7: audit the SSO login (and the provisioning event when applicable).
+    // Fire-and-forget so a write failure can't block auth.
+    if (provisioned) {
+      await this.audit
+        .record({
+          tenantId,
+          actorUserId: user.id,
+          action: 'SSO_USER_PROVISIONED',
+          entityType: 'User',
+          entityId: user.id,
+          metadata: { provider, email },
+        })
+        .catch(() => undefined);
+    }
+    await this.audit
+      .record({
+        tenantId,
+        actorUserId: user.id,
+        action: 'SSO_LOGIN_SUCCESS',
+        entityType: 'User',
+        entityId: user.id,
+        metadata: { provider },
+      })
+      .catch(() => undefined);
 
     return this.auth.issueTokens(user);
   }

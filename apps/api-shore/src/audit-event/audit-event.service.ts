@@ -37,8 +37,25 @@ export class AuditEventService {
 
   findAll(
     auth: AuthContext,
-    query: { vesselId?: string; entityType?: string; action?: string; limit?: number },
+    query: {
+      vesselId?: string;
+      entityType?: string;
+      action?: string;
+      actorUserId?: string;
+      from?: string;
+      to?: string;
+      limit?: number;
+    },
   ) {
+    const recordedAt: { gte?: Date; lte?: Date } = {};
+    if (query.from) {
+      const d = new Date(query.from);
+      if (!Number.isNaN(d.getTime())) recordedAt.gte = d;
+    }
+    if (query.to) {
+      const d = new Date(query.to);
+      if (!Number.isNaN(d.getTime())) recordedAt.lte = d;
+    }
     return this.prisma.withTenant(auth.tenantId!, (tx) =>
       tx.auditEvent.findMany({
         where: {
@@ -46,6 +63,8 @@ export class AuditEventService {
           ...(query.vesselId && { vesselId: query.vesselId }),
           ...(query.entityType && { entityType: query.entityType }),
           ...(query.action && { action: query.action }),
+          ...(query.actorUserId && { actorUserId: query.actorUserId }),
+          ...((recordedAt.gte || recordedAt.lte) && { recordedAt }),
         },
         orderBy: { recordedAt: 'desc' },
         take: query.limit ?? 200,

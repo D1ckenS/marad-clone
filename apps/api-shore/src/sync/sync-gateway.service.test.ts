@@ -2,6 +2,7 @@ import { GrpcSyncTransport, type SyncDelta } from '@fleetops/sync-engine';
 import { Test } from '@nestjs/testing';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { AuditEventService } from '../audit-event/audit-event.service';
 import { BlobReceiverService } from './blob-receiver.service';
 import { HlcClockRegistry } from './hlc-clock-registry';
 import { PrismaSyncAdapter } from './prisma-sync-adapter';
@@ -49,12 +50,16 @@ describe('SyncGatewayService', () => {
       new FakeAdapter() as unknown as PrismaSyncAdapter;
     // BlobReceiverService is a new dep (ADR 0003). It only initialises an
     // S3Client in its constructor; no env or network needed.
+    // B7: SyncGatewayService now records an AuditEvent per applied delta.
+    // For unit tests we stub it out — the real service requires Prisma.
+    const fakeAudit = { record: async () => undefined } as unknown as AuditEventService;
     const module = await Test.createTestingModule({
       providers: [
         SyncGatewayService,
         HlcClockRegistry,
         BlobReceiverService,
         { provide: PRISMA_SYNC_ADAPTER_FACTORY, useValue: factory },
+        { provide: AuditEventService, useValue: fakeAudit },
       ],
     }).compile();
     return module.get(SyncGatewayService);

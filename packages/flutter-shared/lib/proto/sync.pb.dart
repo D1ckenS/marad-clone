@@ -762,6 +762,7 @@ class Delta extends $pb.GeneratedMessage {
     $core.String? hlc,
     $core.String? nodeId,
     $core.List<$core.int>? payload,
+    $core.String? actorUserId,
   }) {
     final result = create();
     if (entityType != null) result.entityType = entityType;
@@ -770,6 +771,7 @@ class Delta extends $pb.GeneratedMessage {
     if (hlc != null) result.hlc = hlc;
     if (nodeId != null) result.nodeId = nodeId;
     if (payload != null) result.payload = payload;
+    if (actorUserId != null) result.actorUserId = actorUserId;
     return result;
   }
 
@@ -795,6 +797,7 @@ class Delta extends $pb.GeneratedMessage {
     ..aOS(5, _omitFieldNames ? '' : 'nodeId')
     ..a<$core.List<$core.int>>(
         6, _omitFieldNames ? '' : 'payload', $pb.PbFieldType.OY)
+    ..aOS(7, _omitFieldNames ? '' : 'actorUserId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -870,6 +873,19 @@ class Delta extends $pb.GeneratedMessage {
   $core.bool hasPayload() => $_has(5);
   @$pb.TagNumber(6)
   void clearPayload() => $_clearField(6);
+
+  /// ULID of the user who triggered this change. Required for DNV CG-0339
+  /// §4.2 + ISO 27001 A.8.15 audit trail (B6). Empty string is allowed as
+  /// a transitional value for entities created before B6 — the receiver
+  /// treats it as 'system'.
+  @$pb.TagNumber(7)
+  $core.String get actorUserId => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set actorUserId($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasActorUserId() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearActorUserId() => $_clearField(7);
 }
 
 class DeltaBatch extends $pb.GeneratedMessage {

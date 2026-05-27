@@ -42,6 +42,7 @@ export class PrismaSyncAdapter implements SyncAdapter {
               : (entry.payload as unknown as Prisma.InputJsonValue),
           hlc: entry.hlc,
           nodeId: entry.nodeId,
+          actorUserId: entry.actorUserId ?? 'system',
           sentAt: entry.sentAt === null ? null : new Date(entry.sentAt),
         },
       }),
@@ -64,6 +65,7 @@ export class PrismaSyncAdapter implements SyncAdapter {
       payload: r.payload === null ? null : (r.payload as unknown as LwwRecord),
       hlc: r.hlc,
       nodeId: r.nodeId,
+      actorUserId: r.actorUserId,
       sentAt: r.sentAt === null ? null : r.sentAt.getTime(),
     }));
   }
@@ -80,6 +82,8 @@ export class PrismaSyncAdapter implements SyncAdapter {
 
   async applyRemoteDelta(delta: SyncDelta): Promise<ApplyResult> {
     const existing = await this.readLocalRecord(delta.entityType, delta.entityId);
+    const actorUserId =
+      delta.actorUserId && delta.actorUserId.length > 0 ? delta.actorUserId : 'system';
 
     if (delta.operation === 'delete') {
       if (existing === null || compareEncodedHlc(delta.hlc, existing.hlc) > 0) {
@@ -89,6 +93,7 @@ export class PrismaSyncAdapter implements SyncAdapter {
           hlc: delta.hlc,
           deletedAt: new Date().toISOString(),
           fields: existing?.fields ?? {},
+          actorUserId,
         };
         await this.upsertSyncRecord(record);
         return { record, merged: true };
@@ -103,6 +108,7 @@ export class PrismaSyncAdapter implements SyncAdapter {
         hlc: delta.hlc,
         deletedAt: null,
         fields: delta.payload ?? {},
+        actorUserId,
       };
       await this.upsertSyncRecord(record);
       return { record, merged: true };
@@ -121,6 +127,12 @@ export class PrismaSyncAdapter implements SyncAdapter {
       hlc: newHlc,
       deletedAt,
       fields: mergedFields,
+      // Only stamp the actor on a strictly newer HLC — otherwise keep the
+      // existing actor (the latest writer wins, same as fields).
+      actorUserId:
+        compareEncodedHlc(delta.hlc, existing.hlc) > 0
+          ? actorUserId
+          : (existing.actorUserId ?? 'system'),
     };
     await this.upsertSyncRecord(record);
     return { record, merged: changed || deletedAt !== existing.deletedAt };
@@ -146,10 +158,12 @@ export class PrismaSyncAdapter implements SyncAdapter {
       hlc: row.hlc,
       deletedAt: row.deletedAt === null ? null : row.deletedAt.toISOString(),
       fields: row.fields as unknown as LwwRecord,
+      actorUserId: row.actorUserId,
     };
   }
 
   private async upsertSyncRecord(record: SyncRecord): Promise<void> {
+    const actorUserId = record.actorUserId ?? 'system';
     await this.prisma.withTenant(this.tenantId, (tx) =>
       tx.syncRecord.upsert({
         where: {
@@ -168,11 +182,13 @@ export class PrismaSyncAdapter implements SyncAdapter {
           hlc: record.hlc,
           deletedAt: record.deletedAt === null ? null : new Date(record.deletedAt),
           fields: record.fields as unknown as object,
+          actorUserId,
         },
         update: {
           hlc: record.hlc,
           deletedAt: record.deletedAt === null ? null : new Date(record.deletedAt),
           fields: record.fields as unknown as object,
+          actorUserId,
         },
       }),
     );

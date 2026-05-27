@@ -8,6 +8,8 @@ export function createOutboxEntry(params: {
   payload: LwwRecord | null;
   hlc: Hlc;
   nodeId: string;
+  /** B6: ULID of the user who triggered the write. Defaults to 'system'. */
+  actorUserId?: string;
 }): OutboxEntry {
   return {
     id: newId(),
@@ -17,6 +19,7 @@ export function createOutboxEntry(params: {
     payload: params.payload,
     hlc: encodeHlc(params.hlc),
     nodeId: params.nodeId,
+    actorUserId: params.actorUserId ?? 'system',
     sentAt: null,
   };
 }

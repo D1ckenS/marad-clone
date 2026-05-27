@@ -145,6 +145,13 @@ export interface Delta {
    * Bytes (not string) so future protobuf-typed payloads are wire-compatible.
    */
   payload: Uint8Array;
+  /**
+   * ULID of the user who triggered this change. Required for DNV CG-0339
+   * §4.2 + ISO 27001 A.8.15 audit trail (B6). Empty string is allowed as
+   * a transitional value for entities created before B6 — the receiver
+   * treats it as 'system'.
+   */
+  actorUserId: string;
 }
 
 export interface DeltaBatch {

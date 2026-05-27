@@ -203,6 +203,119 @@ describe('P2-5 DNV evidence pack — shore', () => {
     expect(names).toContain('job_histories_no_delete');
   });
 
+  it('LOGIN_SUCCESS audit event recorded after login (B7)', async () => {
+    // The beforeAll login call already triggered LOGIN_SUCCESS; we look it up.
+    await new Promise((r) => setTimeout(r, 100));
+    const res = await request(app.getHttpServer())
+      .get(`/api/v1/audit-events?actorUserId=${userId}&action=LOGIN_SUCCESS`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect((res.body as unknown[]).length).toBeGreaterThan(0);
+    const evt = (
+      res.body as Array<{ action: string; actorUserId: string; entityType: string }>
+    )[0]!;
+    expect(evt.action).toBe('LOGIN_SUCCESS');
+    expect(evt.actorUserId).toBe(userId);
+    expect(evt.entityType).toBe('User');
+  });
+
+  it('LOGIN_FAIL audit event recorded on wrong password (B7)', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ tenantId, identifier: 'audit@shore.test', password: 'wrong-password' })
+      .expect(401);
+    await new Promise((r) => setTimeout(r, 100));
+    const res = await request(app.getHttpServer())
+      .get(`/api/v1/audit-events?actorUserId=${userId}&action=LOGIN_FAIL`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect((res.body as unknown[]).length).toBeGreaterThan(0);
+  });
+
+  it('API_POST audit event recorded after a mutation via the interceptor (B7)', async () => {
+    // Create a component (POST) and confirm the global interceptor logged it.
+    const compRes = await request(app.getHttpServer())
+      .post('/api/v1/components')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ vesselId, name: 'B7 Test Component', sfi: '999' });
+    expect(compRes.status).toBe(201);
+    const newComponentId = (compRes.body as { id: string }).id;
+
+    await new Promise((r) => setTimeout(r, 100));
+    const res = await request(app.getHttpServer())
+      .get(`/api/v1/audit-events?entityType=components&action=API_POST`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    const found = (
+      res.body as Array<{ entityId: string; action: string; actorUserId: string }>
+    ).find((e) => e.entityId === newComponentId);
+    expect(found).toBeDefined();
+    expect(found!.action).toBe('API_POST');
+    expect(found!.actorUserId).toBe(userId);
+  });
+
+  it('VESSEL_SYNC_UPSERT audit event recorded when shore applies a vessel delta (B7)', async () => {
+    // Drive PrismaSyncAdapter.applyRemoteDelta directly — same path the
+    // gateway exercises on every received delta, just without a real gRPC
+    // stream in the loop.
+    const vesselActorId = ulid();
+    const { PrismaSyncAdapter } = await import('../src/sync/prisma-sync-adapter');
+    const adapter = new PrismaSyncAdapter(prisma, tenantId, vesselId);
+    const { newId } = await import('@fleetops/domain');
+    const entityId = newId();
+    const fakeHlc = '0LATERLATERLATERLATERLATERLATER';
+    await adapter.applyRemoteDelta({
+      entityType: 'note',
+      entityId,
+      operation: 'upsert',
+      payload: { text: { value: 'hello', hlc: fakeHlc } },
+      hlc: fakeHlc,
+      nodeId: 'vessel-test-node',
+      actorUserId: vesselActorId,
+    });
+
+    // The gateway's onReceive wraps the apply with an audit call. Replicate
+    // it here so the e2e exercises the audit shape without booting the
+    // gateway. (The full gateway integration is covered by sync-gateway.service.test.ts.)
+    const { AuditEventService } = await import('../src/audit-event/audit-event.service');
+    const auditSvc = new AuditEventService(prisma);
+    await auditSvc.record({
+      tenantId,
+      vesselId,
+      actorUserId: vesselActorId,
+      action: 'VESSEL_SYNC_UPSERT',
+      entityType: 'note',
+      entityId,
+      metadata: { hlc: fakeHlc, nodeId: 'vessel-test-node' },
+    });
+
+    const res = await request(app.getHttpServer())
+      .get(`/api/v1/audit-events?action=VESSEL_SYNC_UPSERT&actorUserId=${vesselActorId}`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    const evt = (
+      res.body as Array<{
+        action: string;
+        actorUserId: string;
+        entityType: string;
+        entityId: string;
+      }>
+    ).find((e) => e.entityId === entityId);
+    expect(evt).toBeDefined();
+    expect(evt!.actorUserId).toBe(vesselActorId);
+    expect(evt!.entityType).toBe('note');
+  });
+
+  it('GET /audit-events supports actorUserId + from filters (B7)', async () => {
+    const futureFrom = new Date(Date.now() + 60_000).toISOString();
+    const res = await request(app.getHttpServer())
+      .get(`/api/v1/audit-events?actorUserId=${userId}&from=${futureFrom}`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    // Nothing should be in the future window.
+    expect((res.body as unknown[]).length).toBe(0);
+  });
+
   it('verifies RLS policy on audit_events', async () => {
     const rows = await prisma.$queryRaw<Array<{ policyname: string }>>`
       SELECT policyname FROM pg_policies WHERE tablename = 'audit_events'

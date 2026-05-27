@@ -37,6 +37,9 @@ export class OutboxRecorder {
     entityType: string,
     entityId: string,
     fields: Record<string, unknown>,
+    // B6: ULID of the user who triggered the change. Defaults to 'system'
+    // for service-internal writes (sync replay, scheduled jobs, dev seeds).
+    actorUserId: string = 'system',
   ): { hlc: string; nodeId: string } {
     const { clock, nodeId } = this.clocks.entryFor(ctx.tenantId, ctx.vesselId);
     const hlcStr = encodeHlc(clock.send());
@@ -47,12 +50,12 @@ export class OutboxRecorder {
     }
 
     tx.run(
-      sql`INSERT INTO outbox (id, entity_type, entity_id, operation, payload, hlc, node_id, sent_at)
+      sql`INSERT INTO outbox (id, entity_type, entity_id, operation, payload, hlc, node_id, actor_user_id, sent_at)
           VALUES (${newId()}, ${entityType}, ${entityId}, 'upsert',
-                  ${JSON.stringify(incoming)}, ${hlcStr}, ${nodeId}, NULL)`,
+                  ${JSON.stringify(incoming)}, ${hlcStr}, ${nodeId}, ${actorUserId}, NULL)`,
     );
 
-    this.mergeIntoSyncRecord(tx, entityType, entityId, hlcStr, incoming, false);
+    this.mergeIntoSyncRecord(tx, entityType, entityId, hlcStr, incoming, false, actorUserId);
 
     return { hlc: hlcStr, nodeId };
   }
@@ -63,17 +66,18 @@ export class OutboxRecorder {
     ctx: { tenantId: string; vesselId: string },
     entityType: string,
     entityId: string,
+    actorUserId: string = 'system',
   ): { hlc: string; nodeId: string } {
     const { clock, nodeId } = this.clocks.entryFor(ctx.tenantId, ctx.vesselId);
     const hlcStr = encodeHlc(clock.send());
 
     tx.run(
-      sql`INSERT INTO outbox (id, entity_type, entity_id, operation, payload, hlc, node_id, sent_at)
+      sql`INSERT INTO outbox (id, entity_type, entity_id, operation, payload, hlc, node_id, actor_user_id, sent_at)
           VALUES (${newId()}, ${entityType}, ${entityId}, 'delete',
-                  NULL, ${hlcStr}, ${nodeId}, NULL)`,
+                  NULL, ${hlcStr}, ${nodeId}, ${actorUserId}, NULL)`,
     );
 
-    this.mergeIntoSyncRecord(tx, entityType, entityId, hlcStr, {}, true);
+    this.mergeIntoSyncRecord(tx, entityType, entityId, hlcStr, {}, true, actorUserId);
 
     return { hlc: hlcStr, nodeId };
   }
@@ -86,6 +90,7 @@ export class OutboxRecorder {
     hlcStr: string,
     incoming: LwwRecord,
     deleted: boolean,
+    actorUserId: string,
   ): void {
     const existing = tx.get<{ fields: string }>(
       sql`SELECT fields FROM sync_records
@@ -97,12 +102,13 @@ export class OutboxRecorder {
 
     const deletedAt = deleted ? new Date().toISOString() : null;
     tx.run(
-      sql`INSERT INTO sync_records (entity_type, entity_id, hlc, deleted_at, fields)
-          VALUES (${entityType}, ${entityId}, ${hlcStr}, ${deletedAt}, ${JSON.stringify(mergedFields)})
+      sql`INSERT INTO sync_records (entity_type, entity_id, hlc, deleted_at, fields, actor_user_id)
+          VALUES (${entityType}, ${entityId}, ${hlcStr}, ${deletedAt}, ${JSON.stringify(mergedFields)}, ${actorUserId})
           ON CONFLICT(entity_type, entity_id) DO UPDATE SET
             hlc = excluded.hlc,
             deleted_at = excluded.deleted_at,
-            fields = excluded.fields`,
+            fields = excluded.fields,
+            actor_user_id = excluded.actor_user_id`,
     );
   }
 }

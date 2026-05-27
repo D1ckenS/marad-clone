@@ -15,12 +15,20 @@ export class AuditEventController {
     @Query('vesselId') vesselId?: string,
     @Query('entityType') entityType?: string,
     @Query('action') action?: string,
+    // B7: filter by actorUserId (the ULID, or the literal 'system' for
+    // service-internal events) and by recordedAt window.
+    @Query('actorUserId') actorUserId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
     @Query('limit') limit?: string,
   ) {
     return this.svc.findAll(auth, {
       ...(vesselId !== undefined && { vesselId }),
       ...(entityType !== undefined && { entityType }),
       ...(action !== undefined && { action }),
+      ...(actorUserId !== undefined && { actorUserId }),
+      ...(from !== undefined && { from }),
+      ...(to !== undefined && { to }),
       ...(limit !== undefined && { limit: parseInt(limit, 10) }),
     });
   }
