@@ -187,4 +187,47 @@ describe('P1-6 inventory API — vessel', () => {
     expect(res.status).toBe(200);
     expect((res.body as { minStock: string }).minStock).toBe('10');
   });
+
+  // H7: round out part-category CRUD on vessel (POST is covered at the top).
+  describe('part-categories: GET-one / PATCH / DELETE', () => {
+    let categoryId: string;
+
+    it('POST creates a fresh category', async () => {
+      const res = await api()
+        .post('/api/v1/part-categories')
+        .set('Authorization', auth())
+        .send({ name: 'Electrical' });
+      expect(res.status).toBe(201);
+      categoryId = (res.body as { id: string }).id;
+    });
+
+    it('GET /:id returns the row', async () => {
+      const res = await api()
+        .get(`/api/v1/part-categories/${categoryId}`)
+        .set('Authorization', auth());
+      expect(res.status).toBe(200);
+      expect((res.body as { name: string }).name).toBe('Electrical');
+    });
+
+    it('PATCH /:id updates name', async () => {
+      const res = await api()
+        .patch(`/api/v1/part-categories/${categoryId}`)
+        .set('Authorization', auth())
+        .send({ name: 'Electrical (revised)' });
+      expect(res.status).toBe(200);
+      expect((res.body as { name: string }).name).toBe('Electrical (revised)');
+    });
+
+    it('DELETE /:id soft-deletes', async () => {
+      const removed = await api()
+        .delete(`/api/v1/part-categories/${categoryId}`)
+        .set('Authorization', auth());
+      expect(removed.status).toBe(204);
+
+      const afterDelete = await api()
+        .get(`/api/v1/part-categories/${categoryId}`)
+        .set('Authorization', auth());
+      expect(afterDelete.status).toBe(404);
+    });
+  });
 });

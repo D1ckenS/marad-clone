@@ -211,4 +211,128 @@ describe('P1-6 inventory API — shore', () => {
     expect(res.status).toBe(200);
     expect((res.body as { reorderPoint: string }).reorderPoint).toBe('8');
   });
+
+  // H7: round out PartCategory CRUD coverage (POST is covered above).
+  describe('part-categories: GET-one / PATCH / DELETE', () => {
+    let categoryId: string;
+
+    it('POST /part-categories — fixture for the rest of the suite', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/part-categories')
+        .set(auth())
+        .send({ name: 'Electrical', description: 'Wiring + boards' });
+      expect(res.status).toBe(201);
+      categoryId = (res.body as { id: string }).id;
+    });
+
+    it('GET /part-categories/:id returns the row', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/part-categories/${categoryId}`)
+        .set(auth());
+      expect(res.status).toBe(200);
+      expect((res.body as { name: string }).name).toBe('Electrical');
+    });
+
+    it('PATCH /part-categories/:id updates name + description', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/api/v1/part-categories/${categoryId}`)
+        .set(auth())
+        .send({ name: 'Electrical (revised)', description: 'Wiring, boards, sensors' });
+      expect(res.status).toBe(200);
+      expect((res.body as { name: string }).name).toBe('Electrical (revised)');
+    });
+
+    it('DELETE /part-categories/:id soft-deletes', async () => {
+      const removed = await request(app.getHttpServer())
+        .delete(`/api/v1/part-categories/${categoryId}`)
+        .set(auth());
+      expect(removed.status).toBe(204);
+
+      const afterDelete = await request(app.getHttpServer())
+        .get(`/api/v1/part-categories/${categoryId}`)
+        .set(auth());
+      expect(afterDelete.status).toBe(404);
+    });
+  });
+});
+
+// H7: cross-tenant RLS isolation matrix. The existing meta-test in
+// `deferred-stub-schemas.e2e.ts:419` proves policies EXIST on the 12 stub
+// tables, but it doesn't prove a leak isn't possible across tenants. This
+// covers PartCategory as a representative tenant-scoped catalog — same RLS
+// pattern protects every other tenant-scoped table.
+describe('RLS — cross-tenant isolation on part-categories (H7)', () => {
+  const otherTenantId = ulid();
+  const otherUserId = ulid();
+  let otherToken = '';
+  let categoryInTenantA = '';
+
+  beforeAll(async () => {
+    const hash = await bcrypt.hash('TestP@ss!1', 12);
+    await prisma.tenant.create({ data: { id: otherTenantId, name: 'inv-rls-other-tenant' } });
+    await prisma.withTenant(otherTenantId, async (tx) => {
+      await tx.user.create({
+        data: {
+          id: otherUserId,
+          tenantId: otherTenantId,
+          email: 'other@shore.test',
+          passwordHash: hash,
+          role: 'TENANT_ADMIN',
+        },
+      });
+    });
+    const loginRes = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ tenantId: otherTenantId, identifier: 'other@shore.test', password: 'TestP@ss!1' });
+    otherToken = (loginRes.body as { access_token: string }).access_token;
+
+    // Seed a category in the *original* tenant (token = tenant A).
+    const created = await request(app.getHttpServer())
+      .post('/api/v1/part-categories')
+      .set({ Authorization: `Bearer ${token}` })
+      .send({ name: 'Tenant-A-only category' });
+    categoryInTenantA = (created.body as { id: string }).id;
+  });
+
+  afterAll(async () => {
+    await prisma
+      .withTenant(otherTenantId, async (tx) => {
+        await tx.user.deleteMany({ where: { tenantId: otherTenantId } });
+      })
+      .catch(() => null);
+    await prisma.tenant.deleteMany({ where: { id: otherTenantId } }).catch(() => null);
+  });
+
+  it('list from tenant B does not include tenant A rows', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/part-categories')
+      .set({ Authorization: `Bearer ${otherToken}` });
+    expect(res.status).toBe(200);
+    expect(
+      (res.body as { id: string }[]).some((r) => r.id === categoryInTenantA),
+      'tenant B leaked tenant A category in list',
+    ).toBe(false);
+  });
+
+  it('GET /part-categories/:id (other tenant id) returns 404, not 403/200', async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/api/v1/part-categories/${categoryInTenantA}`)
+      .set({ Authorization: `Bearer ${otherToken}` });
+    expect(res.status).toBe(404);
+  });
+
+  it('PATCH /part-categories/:id (other tenant id) returns 404', async () => {
+    const res = await request(app.getHttpServer())
+      .patch(`/api/v1/part-categories/${categoryInTenantA}`)
+      .set({ Authorization: `Bearer ${otherToken}` })
+      .send({ name: 'malicious rename' });
+    expect(res.status).toBe(404);
+  });
+
+  it('DELETE /part-categories/:id (other tenant id) returns 404', async () => {
+    const res = await request(app.getHttpServer())
+      .delete(`/api/v1/part-categories/${categoryInTenantA}`)
+      .set({ Authorization: `Bearer ${otherToken}` });
+    expect(res.status).toBe(404);
+  });
 });

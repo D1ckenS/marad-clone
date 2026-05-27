@@ -177,6 +177,56 @@ describe('P2-4 Crewing API — shore', () => {
     expect((listRes.body as unknown[]).length).toBe(7);
   });
 
+  // H7: round out rest-hour-entry CRUD coverage (POST + list GET were
+  // already covered above; this adds GET-one / PATCH / DELETE).
+  it('GET /rest-hour-entries/:id returns the row', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/api/v1/rest-hour-entries')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ vesselId, crewMemberId, date: '2026-02-01', hoursWorkedJson: VALID_HOURS });
+    expect(created.status).toBe(201);
+    const id = (created.body as { id: string }).id;
+
+    const fetched = await request(app.getHttpServer())
+      .get(`/api/v1/rest-hour-entries/${id}`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(fetched.status).toBe(200);
+    expect((fetched.body as { id: string }).id).toBe(id);
+  });
+
+  it('PATCH /rest-hour-entries/:id updates notes', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/api/v1/rest-hour-entries')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ vesselId, crewMemberId, date: '2026-02-02', hoursWorkedJson: VALID_HOURS });
+    const id = (created.body as { id: string }).id;
+
+    const patched = await request(app.getHttpServer())
+      .patch(`/api/v1/rest-hour-entries/${id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ notes: 'Manual correction by master' });
+    expect(patched.status).toBe(200);
+    expect((patched.body as { notes: string }).notes).toBe('Manual correction by master');
+  });
+
+  it('DELETE /rest-hour-entries/:id soft-deletes', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/api/v1/rest-hour-entries')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ vesselId, crewMemberId, date: '2026-02-03', hoursWorkedJson: VALID_HOURS });
+    const id = (created.body as { id: string }).id;
+
+    const removed = await request(app.getHttpServer())
+      .delete(`/api/v1/rest-hour-entries/${id}`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(removed.status).toBe(204);
+
+    const afterDelete = await request(app.getHttpServer())
+      .get(`/api/v1/rest-hour-entries/${id}`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(afterDelete.status).toBe(404);
+  });
+
   // ── CrewCertificate ────────────────────────────────────────────────────────
 
   it('creates a CrewCertificate (STCW II/1)', async () => {

@@ -178,4 +178,61 @@ describe('P2-4 Crewing API — vessel', () => {
       .all();
     expect(entries.length).toBeGreaterThan(0);
   });
+
+  // H7: round out rest-hour-entry CRUD coverage on vessel.
+  // POST + 400-on-violation are covered above; this adds list/GET/PATCH/DELETE.
+  describe('rest-hour-entries: list / GET-one / PATCH / DELETE', () => {
+    let entryId: string;
+
+    it('GET /rest-hour-entries lists entries for the crew member', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/rest-hour-entries?crewMemberId=${crewMemberId}`)
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      const rows = res.body as { id: string }[];
+      expect(rows.length).toBeGreaterThan(0);
+      entryId = rows[0]!.id;
+    });
+
+    it('GET /rest-hour-entries/:id returns the row', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/rest-hour-entries/${entryId}`)
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      expect((res.body as { id: string }).id).toBe(entryId);
+    });
+
+    it('PATCH /rest-hour-entries/:id updates notes', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/api/v1/rest-hour-entries/${entryId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ notes: 'master correction' });
+      expect(res.status).toBe(200);
+      expect((res.body as { notes: string }).notes).toBe('master correction');
+    });
+
+    it('DELETE /rest-hour-entries/:id soft-deletes', async () => {
+      // create a fresh entry on a different date so we don't poison the rolling MLC window
+      const created = await request(app.getHttpServer())
+        .post('/api/v1/rest-hour-entries')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          vesselId: ctx.vesselId,
+          crewMemberId,
+          date: '2026-02-10',
+          hoursWorkedJson: VALID_HOURS,
+        });
+      const id = (created.body as { id: string }).id;
+
+      const removed = await request(app.getHttpServer())
+        .delete(`/api/v1/rest-hour-entries/${id}`)
+        .set('Authorization', `Bearer ${token}`);
+      expect(removed.status).toBe(204);
+
+      const afterDelete = await request(app.getHttpServer())
+        .get(`/api/v1/rest-hour-entries/${id}`)
+        .set('Authorization', `Bearer ${token}`);
+      expect(afterDelete.status).toBe(404);
+    });
+  });
 });
