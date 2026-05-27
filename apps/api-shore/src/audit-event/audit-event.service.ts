@@ -77,15 +77,22 @@ export class AuditEventService {
       ),
     ]);
 
-    // Verify the immutability trigger is present in the DB
+    // Verify both immutability triggers are present in the DB. The UPDATE
+    // trigger is `job_histories_immutable` (added with the maintenance
+    // schema); the DELETE trigger is `job_histories_no_delete` (B8).
+    // Both must be present for the evidence pack to claim the record is
+    // truly tamper-proof.
     const triggerRows = await this.prisma.$queryRaw<Array<{ trigger_name: string }>>`
       SELECT trigger_name
       FROM information_schema.triggers
       WHERE trigger_schema = 'public'
         AND event_object_table = 'job_histories'
-        AND trigger_name = 'job_histories_immutable'
+        AND trigger_name IN ('job_histories_immutable', 'job_histories_no_delete')
     `;
-    const triggerVerified = triggerRows.length > 0;
+    const triggerNames = triggerRows.map((r) => r.trigger_name);
+    const updateTriggerPresent = triggerNames.includes('job_histories_immutable');
+    const deleteTriggerPresent = triggerNames.includes('job_histories_no_delete');
+    const triggerVerified = updateTriggerPresent && deleteTriggerPresent;
 
     const periodStart = jobHistories.at(-1)?.completedAt ?? null;
     const periodEnd = jobHistories.at(0)?.completedAt ?? null;
@@ -95,11 +102,13 @@ export class AuditEventService {
       standard: 'DNV CG-0339',
       vessel: vessel ?? { id: vesselId },
       immutabilityVerification: {
-        trigger: 'job_histories_immutable',
+        trigger: 'job_histories_immutable + job_histories_no_delete',
         table: 'job_histories',
         description:
           'BEFORE UPDATE OR DELETE trigger raises EXCEPTION on any attempt to modify or remove a JobHistory row, ensuring the maintenance completion record is permanently immutable.',
         verified: triggerVerified,
+        updateTriggerPresent,
+        deleteTriggerPresent,
       },
       summary: {
         totalJobsCompleted: jobHistories.length,

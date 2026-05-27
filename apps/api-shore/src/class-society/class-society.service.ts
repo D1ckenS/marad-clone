@@ -238,7 +238,8 @@ export class ClassSocietyService {
     // DNV CG-0339 format; also used as the base for other societies
     const record = {
       standard: society === 'DNV' ? 'DNV CG-0339' : `${society} PMS Evidence`,
-      immutabilityMechanism: 'database_trigger_job_histories_immutable',
+      immutabilityMechanism:
+        'database_triggers_job_histories_immutable_and_job_histories_no_delete',
       summary: { totalJobs: jobHistories.length, totalAuditEvents: auditEvents.length },
       jobHistories: jobHistories.map((h) => ({
         id: h.id,
