@@ -2395,3 +2395,28 @@ model SyncRecord {
   @@id([tenantId, vesselId, entityType, entityId])
   @@map("sync_records")
 }
+
+// ── RefreshTokenSession (H5) ──────────────────────────────────────────────────
+// One row per minted refresh token. Refresh now uses rotate-on-use: the old
+// jti's row gets `revoked_at` stamped and a new row is inserted. Presenting
+// a revoked jti is treated as reuse — the wholesale-revoke path stamps all
+// of that user's outstanding rows so an attacker holding a stolen refresh
+// token loses access immediately.
+
+model RefreshTokenSession {
+  jti           String    @id @db.VarChar(26)
+  // Nullable so SUPER_ADMIN sessions (tenantId = null) fit. RLS lets the
+  // super-admin bypass ('') read all rows; tenant admins only see their
+  // own tenant's. Super-admin rows are hidden from any non-empty tenant
+  // context — intentional, since tenant admins can't revoke a super-admin.
+  tenantId      String?   @map("tenant_id")
+  userId        String    @map("user_id")
+  expiresAt     DateTime  @map("expires_at")
+  revokedAt     DateTime? @map("revoked_at")
+  revokedReason String?   @map("revoked_reason")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@map("refresh_token_sessions")
+}

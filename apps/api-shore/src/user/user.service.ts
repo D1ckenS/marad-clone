@@ -60,6 +60,30 @@ export class UserService {
     return user;
   }
 
+  /** Looks up a user by id within a tenant. Throws on miss. */
+  async findByIdInTenant(tenantId: string, id: string) {
+    const user = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.user.findFirst({ where: { id, tenantId, deletedAt: null } }),
+    );
+    if (!user) throw new NotFoundException(`User ${id} not found`);
+    return user;
+  }
+
+  /**
+   * Cross-tenant id lookup using the RLS bypass. Used by SUPER_ADMIN-only
+   * paths (the global session-revoke endpoint, for example). Returns the
+   * row including its tenantId (which may be null for another super-admin).
+   */
+  async findByIdGlobal(id: string) {
+    const user = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = ''`);
+      await tx.$executeRawUnsafe(`SET LOCAL app.tenant_id = ''`);
+      return tx.user.findFirst({ where: { id, deletedAt: null } });
+    });
+    if (!user) throw new NotFoundException(`User ${id} not found`);
+    return user;
+  }
+
   /** Looks up a user by email OR username within a tenant. */
   async findByIdentifier(tenantId: string, identifier: string) {
     const user = await this.prisma.withTenant(tenantId, (tx) =>

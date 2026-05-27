@@ -1,8 +1,10 @@
 import { newId } from '@fleetops/domain';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import type { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { AuditEventService } from '../audit-event/audit-event.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { UserService } from '../user/user.service';
 
 export type JwtPayload = {
@@ -15,9 +17,15 @@ export type JwtPayload = {
   lastName?: string;
   role: string;
   type: 'access' | 'refresh';
+  jti?: string; // populated by jsonwebtoken when jwtid is set on sign()
 };
 
-const ACCESS_TTL_MS = Number(process.env['JWT_ACCESS_TTL_MS'] ?? 24 * 60 * 60 * 1000);
+// H5: 15 min default for access tokens now that refresh-token rotation
+// is in place — short window contains the blast radius if an access
+// token leaks. Refresh tokens stay at 30 days; rotation makes them
+// individually revokable, so a leaked one becomes useless on the next
+// rotate-on-use cycle (or via the admin revoke endpoint).
+const ACCESS_TTL_MS = Number(process.env['JWT_ACCESS_TTL_MS'] ?? 15 * 60 * 1000);
 const REFRESH_TTL_MS = Number(process.env['JWT_REFRESH_TTL_MS'] ?? 30 * 24 * 60 * 60 * 1000);
 
 export type LoginResult = {
@@ -29,10 +37,13 @@ export type LoginResult = {
 
 @Injectable()
 export class AuthService {
+  private readonly log = new Logger(AuthService.name);
+
   constructor(
     private readonly users: UserService,
     private readonly jwt: JwtService,
     private readonly audit: AuditEventService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async login(tenantId: string | null, identifier: string, password: string): Promise<LoginResult> {
@@ -98,11 +109,101 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException('User no longer exists');
     }
+
+    // H5: rotate-on-use. Look up the jti's session row.
+    //  - If revoked (`revoked_at` set) → reuse detected. Wholesale-revoke
+    //    every outstanding row for this user and refuse the refresh. An
+    //    attacker holding a stolen refresh token loses access on the next
+    //    legitimate user's refresh, regardless of which side replays first.
+    //  - If missing → backward-compat: token was minted before H5 landed.
+    //    Allow the rotate so the new row is created (the new token enters
+    //    the tracked pool).
+    //  - If valid → mark revoked, mint new pair (which inserts the new
+    //    row), return tokens.
+    const jti = payload.jti;
+    if (jti) {
+      const existing = await this.withSessionTenant(user.tenantId, (tx) =>
+        tx.refreshTokenSession.findUnique({ where: { jti } }),
+      );
+      if (existing !== null && existing.revokedAt !== null) {
+        this.log.warn(
+          `refresh-token reuse detected for user ${user.id} (jti=${jti}); wholesale-revoking`,
+        );
+        await this.revokeAllSessions(user.tenantId, user.id, 'REUSE_DETECTED').catch(
+          () => undefined,
+        );
+        if (user.tenantId !== null) {
+          await this.recordAuthEvent(user.tenantId, user.id, 'REFRESH_REUSE_DETECTED').catch(
+            () => undefined,
+          );
+        }
+        throw new UnauthorizedException(
+          'Refresh token has been revoked. All sessions for this user have been terminated.',
+        );
+      }
+      if (existing !== null && existing.revokedAt === null) {
+        await this.withSessionTenant(user.tenantId, (tx) =>
+          tx.refreshTokenSession.update({
+            where: { jti },
+            data: { revokedAt: new Date(), revokedReason: 'ROTATED' },
+          }),
+        );
+      }
+    }
+
     // B7: record the refresh as part of the session lifecycle audit.
     if (user.tenantId !== null) {
       await this.recordAuthEvent(user.tenantId, user.id, 'TOKEN_REFRESH').catch(() => undefined);
     }
     return this.issueTokens(user);
+  }
+
+  /**
+   * H5: mark every outstanding refresh-token session for this user as
+   * revoked. Called from the admin revoke endpoint and from the reuse-
+   * detection path in refresh().
+   */
+  async revokeAllSessions(
+    tenantId: string | null,
+    userId: string,
+    reason: string,
+  ): Promise<{ revokedCount: number }> {
+    const res = await this.withSessionTenant(tenantId, (tx) =>
+      tx.refreshTokenSession.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date(), revokedReason: reason },
+      }),
+    );
+    if (tenantId !== null) {
+      await this.audit
+        .record({
+          tenantId,
+          actorUserId: userId,
+          action: 'SESSIONS_REVOKED',
+          entityType: 'User',
+          entityId: userId,
+          metadata: { reason, revokedCount: res.count },
+        })
+        .catch(() => undefined);
+    }
+    return { revokedCount: res.count };
+  }
+
+  /**
+   * RLS-aware helper. Super-admin sessions live with tenantId=null and need
+   * the `'' bypass` to read/write. Tenant users go through the normal
+   * withTenant() path.
+   */
+  private withSessionTenant<T>(
+    tenantId: string | null,
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    if (tenantId !== null) return this.prisma.withTenant(tenantId, fn);
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = ''`);
+      await tx.$executeRawUnsafe(`SET LOCAL app.tenant_id = ''`);
+      return fn(tx);
+    });
   }
 
   /**
@@ -140,14 +241,36 @@ export class AuthService {
       role: user.role,
     };
 
+    const refreshJti = newId();
     const access_token = this.jwt.sign(
       { ...base, type: 'access' as const },
       { expiresIn: Math.floor(ACCESS_TTL_MS / 1000), jwtid: newId() },
     );
     const refresh_token = this.jwt.sign(
       { ...base, type: 'refresh' as const },
-      { expiresIn: Math.floor(REFRESH_TTL_MS / 1000), jwtid: newId() },
+      { expiresIn: Math.floor(REFRESH_TTL_MS / 1000), jwtid: refreshJti },
     );
+
+    // H5: track the new refresh-token session so we can revoke it later.
+    // Fire-and-forget — if the insert fails (DB blip, RLS quirk for an
+    // exotic role) the user still gets working tokens, they're just not
+    // individually revokable until the next rotate succeeds.
+    void this.withSessionTenant(user.tenantId, (tx) =>
+      tx.refreshTokenSession.create({
+        data: {
+          jti: refreshJti,
+          tenantId: user.tenantId,
+          userId: user.id,
+          expiresAt: new Date(Date.now() + REFRESH_TTL_MS),
+        },
+      }),
+    ).catch((err) => {
+      this.log.warn(
+        `failed to insert refresh_token_session for user ${user.id}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    });
 
     return {
       access_token,
