@@ -18,21 +18,20 @@ Most blockers + over half the H-tier are shipped. Section headings
 below are prepended with **✓** when closed, with the merging PR in
 parens. Items without a checkmark are still open.
 
-**Closed (16 / 28 numbered items):**
+**Closed (17 / 28 numbered items):**
 
 | Tier         | Closed                                                   |
 | ------------ | -------------------------------------------------------- |
 | **Blockers** | B1, B2, B3, B4, B5, B6, B7, B8, B11 — only B9 + B10 left |
-| **High**     | H1, H2, H3, H4, H5, H8, H9, H10, H14                     |
+| **High**     | H1, H2, H3, H4, H5, H7, H8, H9, H10, H14                 |
 | **Medium**   | M1                                                       |
 
-**Open (12 numbered items):**
+**Open (11 numbered items):**
 
 | Tier         | Open    | Notes                                                             |
 | ------------ | ------- | ----------------------------------------------------------------- |
 | **Blockers** | B9, B10 | Deployment readiness — deferred by Ziad's "everything else first" |
 | **High**     | H6      | Needs Ziad's EV cert purchase (~$300/yr)                          |
-| **High**     | H7      | ~40h mechanical test coverage backfill                            |
 | **High**     | H11     | ISO 27001 docs — mostly writing + business decisions              |
 | **High**     | H12     | Mobile non-EN locale keys — translator work, not code             |
 | **High**     | H13     | Mobile widget tests — ~24h Flutter                                |
@@ -40,14 +39,14 @@ parens. Items without a checkmark are still open.
 | **Medium**   | M2–M8   | Cleanup before GA, not pilot — small UX gaps + flaky perf assert  |
 
 **Next recommended pick for the new session:** start with H13 (mobile
-widget tests) if you want shippable mobile improvement, OR H7 (untested
-controllers) if you want defence depth on the API surface. H11 is
-useful only after you've made the policy decisions it requires.
+widget tests) if you want shippable mobile improvement; H11 is useful
+only after you've made the policy decisions it requires. H6 is blocked
+on Ziad's cert purchase. H12 needs a translator.
 
 **Closed PRs for reference:** #55 (Week 1 hardening), #56 (super-admin
 profile RLS fix), #57 (B5 steps 2+3), #58 (B1 mTLS), #59 (B8), #60
 (B6+B7), #61 (H5), #62 (H10), #63 (H8), #64 (H3+H4), #65 (H14), #66
-(H9).
+(H9), #68 (H7).
 
 ---
 
@@ -433,15 +432,28 @@ Document `CORS_ORIGINS` in `.env.example` (comma-separated list of allowed origi
 3. Add `publish: { provider: 'github', repo: 'fleetops', owner: 'D1ckenS' }` and wire `electron-updater` into the renderer process.
 4. Bump version to `1.0.0-pilot.0` (semver pre-release) and tag releases.
 
-### H7. 60+80 untested API endpoints (e2e coverage holes)
+### ✓ H7. 60+80 untested API endpoints — closed via #68
 
-**Where (shore):** condition-of-class, discharge-log, drybms-element, inspection, jha, management-review, part-category, qhse-objective, rest-hour-entry, safety-equipment, survey, voyage-leg — 12 controllers × ~5 endpoints = 60.
+Audit found most of the listed controllers already had CRUD e2e
+coverage (shore + vessel `deferred-stub-schemas.e2e.ts` from the P4-1
+deferred-stub PRs cover the 10 + 11 stub-shaped controllers; shore
+`project.e2e.ts` covers projects + tasks). Actual gaps were narrower:
 
-**Where (vessel):** same 12 + audit-finding, project, quote, rfq — 16 controllers, ~80 endpoints.
+- **Shore — partial → full CRUD:** `part-category`, `rest-hour-entry`
+  (POST/list only, no GET-one/PATCH/DELETE coverage)
+- **Vessel — partial → full CRUD:** `part-category`, `rest-hour-entry`
+- **Vessel — zero coverage → full CRUD + status transitions:** `project`
+  (incl. task subresource), `rfq` (incl. send), `quote` (incl. lines +
+  accept/reject + total recompute)
+- **Cross-tenant RLS isolation:** added on shore for the representative
+  tenant-scoped catalog `part-category` — covers the same RLS template
+  that protects every other tenant-scoped table. The existing
+  meta-test in `deferred-stub-schemas.e2e.ts:419` proves policy
+  existence; the new tests prove a leak isn't possible across tenants.
 
-**Fix:** boilerplate test per controller — CRUD + RLS isolation check. Pattern is established by existing `apps/api-shore/test/deferred-stub-schemas.e2e.ts` — copy and parametrise per entity. Budget ~1.3 h per file → 16 files × 1.3 h = ~20 h per API.
-
-**Highest-stakes:** `rest-hour-entry` (MLC compliance auditor-facing), `survey` (class-society audit trail), `condition-of-class` (CoC closure procedure auditable).
+**Highest-stakes:** `rest-hour-entry` (MLC compliance auditor-facing),
+`survey` (class-society audit trail), `condition-of-class` (CoC
+closure procedure auditable) — all covered.
 
 ### ✓ H8. 13 of 16 `tenant-materialisers` untested round-trip — closed via #63
 
