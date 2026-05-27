@@ -18,15 +18,15 @@ Most blockers + over half the H-tier are shipped. Section headings
 below are prepended with **✓** when closed, with the merging PR in
 parens. Items without a checkmark are still open.
 
-**Closed (17 / 28 numbered items):**
+**Closed (18 / 28 numbered items):**
 
 | Tier         | Closed                                                   |
 | ------------ | -------------------------------------------------------- |
 | **Blockers** | B1, B2, B3, B4, B5, B6, B7, B8, B11 — only B9 + B10 left |
-| **High**     | H1, H2, H3, H4, H5, H7, H8, H9, H10, H14                 |
+| **High**     | H1, H2, H3, H4, H5, H7, H8, H9, H10, H14, H15            |
 | **Medium**   | M1                                                       |
 
-**Open (11 numbered items):**
+**Open (10 numbered items):**
 
 | Tier         | Open    | Notes                                                             |
 | ------------ | ------- | ----------------------------------------------------------------- |
@@ -35,18 +35,18 @@ parens. Items without a checkmark are still open.
 | **High**     | H11     | ISO 27001 docs — mostly writing + business decisions              |
 | **High**     | H12     | Mobile non-EN locale keys — translator work, not code             |
 | **High**     | H13     | Mobile widget tests — ~24h Flutter                                |
-| **High**     | H15     | Mobile QR pairing UX — ~1d                                        |
 | **Medium**   | M2–M8   | Cleanup before GA, not pilot — small UX gaps + flaky perf assert  |
 
-**Next recommended pick for the new session:** start with H13 (mobile
-widget tests) if you want shippable mobile improvement; H11 is useful
-only after you've made the policy decisions it requires. H6 is blocked
-on Ziad's cert purchase. H12 needs a translator.
+**Next recommended pick for the new session:** H13 (mobile widget
+tests) is the last autonomous big-ticket — ~24 h Flutter, multi-session.
+After that, the only remaining autonomous batch is M2–M8 (small UX
+gaps). H11 needs Ziad's policy decisions; H6 needs his cert purchase;
+H12 needs a translator.
 
 **Closed PRs for reference:** #55 (Week 1 hardening), #56 (super-admin
 profile RLS fix), #57 (B5 steps 2+3), #58 (B1 mTLS), #59 (B8), #60
 (B6+B7), #61 (H5), #62 (H10), #63 (H8), #64 (H3+H4), #65 (H14), #66
-(H9), #68 (H7).
+(H9), #68 (H7), #69 (H15).
 
 ---
 
@@ -517,11 +517,16 @@ closure procedure auditable) — all covered.
 - Runs `pnpm run soak:sync` (sync soak test)
 - Reports to Slack/email on failure
 
-### H15. Mobile `api_client.dart` hardcoded LAN default
+### ✓ H15. Mobile `api_client.dart` hardcoded LAN default — closed via #69
 
-**Where:** `apps/mobile/lib/services/api_client.dart:18` — `baseUrl = 'http://localhost:3001'`. Still open from `mobile_fixes.md` §3d.
-
-**Fix:** EITHER drop the default (force user through "Advanced > Vessel API URL" on first launch) OR build a QR-pairing flow (the vessel SPA renders a QR; mobile scans it → URL + tenantId in one go). The QR approach is significantly better UX.
+Did both — dropped the hardcoded default _and_ built the QR-pairing
+flow. Tenant admin opens `/mobile-pair` on the vessel laptop SPA;
+crew taps "Scan pairing QR" on mobile login → `baseUrl` and
+`tenantId` fill in one tap. Manual entry (Advanced > Vessel API URL)
+remains as a fallback for vessels where the laptop isn't reachable.
+Payload is a versioned JSON envelope with a `kind` guard, parsed by a
+pure Dart function with 13 unit tests covering schema/format edge
+cases.
 
 ---
 

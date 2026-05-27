@@ -8,6 +8,19 @@
 
 > Most-recent first. Format: `### YYYY-MM-DD — <task> — <summary>` then bullets.
 
+### 2026-05-27 — H15 — mobile QR pairing replaces hardcoded LAN default
+
+| Item             | Detail                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Scope**        | Closes H15 from `production_readiness_plan.md`. The mobile login screen no longer ships with the broken `localhost:3001` / `192.168.1.1:3001` default (`mobile_fixes.md` §3d). Operator opens `/mobile-pair` on the vessel laptop SPA, crew taps "Scan pairing QR" on the mobile login → both `baseUrl` and `tenantId` fill in one tap.                                                                                                                                                                                                                                                                                                           |
+| **Payload**      | Small JSON envelope `{v:1, kind:'fleetops-vessel-pairing', baseUrl, tenantId}`. `kind` guards against accidentally interpreting any other app's pairing JSON; `v` lets future schema bumps cleanly reject older mobile builds. Web-side `buildPairingPayload` in MobilePairPage.tsx and Dart-side `parsePairingPayload` in pairing_payload.dart must stay in sync — change either and the round-trip test catches it.                                                                                                                                                                                                                             |
+| **Web SPA**      | New `MobilePairPage.tsx` at `/mobile-pair`, gated to `TENANT_ADMIN` via existing `VESSEL_ADMIN_ROLES`. Renders the QR via `qrcode.react@^3.2.0` (3.x for React-18 compatibility; 4.x pulled @types/react@19 and conflicted with the rest of the workspace). Sidebar nav entry "Mobile pairing" alongside Vessels / Integrations. baseUrl defaulted to the current page's host on port 3001 (api-vessel's conventional port); operator can override. Manual-entry `<details>` block exposes the plain-text values for the bring-your-own-keyboard fallback.                                                                                        |
+| **Mobile**       | New `PairingScanScreen` (separate from `BarcodeScanScreen` because it doesn't hit the API at all and filters to `BarcodeFormat.qrCode` only — a stray inventory barcode shouldn't populate the login form). Pure `parsePairingPayload` in `services/pairing_payload.dart` returns `PairingPayload?` — null triggers a snackbar + the scanner stays open for retry. Login screen drops the hardcoded default, adds a "Scan pairing QR" outlined button above the tenant field, and now refuses submit with a clear "Vessel API URL required" snackbar (+ auto-expands Advanced) instead of letting the operator fight an obscure connection error. |
+| **i18n**         | Web: nav key `nav.mobile_pair` added to all 8 locales (en/ar/de/el/nl/ru/tl/zh); the new `mobile_pair.*` content block lives in en.json only — the other 7 fall back to EN per known M3 gap. Mobile: `auth.scan_pairing_qr` / `auth.pairing_qr_loaded` / `auth.api_url_required` + the `pairing_scan.*` block added to en.json, ar.json, de.json (the 5 fall-back locales remain per known H12 gap).                                                                                                                                                                                                                                              |
+| **Tests**        | 13 new Dart unit tests in `pairing_payload_test.dart`: happy path, https, whitespace trim, empty input, non-JSON, wrong kind, wrong v, missing fields, empty-after-trim, non-http(s) schemes (ftp, javascript), empty host, JSON arrays, PairingPayload equality. Workspace unit: 180 ✓ (web-shore has no JS unit-test setup — UI is exercised via Playwright per CLAUDE.md §6, so the round-trip contract is anchored by the Dart parser test).                                                                                                                                                                                                  |
+| **Verification** | `pnpm -w run ci:full` ✓ (180 unit, format, guard). web-shore `typecheck` ✓, `build` ✓. Flutter SDK not installed on this dev box; mobile analyze + test will run in the dedicated CI `mobile` job.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| **Out of scope** | Translator pass for the other 5 mobile locales + 7 web locales — flagged as M3 (web) and H12 (mobile) and tracked there. Auto-pair via Bluetooth or BLE beacon (Phase-5+ idea). Pairing-QR with embedded JWT for one-tap login (would require provisioning workflow on shore, larger scope).                                                                                                                                                                                                                                                                                                                                                      |
+
 ### 2026-05-27 — H7 — controller CRUD coverage backfill
 
 | Item             | Detail                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -848,19 +861,19 @@ Large batch of UI work implementing the Bearing design system across all Phase 1
 
 **Shore → vessel tenant-broadcast sync complete (2026-05-24).** Office writes for all 16 tenant-scoped catalogs (MasterComponent, Jha, QhseObjective, DrybmsElement, ManagementReview, Supplier, ApprovalFlow, ApprovalStep, CertificateType, DrillType, PermitTemplate, ChecklistTemplate, QhseDocument, DocumentRevision, PartCategory, FuelProduct) now propagate to every vessel. `TenantBroadcastRecorder` fans out per vessel; vessel materialiser registry projects sync_records into the real entity tables. Vessel: 150 ✓ (18 files, +7). See ADR 0004.
 
-Next: **H13 (mobile widget tests)** — production_readiness_plan.md
-H7 closed via #68. Pick H13 for shippable mobile defence-in-depth
-coverage (~24 h Flutter work, 8 critical screens). Alternatives still
-open: H11 (ISO 27001 docs — mostly policy writing, needs Ziad's input
-on SIEM/pen-test vendor first), H6 (Electron signing — blocked on
-Ziad's EV cert purchase ~$300/yr), H12 (mobile non-EN locale keys —
-needs translator), H15 (mobile QR pairing — ~1 d). B9 + B10
-(deployment readiness) explicitly deferred by Ziad's "everything else
-first". §17 open questions (hosting target, pilot vessel, code-signing
-cert) still need Ziad. Also: catalog the new `auth-revocation.e2e.ts`
-intermittent flake alongside the `budget-fleetview.e2e.ts` warm-path
-flake — both pass in isolation, both fail occasionally under full-suite
-parallelism.
+Next: **H13 (mobile widget tests)** — H7 closed via #68 and H15 via
+#69. With H15 done, the cleanly-autonomous picks left are: H13 (golden
+
+- widget tests for 8 critical mobile screens, ~24 h Flutter, multi-
+  session), or batch the **M2–M8 cleanup** (small UX gaps + the docs-
+  only M7 + the flaky-perf M8 — tractable in one session). Blocked /
+  external: H11 (ISO 27001 — needs Ziad's SIEM + pen-test vendor
+  decisions), H6 (Electron signing — blocked on EV cert ~$300/yr), H12
+  (mobile non-EN locales — translator work). B9 + B10 explicitly
+  deferred. §17 open questions (hosting target, pilot vessel, cert)
+  still need Ziad. Also catalog the `auth-revocation.e2e.ts` intermittent
+  flake alongside the `budget-fleetview.e2e.ts` warm-path flake — both
+  pass in isolation, both fail occasionally under full-suite parallelism.
 
 **Outstanding follow-up tickets (deferred, not blocking P1-4):**
 
