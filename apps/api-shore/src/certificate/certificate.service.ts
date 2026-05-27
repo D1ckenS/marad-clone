@@ -2,6 +2,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { newId } from '@fleetops/domain';
 import type { AuthContext } from '../auth/auth-context';
+import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import type { CreateCertificateDto } from './dto/create-certificate.dto';
@@ -16,6 +17,7 @@ export class CertificateService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly mail: MailService,
   ) {}
 
   create(auth: AuthContext, dto: CreateCertificateDto) {
@@ -130,8 +132,14 @@ export class CertificateService {
   /**
    * Check all certificates in the tenant and create in-app Notification records
    * for any that are expiring within a configured alert threshold (default 90/60/30/7).
-   * Skips if a notification for the same (certId, daysRemaining bucket) was already
-   * created today. Logs email notifications (stubbed — SMTP wired in P5).
+   * Skips if a notification for the same (certId, daysRemaining bucket) has
+   * already been created.
+   *
+   * H10: each newly-created notification triggers a templated email to every
+   * TENANT_ADMIN of the tenant via MailService. When SMTP is unconfigured the
+   * mail service logs the envelope instead of sending — replacing the
+   * earlier EMAIL_STUB log line one-for-one but on a path that turns into
+   * real email the moment SMTP_* env vars are set.
    */
   async checkExpiry(auth: AuthContext): Promise<{ notificationsCreated: number }> {
     const now = new Date();
@@ -148,6 +156,10 @@ export class CertificateService {
     );
 
     let notificationsCreated = 0;
+    // Resolve admin recipients once — even when there's no work to do, the
+    // lookup is one fast index hit, and pulling it here keeps each per-cert
+    // iteration off the DB for the recipient list.
+    const adminEmails = await this.findTenantAdminEmails(auth.tenantId!);
 
     for (const cert of certs) {
       if (!cert.expiresAt) continue;
@@ -192,14 +204,77 @@ export class CertificateService {
         }),
       );
 
-      this.logger.log(
-        { tenantId: auth.tenantId!, certId: cert.id, daysRemaining },
-        `EMAIL_STUB: ${title} — ${message}`,
-      );
+      if (adminEmails.length > 0) {
+        await this.mail.send({
+          to: adminEmails,
+          subject: `[FleetOps] ${title}`,
+          text: this.renderExpiryEmail({ cert, daysRemaining, threshold: matchingThreshold }),
+          html: this.renderExpiryEmailHtml({ cert, daysRemaining, threshold: matchingThreshold }),
+        });
+      } else {
+        this.logger.warn(
+          { tenantId: auth.tenantId!, certId: cert.id },
+          `cert-expiry alert generated but no TENANT_ADMIN email recipients found`,
+        );
+      }
 
       notificationsCreated++;
     }
 
     return { notificationsCreated };
+  }
+
+  /** Read TENANT_ADMIN emails for the tenant; used as the cert-expiry mail list. */
+  private async findTenantAdminEmails(tenantId: string): Promise<string[]> {
+    const rows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.user.findMany({
+        where: { tenantId, role: 'TENANT_ADMIN', deletedAt: null },
+        select: { email: true },
+      }),
+    );
+    return rows.map((r) => r.email).filter((e): e is string => Boolean(e));
+  }
+
+  private renderExpiryEmail(args: {
+    cert: { id: string; number: string | null; expiresAt: Date | null; vesselId: string | null };
+    daysRemaining: number;
+    threshold: number;
+  }): string {
+    const { cert, daysRemaining, threshold } = args;
+    return [
+      `A certificate is approaching its expiry date.`,
+      ``,
+      `Certificate ID:    ${cert.id}`,
+      `Number:            ${cert.number ?? '(unset)'}`,
+      `Vessel:            ${cert.vesselId ?? '(tenant-wide)'}`,
+      `Expires:           ${cert.expiresAt?.toISOString().slice(0, 10) ?? '(unset)'}`,
+      `Days remaining:    ${daysRemaining}`,
+      `Alert threshold:   ${threshold} days`,
+      ``,
+      `Please ensure renewal is initiated. This is an automated reminder.`,
+    ].join('\n');
+  }
+
+  private renderExpiryEmailHtml(args: {
+    cert: { id: string; number: string | null; expiresAt: Date | null; vesselId: string | null };
+    daysRemaining: number;
+    threshold: number;
+  }): string {
+    const { cert, daysRemaining, threshold } = args;
+    const expiryLabel = cert.expiresAt?.toISOString().slice(0, 10) ?? '(unset)';
+    return `<!doctype html>
+<html><body style="font-family:system-ui,sans-serif;color:#0A1F33;line-height:1.5">
+<h2 style="margin-top:0">Certificate expiring in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'}</h2>
+<p>A certificate is approaching its expiry date. Please ensure renewal is initiated.</p>
+<table cellspacing="0" cellpadding="6" style="border-collapse:collapse;border:1px solid #E5E3DA">
+  <tr><td><b>Certificate&nbsp;ID</b></td><td>${cert.id}</td></tr>
+  <tr><td><b>Number</b></td><td>${cert.number ?? '(unset)'}</td></tr>
+  <tr><td><b>Vessel</b></td><td>${cert.vesselId ?? '(tenant-wide)'}</td></tr>
+  <tr><td><b>Expires</b></td><td>${expiryLabel}</td></tr>
+  <tr><td><b>Days&nbsp;remaining</b></td><td>${daysRemaining}</td></tr>
+  <tr><td><b>Alert&nbsp;threshold</b></td><td>${threshold} days</td></tr>
+</table>
+<p style="color:#8893A0;font-size:12px;margin-top:24px">Automated reminder from FleetOps.</p>
+</body></html>`;
   }
 }

@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { AuditInterceptor } from './audit-event/audit.interceptor';
+import { MailModule } from './mail/mail.module';
 import { BudgetModule } from './budget/budget.module';
 import { FleetviewModule } from './fleetview/fleetview.module';
 import { TechLibraryModule } from './tech-library/tech-library.module';
@@ -87,6 +88,7 @@ import { VesselModule } from './vessel/vessel.module';
     PrismaModule,
     SyncModule,
     StorageModule,
+    MailModule,
     AuthModule,
     TenantModule,
     VesselModule,
