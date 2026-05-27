@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { SurveyModule } from './survey/survey.module';
 import { ConditionOfClassModule } from './condition-of-class/condition-of-class.module';
@@ -63,6 +64,10 @@ import { VesselModule } from './vessel/vessel.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    // H4: default 10/min/IP. The /auth/login route also stacks a per-route
+    // @Throttle for explicitness; this baseline catches abusive bursts on
+    // any other endpoint too.
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]),
     LoggerModule.forRoot({
       pinoHttp: {
         autoLogging: true,

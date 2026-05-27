@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { assertProductionEnv } from './config/production-env';
 
@@ -19,6 +20,10 @@ async function bootstrap() {
     logger: ['error', 'warn'],
   });
 
+  // H4: helmet middleware mirrors shore (P5-4). Vessel is intended for
+  // loopback only, but defence-in-depth costs nothing — strips X-Powered-By,
+  // sets CSP / X-Frame-Options / X-Content-Type-Options / Referrer-Policy.
+  app.use(helmet());
   app.useLogger(app.get(Logger));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.setGlobalPrefix('api/v1');

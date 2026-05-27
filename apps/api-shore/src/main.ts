@@ -14,6 +14,24 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
   app.use(helmet());
+
+  // H3: CORS gated by an explicit allowlist. CORS_ORIGINS is a
+  // comma-separated list (e.g. "https://app.fleetops.com,https://staging.fleetops.com").
+  // Empty / unset means no cross-origin requests are allowed, which is
+  // what you want for a backend behind the SPA's same-origin reverse proxy.
+  // Local dev sets it to the Vite origin (http://localhost:5342).
+  const corsOrigins = (process.env['CORS_ORIGINS'] ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (corsOrigins.length > 0) {
+    app.enableCors({
+      origin: corsOrigins,
+      credentials: true,
+      methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+    });
+  }
+
   app.useLogger(app.get(Logger));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.setGlobalPrefix('api/v1');
