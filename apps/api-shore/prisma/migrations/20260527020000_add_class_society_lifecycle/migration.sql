@@ -21,3 +21,28 @@ CREATE INDEX "class_society_submissions_polling_idx"
 -- callbacks for that connector (the endpoint returns 401).
 ALTER TABLE "class_society_connectors"
   ADD COLUMN "webhook_secret" TEXT;
+
+-- The original class-society RLS policies (added in
+-- 20260518090000_add_class_society_schema) keyed off `app.tenant_id` and
+-- had NO empty-string bypass clause. The H9 cron poller + webhook
+-- receiver are system processes that must read across all tenants, so
+-- they need the same `current_setting(...) = ''` escape hatch every other
+-- tenant-scoped table provides. Recreate the policies with the standard
+-- two-clause USING expression (matches users, vessels, etc.).
+DROP POLICY IF EXISTS "class_society_connectors_tenant_isolation"
+  ON "class_society_connectors";
+CREATE POLICY "class_society_connectors_tenant_isolation"
+  ON "class_society_connectors"
+  USING (
+    current_setting('app.current_tenant_id', true) = '' OR
+    tenant_id = current_setting('app.current_tenant_id', true)
+  );
+
+DROP POLICY IF EXISTS "class_society_submissions_tenant_isolation"
+  ON "class_society_submissions";
+CREATE POLICY "class_society_submissions_tenant_isolation"
+  ON "class_society_submissions"
+  USING (
+    current_setting('app.current_tenant_id', true) = '' OR
+    tenant_id = current_setting('app.current_tenant_id', true)
+  );
