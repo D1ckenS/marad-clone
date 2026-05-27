@@ -5,13 +5,21 @@ import { api } from '../api/client.js';
 
 interface SurveyEditable {
   id: string;
+  vesselId: string;
   scheduledAt: string;
   kind: string;
   scope: string;
   surveyor: string;
   location: string;
   status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'POSTPONED' | 'CANCELLED';
+  certificateId?: string | null;
   notes?: string | null;
+}
+
+interface CertificateRow {
+  id: string;
+  number: string | null;
+  certificateType: string | null;
 }
 
 interface Props {
@@ -36,10 +44,40 @@ export function EditSurveyModal({ survey, onClose, onSaved }: Props) {
     surveyor: survey.surveyor,
     location: survey.location,
     status: survey.status,
+    certificateId: survey.certificateId ?? '',
     notes: survey.notes ?? '',
   }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [certificates, setCertificates] = useState<CertificateRow[]>([]);
+
+  // M5: hydrate vessel certificates for the linked-certificate dropdown
+  useEffect(() => {
+    let cancelled = false;
+    if (!survey.vesselId) return;
+    api
+      .get<CertificateRow[]>(`/certificates?vesselId=${survey.vesselId}`)
+      .then((rows) => {
+        if (!cancelled) setCertificates(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setCertificates([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [survey.vesselId]);
+
+  const certificateOptions = useMemo(
+    () => [
+      { value: '', label: t('certificates.survey_modal.no_certificate') },
+      ...certificates.map((c) => ({
+        value: c.id,
+        label: c.number ? `${c.certificateType ?? '—'} · ${c.number}` : (c.certificateType ?? c.id),
+      })),
+    ],
+    [certificates, t],
+  );
 
   const statusOptions = useMemo(
     () => [
@@ -60,6 +98,7 @@ export function EditSurveyModal({ survey, onClose, onSaved }: Props) {
       surveyor: survey.surveyor,
       location: survey.location,
       status: survey.status,
+      certificateId: survey.certificateId ?? '',
       notes: survey.notes ?? '',
     });
     setError(null);
@@ -90,6 +129,7 @@ export function EditSurveyModal({ survey, onClose, onSaved }: Props) {
         surveyor: form.surveyor.trim(),
         location: form.location.trim(),
         status: form.status,
+        certificateId: form.certificateId || null,
         notes: form.notes.trim() || null,
       });
       onSaved();
@@ -161,6 +201,13 @@ export function EditSurveyModal({ survey, onClose, onSaved }: Props) {
           options={statusOptions}
           value={form.status}
           onChange={(v) => setForm((f) => ({ ...f, status: v as typeof f.status }))}
+        />
+        <Select
+          id="sv-certificate"
+          label={t('certificates.survey_modal.field_certificate')}
+          options={certificateOptions}
+          value={form.certificateId}
+          onChange={(v) => setForm((f) => ({ ...f, certificateId: v }))}
         />
         <TextArea
           id="sv-notes"

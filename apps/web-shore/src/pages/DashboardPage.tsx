@@ -168,6 +168,8 @@ export function DashboardPage() {
   const [summary, setSummary] = useState<FleetSummary | null>(null);
   const [worklist, setWorklist] = useState<WorklistItem[]>([]);
   const [budgetData, setBudgetData] = useState<BudgetActuals | null>(null);
+  // M6: non-compliant MARPOL discharges YTD across the tenant
+  const [marpolYtd, setMarpolYtd] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   const year = new Date().getFullYear();
@@ -179,9 +181,11 @@ export function DashboardPage() {
         .get<{ items: WorklistItem[] }>('/fleetview/worklist?limit=20')
         .catch(() => ({ items: [] })),
       api.get<BudgetActuals>(`/fleetview/budget-actuals?year=${year}`).catch(() => null),
+      api.get<{ total: number }>('/discharge-logs/non-compliant-ytd').catch(() => ({ total: 0 })),
     ])
-      .then(([s, w, b]) => {
+      .then(([s, w, b, m]) => {
         setSummary(s);
+        setMarpolYtd(m?.total ?? 0);
         setWorklist(w?.items ?? []);
         setBudgetData(b);
       })
@@ -252,7 +256,7 @@ export function DashboardPage() {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(5, 1fr)',
+              gridTemplateColumns: 'repeat(6, 1fr)',
               gap: 10,
               marginBottom: 20,
             }}
@@ -296,6 +300,13 @@ export function DashboardPage() {
               sub={
                 (fleet?.openFindings ?? 0) > 0 ? t('dashboard.review') : t('dashboard.all_clear')
               }
+            />
+            {/* M6: MARPOL non-compliant discharges (YTD across the fleet) */}
+            <KpiTile
+              label={t('dashboard.marpol_non_compliant_ytd')}
+              value={marpolYtd}
+              tone={marpolYtd > 0 ? 'red' : 'green'}
+              sub={marpolYtd > 0 ? t('dashboard.review') : t('dashboard.all_clear')}
             />
           </div>
 

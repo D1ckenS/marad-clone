@@ -18,35 +18,33 @@ Most blockers + over half the H-tier are shipped. Section headings
 below are prepended with **✓** when closed, with the merging PR in
 parens. Items without a checkmark are still open.
 
-**Closed (18 / 28 numbered items):**
+**Closed (28 / 34 numbered items):**
 
 | Tier         | Closed                                                   |
 | ------------ | -------------------------------------------------------- |
 | **Blockers** | B1, B2, B3, B4, B5, B6, B7, B8, B11 — only B9 + B10 left |
 | **High**     | H1, H2, H3, H4, H5, H7, H8, H9, H10, H14, H15            |
-| **Medium**   | M1                                                       |
+| **Medium**   | M1, M2, M3, M4, M5, M6, M7, M8 — all of it               |
 
-**Open (10 numbered items):**
+**Open (6 numbered items):**
 
-| Tier         | Open    | Notes                                                             |
-| ------------ | ------- | ----------------------------------------------------------------- |
-| **Blockers** | B9, B10 | Deployment readiness — deferred by Ziad's "everything else first" |
-| **High**     | H6      | Needs Ziad's EV cert purchase (~$300/yr)                          |
-| **High**     | H11     | ISO 27001 docs — mostly writing + business decisions              |
-| **High**     | H12     | Mobile non-EN locale keys — translator work, not code             |
-| **High**     | H13     | Mobile widget tests — ~24h Flutter                                |
-| **Medium**   | M2–M8   | Cleanup before GA, not pilot — small UX gaps + flaky perf assert  |
+| Tier         | Open    | Notes                                                                   |
+| ------------ | ------- | ----------------------------------------------------------------------- |
+| **Blockers** | B9, B10 | Deployment readiness — deferred by Ziad's "everything else first"       |
+| **High**     | H6      | Needs Ziad's EV cert purchase (~$300/yr)                                |
+| **High**     | H11     | ISO 27001 docs — mostly writing + business decisions                    |
+| **High**     | H12     | Mobile non-EN locale keys — translator work, not code                   |
+| **High**     | H13     | Mobile widget tests — ~24h Flutter, the only autonomous big-ticket left |
 
 **Next recommended pick for the new session:** H13 (mobile widget
 tests) is the last autonomous big-ticket — ~24 h Flutter, multi-session.
-After that, the only remaining autonomous batch is M2–M8 (small UX
-gaps). H11 needs Ziad's policy decisions; H6 needs his cert purchase;
-H12 needs a translator.
+Everything else open is blocked on Ziad (H6 cert, H11 policy, H12
+translator) or explicitly deferred (B9 + B10 deployment).
 
 **Closed PRs for reference:** #55 (Week 1 hardening), #56 (super-admin
 profile RLS fix), #57 (B5 steps 2+3), #58 (B1 mTLS), #59 (B8), #60
 (B6+B7), #61 (H5), #62 (H10), #63 (H8), #64 (H3+H4), #65 (H14), #66
-(H9), #68 (H7), #69 (H15).
+(H9), #68 (H7), #69 (H15), #70 (M2–M8).
 
 ---
 
@@ -543,54 +541,66 @@ cases.
 - Mobile cert filter (✓ PR #49)
 - Mobile offline outbox (✓ PR #51)
 
-### M2. `UpdateJobDto.title` should be required
+### ✓ M2. `UpdateJobDto.title` should be required — closed via #70
 
-**Where:** `apps/api-shore/src/job/dto/job.dto.ts` — `@IsOptional() @IsString() title?: string;` but `EditJobModal.tsx:65-92` always sends it. Server accepts empty title.
+The DTO already had `@MinLength(1)` so the empty-title case was
+already 400. Added 3 regression e2e tests in `maintenance-api.e2e.ts`:
+empty title → 400; whitespace-only title boundary (current behaviour
+passes since `@MinLength(1)` counts whitespace — flagged for a future
+`@Trim` decorator); omitting title is allowed per PATCH semantics.
 
-**Fix:** drop `@IsOptional()` OR add a cross-field validator that requires `title` if other key fields are also being updated. Add e2e asserting empty `title` returns 400.
+### ✓ M3. Missing non-EN locale keys (32 per locale, was 21 at audit) — closed via #70
 
-### M3. 21 web-shore locale keys missing from non-EN files vs EN
+New `scripts/m3-backfill-locales.mjs` is idempotent — ships
+hand-written translations for the 32 known-missing keys across
+ar/de/el/nl/ru/tl/zh, and falls back to EN placeholders (with a
+warning log line per gap) for any keys that drift in later. After
+running: 0 missing keys across all 7 locales.
 
-**Where:** `apps/web-shore/src/locales/{ar,de,el,nl,ru,tl,zh}.json` — each missing 21 keys present in en.json. Likely recent additions never backfilled.
+### ✓ M4. Tank Create/Edit modal + `fuelProductId` Select — closed via #70
 
-**Fix:** `jq` script to diff keys, then translate or English-placeholder. ~1 hour.
+`CreateTankModal.tsx` + `EditTankModal.tsx` mirror the deferred-stub
+pattern, with a `fuelProductId` Select sourced from `/fuel-products`.
+FlgoPage Tanks tab gains a "+ New tank" button next to the tabs; each
+row is now clickable to open Edit.
 
-### M4. Tank model: no Create/Edit modal, `fuelProductId` not editable
+### ✓ M5. Survey modal `certificateId` field — closed via #70
 
-**Where:** `apps/web-shore/src/pages/FlgoPage.tsx` displays Tank but no `+ New Tank` button. `Tank.fuelProductId` (schema.prisma:1447) has no UI.
+`CreateSurveyModal.tsx` + `EditSurveyModal.tsx` now render an optional
+`certificateId` Select sourced from `/certificates?vesselId=…`.
+CertificatesPage's local `RawSurvey` type gained `vesselId` +
+`certificateId` so the edit modal hydrates the dropdown.
 
-**Fix:** add `CreateTankModal` + `EditTankModal` mirroring the deferred-stub pattern; include a `fuelProductId` Select sourced from `/fuel-products`.
+### ✓ M6. MARPOL `compliant: false` wiring — closed via #70
 
-### M5. Survey model: `certificateId` not editable in modal
+`DischargeLogService` now emits `AuditEvent.action = MARPOL_NON_COMPLIANT_DISCHARGE`
+on (a) create with `compliant=false`, (b) PATCH true→false transition.
+New `GET /discharge-logs/non-compliant-ytd` returns `{year, total, byVessel}` —
+drives a new red-tone KPI tile on the Fleetview dashboard. New
+`GET /discharge-logs/export.csv` returns IOPP/ORB-style CSV (all
+fields quoted to handle embedded commas in location names). 4 e2e
+tests cover the wiring.
 
-**Where:** `EditSurveyModal.tsx` and `CreateSurveyModal.tsx` — the field exists in the DTO but neither modal renders it.
+### ✓ M7. 2 non-additive migrations risk in-place upgrades — closed via #70
 
-**Fix:** add an optional `certificateId` Select sourced from `/certificates?vesselId=…` (filtered to certificates of this vessel).
+New `apps/docs/runbooks/upgrade-notes.md` documents the two
+non-additive migrations: `20260518080000_generalize_sso_config` (drops
+`entra_*` columns + promotes nullable cols to NOT NULL — backfill
+runs in-migration before the SET NOT NULL), and
+`20260521140000_remove_vessel_id_from_part_categories` (drops a column
+added the same day on a build that never reached production). Each
+section ships a pre-upgrade SQL sanity check + the `pg_dump` backup
+recipe + the rollback path. Plus a generic RLS-policy verification
+snippet to run after any new tenant-scoped table.
 
-### M6. MARPOL `compliant: false` is cosmetic only
+### ✓ M8. Flaky perf test on slow machines — closed via #70
 
-**Where:** `apps/web-shore/src/pages/QHSEPage.tsx:1235` renders the badge. No alert, no dashboard tile, no `AuditEvent` emission, no IOPP-export ready format.
-
-**Fix:**
-
-1. Emit `AuditEvent action=MARPOL_NON_COMPLIANT_DISCHARGE` from `DischargeLogService.create` when `compliant === false`.
-2. Add a dashboard widget on Fleetview showing non-compliant discharge count YTD.
-3. Add an IOPP-format CSV export endpoint.
-
-### M7. 2 non-additive migrations risk in-place upgrades
-
-**Where:**
-
-- `apps/api-shore/prisma/migrations/20260518080000_generalize_sso_config/migration.sql` — `DROP COLUMN entra_client_id, entra_tenant_id`; `SET NOT NULL` on multiple cols (with backfill before, so safe)
-- `apps/api-shore/prisma/migrations/20260521140000_remove_vessel_id_from_part_categories/migration.sql` — `DROP COLUMN vessel_id` (reverts a same-day mistake; data never live)
-
-Both are fine for fresh installs. For an upgrade on a populated production DB: backup first, run in maintenance window. **Document in upgrade notes** (no code change needed).
-
-### M8. Flaky perf test on slow machines
-
-**Where:** `apps/api-shore/test/budget-fleetview.e2e.ts` warm-path budget asserts <50 ms; this machine measures 74 ms reliably. CI clean Postgres container hits the threshold.
-
-**Fix (optional):** loosen to <100 ms with a comment explaining the warm-path expectation, OR mark `test.runIf(process.env['CI'])` so it only runs in CI.
+`apps/api-shore/test/budget-fleetview.e2e.ts` warm-path assertion now
+gates the ceiling on `process.env.CI`: <150 ms on dev machines (where
+supertest + helmet + auth middleware adds 70–90 ms on top of a <1 ms
+cache hit), <50 ms in CI (the original target — clean Postgres
+container hits it reliably). Failure message includes the actual
+measurement.
 
 ---
 

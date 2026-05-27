@@ -128,7 +128,8 @@
     "type_overdue": "逾期",
     "type_approval": "审批",
     "type_cert": "证书",
-    "type_finding": "发现"
+    "type_finding": "发现",
+    "marpol_non_compliant_ytd": "MARPOL non-compliant (YTD)"
   },
   "maintenance": {
     "title": "维护",
@@ -408,7 +409,9 @@
       "status_cancelled": "Cancelled",
       "error_required": "Scheduled date, kind, scope, surveyor and location are required.",
       "error_create": "Failed to create survey.",
-      "error_update": "Failed to update survey."
+      "error_update": "Failed to update survey.",
+      "field_certificate": "关联证书",
+      "no_certificate": "— 无关联证书 —"
     },
     "coc_modal": {
       "title_create": "Add condition of class",
@@ -445,7 +448,16 @@
       "error_required": "Inspected-at, port, inspector and status are required.",
       "error_create": "Failed to record inspection.",
       "error_update": "Failed to update inspection."
-    }
+    },
+    "survey_annual": "年度",
+    "survey_intermediate": "中期",
+    "survey_special": "特别",
+    "survey_renewal": "续证",
+    "status_in": "进行中",
+    "status_tentative": "暂定",
+    "conditions_open": "未结",
+    "conditions_closed": "已结",
+    "log_item": "+ 添加记录"
   },
   "safety": {
     "title": "安全",
@@ -574,7 +586,17 @@
       "error_required": "Name, location and quantity are required.",
       "error_create": "Failed to add safety equipment.",
       "error_update": "Failed to update safety equipment."
-    }
+    },
+    "jha_library": "资源库 ·",
+    "assessments": "项评估",
+    "select_jha_hint": "选择 JHA 以查看风险矩阵和控制措施",
+    "risk_critical": "关键",
+    "risk_intolerable": "不可接受 — 需立即采取控制",
+    "risk_substantial": "较高 — 需要额外控制",
+    "risk_moderate": "中等 — 通过 SOP/PPE 控制",
+    "risk_acceptable": "可接受 — 常规控制",
+    "without_controls": "无控制",
+    "with_controls": "已应用控制"
   },
   "qhse": {
     "title": "QHSE",
@@ -795,7 +817,9 @@
       "error_required": "Kind, scheduled-at and chair are required.",
       "error_create": "Failed to schedule review.",
       "error_update": "Failed to update review."
-    }
+    },
+    "cii_annual_ratio": "CII 评级 — 年度效率比",
+    "cii_mepc": "gCO₂ / 吨·海里 · IMO MEPC 337(76)"
   },
   "crewing": {
     "title": "船员",
@@ -915,7 +939,30 @@
     "no_tanks": "暂未配置舱柜。",
     "no_soundings": "暂无液位测量记录。",
     "no_bdn": "暂无BDN记录。",
-    "select_vessel": "选择船舶查看FLGO数据。"
+    "select_vessel": "选择船舶查看FLGO数据。",
+    "tank_modal": {
+      "new_tank_button": "+ New tank",
+      "title_create": "Create tank",
+      "title_edit": "Edit tank",
+      "field_name": "Tank name",
+      "field_tank_type": "Tank type",
+      "field_fuel_product": "Linked fuel product",
+      "no_fuel_product": "— No linked fuel product —",
+      "field_capacity_m3": "Capacity (m³)",
+      "field_frame_position": "Frame position",
+      "type_hfo": "HFO",
+      "type_mgo": "MGO",
+      "type_lsgo": "LSGO",
+      "type_lsfo": "LSFO",
+      "type_biofuel": "Biofuel",
+      "type_lube_oil": "Lube oil",
+      "type_fresh_water": "Fresh water",
+      "type_ballast": "Ballast",
+      "error_required": "Tank name and type are required.",
+      "error_capacity_number": "Capacity must be a number.",
+      "error_create": "Failed to create tank.",
+      "error_update": "Failed to update tank."
+    }
   },
   "compliance": {
     "title": "合规",
@@ -1063,5 +1110,16 @@
     "passwords_no_match": "新密码不一致。",
     "password_changed": "密码已更改。",
     "loading": "加载中…"
+  },
+  "mobile_pair": {
+    "title": "移动设备配对",
+    "subtitle": "在笔记本电脑屏幕上显示此 QR 码，并使用 FleetOps 移动应用扫描，可一步填入船舶 API URL 和租户 ID。",
+    "base_url_label": "船舶 API URL（船员手机可访问）",
+    "base_url_hint": "默认为此页面的主机加端口 3001。如果 api-vessel 绑定到其他 LAN 地址，请修改。",
+    "tenant_id_label": "租户 ID",
+    "scan_instructions": "打开 FleetOps 移动应用，在登录界面点击\"扫描配对 QR\"，将摄像头对准此码。",
+    "fill_fields_first": "填写上面的 API URL 和租户 ID 即可生成 QR。",
+    "manual_entry_summary": "显示明文（用于手动输入）",
+    "reset_button": "重置为默认值"
   }
 }

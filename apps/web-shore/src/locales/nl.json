@@ -128,7 +128,8 @@
     "type_overdue": "Achterstallig",
     "type_approval": "Goedkeuring",
     "type_cert": "Certificaat",
-    "type_finding": "Bevinding"
+    "type_finding": "Bevinding",
+    "marpol_non_compliant_ytd": "MARPOL non-compliant (YTD)"
   },
   "maintenance": {
     "title": "Onderhoud",
@@ -408,7 +409,9 @@
       "status_cancelled": "Cancelled",
       "error_required": "Scheduled date, kind, scope, surveyor and location are required.",
       "error_create": "Failed to create survey.",
-      "error_update": "Failed to update survey."
+      "error_update": "Failed to update survey.",
+      "field_certificate": "Gekoppeld certificaat",
+      "no_certificate": "— Geen gekoppeld certificaat —"
     },
     "coc_modal": {
       "title_create": "Add condition of class",
@@ -445,7 +448,16 @@
       "error_required": "Inspected-at, port, inspector and status are required.",
       "error_create": "Failed to record inspection.",
       "error_update": "Failed to update inspection."
-    }
+    },
+    "survey_annual": "JAARLIJKS",
+    "survey_intermediate": "TUSSENTIJDS",
+    "survey_special": "SPECIAAL",
+    "survey_renewal": "VERNIEUWING",
+    "status_in": "IN",
+    "status_tentative": "VOORLOPIG",
+    "conditions_open": "open",
+    "conditions_closed": "gesloten",
+    "log_item": "+ Item registreren"
   },
   "safety": {
     "title": "Veiligheid",
@@ -574,7 +586,17 @@
       "error_required": "Name, location and quantity are required.",
       "error_create": "Failed to add safety equipment.",
       "error_update": "Failed to update safety equipment."
-    }
+    },
+    "jha_library": "Bibliotheek ·",
+    "assessments": "beoordelingen",
+    "select_jha_hint": "Selecteer een JHA om risicomatrices en maatregelen te zien",
+    "risk_critical": "KRITIEK",
+    "risk_intolerable": "Onaanvaardbaar — onmiddellijke controle vereist",
+    "risk_substantial": "Aanzienlijk — extra controle nodig",
+    "risk_moderate": "Matig — controle via SOPs/PBM",
+    "risk_acceptable": "Aanvaardbaar — routinecontroles",
+    "without_controls": "ZONDER MAATREGELEN",
+    "with_controls": "MET TOEGEPASTE MAATREGELEN"
   },
   "qhse": {
     "title": "QHSE",
@@ -795,7 +817,9 @@
       "error_required": "Kind, scheduled-at and chair are required.",
       "error_create": "Failed to schedule review.",
       "error_update": "Failed to update review."
-    }
+    },
+    "cii_annual_ratio": "CII-classificatie — jaarlijkse efficiëntieverhouding",
+    "cii_mepc": "gCO₂ / t·zm · IMO MEPC 337(76)"
   },
   "crewing": {
     "title": "Bemanning",
@@ -915,7 +939,30 @@
     "no_tanks": "Geen tanks geconfigureerd.",
     "no_soundings": "Nog geen peilingen.",
     "no_bdn": "Nog geen BDN-registraties.",
-    "select_vessel": "Selecteer een schip om FLGO-gegevens te bekijken."
+    "select_vessel": "Selecteer een schip om FLGO-gegevens te bekijken.",
+    "tank_modal": {
+      "new_tank_button": "+ New tank",
+      "title_create": "Create tank",
+      "title_edit": "Edit tank",
+      "field_name": "Tank name",
+      "field_tank_type": "Tank type",
+      "field_fuel_product": "Linked fuel product",
+      "no_fuel_product": "— No linked fuel product —",
+      "field_capacity_m3": "Capacity (m³)",
+      "field_frame_position": "Frame position",
+      "type_hfo": "HFO",
+      "type_mgo": "MGO",
+      "type_lsgo": "LSGO",
+      "type_lsfo": "LSFO",
+      "type_biofuel": "Biofuel",
+      "type_lube_oil": "Lube oil",
+      "type_fresh_water": "Fresh water",
+      "type_ballast": "Ballast",
+      "error_required": "Tank name and type are required.",
+      "error_capacity_number": "Capacity must be a number.",
+      "error_create": "Failed to create tank.",
+      "error_update": "Failed to update tank."
+    }
   },
   "compliance": {
     "title": "Naleving",
@@ -1063,5 +1110,16 @@
     "passwords_no_match": "Wachtwoorden komen niet overeen.",
     "password_changed": "Wachtwoord gewijzigd.",
     "loading": "Laden…"
+  },
+  "mobile_pair": {
+    "title": "Mobiel apparaat koppelen",
+    "subtitle": "Toon deze QR op het laptopscherm en scan deze met de FleetOps-mobiele app om de schips-API-URL en tenant-ID in één stap in te vullen.",
+    "base_url_label": "Schips-API-URL (bereikbaar vanaf de telefoon van de bemanning)",
+    "base_url_hint": "Standaard de host van deze pagina op poort 3001. Wijzig dit als de api-vessel aan een ander LAN-adres is gebonden.",
+    "tenant_id_label": "Tenant-ID",
+    "scan_instructions": "Open de FleetOps-mobiele app, tik op \"Koppelings-QR scannen\" in het aanmeldscherm en richt de camera op deze code.",
+    "fill_fields_first": "Vul de API-URL en tenant-ID hierboven in om de QR te genereren.",
+    "manual_entry_summary": "Toon platte tekst (voor handmatige invoer)",
+    "reset_button": "Herstel standaardwaarden"
   }
 }

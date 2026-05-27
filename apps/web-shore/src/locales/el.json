@@ -128,7 +128,8 @@
     "type_overdue": "Εκπρόθεσμο",
     "type_approval": "Έγκριση",
     "type_cert": "Πιστοποιητικό",
-    "type_finding": "Εύρημα"
+    "type_finding": "Εύρημα",
+    "marpol_non_compliant_ytd": "MARPOL non-compliant (YTD)"
   },
   "maintenance": {
     "title": "Συντήρηση",
@@ -408,7 +409,9 @@
       "status_cancelled": "Cancelled",
       "error_required": "Scheduled date, kind, scope, surveyor and location are required.",
       "error_create": "Failed to create survey.",
-      "error_update": "Failed to update survey."
+      "error_update": "Failed to update survey.",
+      "field_certificate": "Συνδεδεμένο πιστοποιητικό",
+      "no_certificate": "— Κανένα συνδεδεμένο πιστοποιητικό —"
     },
     "coc_modal": {
       "title_create": "Add condition of class",
@@ -445,7 +448,16 @@
       "error_required": "Inspected-at, port, inspector and status are required.",
       "error_create": "Failed to record inspection.",
       "error_update": "Failed to update inspection."
-    }
+    },
+    "survey_annual": "ΕΤΗΣΙΑ",
+    "survey_intermediate": "ΕΝΔΙΑΜΕΣΗ",
+    "survey_special": "ΕΙΔΙΚΗ",
+    "survey_renewal": "ΑΝΑΝΕΩΣΗ",
+    "status_in": "ΣΕ",
+    "status_tentative": "ΠΡΟΣΩΡΙΝΟ",
+    "conditions_open": "ανοιχτές",
+    "conditions_closed": "κλειστές",
+    "log_item": "+ Καταχώριση"
   },
   "safety": {
     "title": "Ασφάλεια",
@@ -574,7 +586,17 @@
       "error_required": "Name, location and quantity are required.",
       "error_create": "Failed to add safety equipment.",
       "error_update": "Failed to update safety equipment."
-    }
+    },
+    "jha_library": "Βιβλιοθήκη ·",
+    "assessments": "αξιολογήσεις",
+    "select_jha_hint": "Επιλέξτε JHA για προβολή πινάκων κινδύνου και ελέγχων",
+    "risk_critical": "ΚΡΙΣΙΜΟ",
+    "risk_intolerable": "Μη ανεκτό — απαιτείται άμεσος έλεγχος",
+    "risk_substantial": "Σημαντικό — απαιτείται επιπλέον έλεγχος",
+    "risk_moderate": "Μέτριο — έλεγχος μέσω SOP/PPE",
+    "risk_acceptable": "Αποδεκτό — τακτικοί έλεγχοι",
+    "without_controls": "ΧΩΡΙΣ ΕΛΕΓΧΟΥΣ",
+    "with_controls": "ΜΕ ΕΦΑΡΜΟΣΜΕΝΟΥΣ ΕΛΕΓΧΟΥΣ"
   },
   "qhse": {
     "title": "QHSE",
@@ -795,7 +817,9 @@
       "error_required": "Kind, scheduled-at and chair are required.",
       "error_create": "Failed to schedule review.",
       "error_update": "Failed to update review."
-    }
+    },
+    "cii_annual_ratio": "Βαθμολογία CII — ετήσιος λόγος απόδοσης",
+    "cii_mepc": "gCO₂ / t·nm · IMO MEPC 337(76)"
   },
   "crewing": {
     "title": "Πλήρωμα",
@@ -915,7 +939,30 @@
     "no_tanks": "Δεν υπάρχουν δεξαμενές.",
     "no_soundings": "Δεν υπάρχουν σαντάζ.",
     "no_bdn": "Δεν υπάρχουν εγγραφές BDN.",
-    "select_vessel": "Επιλέξτε πλοίο για δεδομένα FLGO."
+    "select_vessel": "Επιλέξτε πλοίο για δεδομένα FLGO.",
+    "tank_modal": {
+      "new_tank_button": "+ New tank",
+      "title_create": "Create tank",
+      "title_edit": "Edit tank",
+      "field_name": "Tank name",
+      "field_tank_type": "Tank type",
+      "field_fuel_product": "Linked fuel product",
+      "no_fuel_product": "— No linked fuel product —",
+      "field_capacity_m3": "Capacity (m³)",
+      "field_frame_position": "Frame position",
+      "type_hfo": "HFO",
+      "type_mgo": "MGO",
+      "type_lsgo": "LSGO",
+      "type_lsfo": "LSFO",
+      "type_biofuel": "Biofuel",
+      "type_lube_oil": "Lube oil",
+      "type_fresh_water": "Fresh water",
+      "type_ballast": "Ballast",
+      "error_required": "Tank name and type are required.",
+      "error_capacity_number": "Capacity must be a number.",
+      "error_create": "Failed to create tank.",
+      "error_update": "Failed to update tank."
+    }
   },
   "compliance": {
     "title": "Συμμόρφωση",
@@ -1063,5 +1110,16 @@
     "passwords_no_match": "Οι κωδικοί δεν ταιριάζουν.",
     "password_changed": "Ο κωδικός άλλαξε.",
     "loading": "Φόρτωση…"
+  },
+  "mobile_pair": {
+    "title": "Σύζευξη κινητής συσκευής",
+    "subtitle": "Εμφανίστε αυτό το QR στην οθόνη του φορητού και σαρώστε το με την εφαρμογή FleetOps για κινητά για να συμπληρωθούν το URL του API του πλοίου και το ID της εταιρείας σε ένα βήμα.",
+    "base_url_label": "URL API πλοίου (προσβάσιμο από το κινητό του πληρώματος)",
+    "base_url_hint": "Προεπιλογή είναι ο host αυτής της σελίδας στη θύρα 3001. Αλλάξτε το αν το api-vessel είναι δεσμευμένο σε διαφορετική διεύθυνση LAN.",
+    "tenant_id_label": "ID Εταιρείας",
+    "scan_instructions": "Ανοίξτε την εφαρμογή FleetOps για κινητά, πατήστε «Σάρωση QR σύζευξης» στην οθόνη σύνδεσης και στρέψτε την κάμερα σε αυτόν τον κωδικό.",
+    "fill_fields_first": "Συμπληρώστε το URL του API και το ID Εταιρείας για να δημιουργηθεί ο QR.",
+    "manual_entry_summary": "Εμφάνιση απλού κειμένου (για χειροκίνητη εισαγωγή)",
+    "reset_button": "Επαναφορά στις προεπιλογές"
   }
 }

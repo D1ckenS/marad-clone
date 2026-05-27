@@ -51,12 +51,14 @@ function toCertCat(raw?: string | null): CertCat {
 
 interface RawSurvey {
   id: string;
+  vesselId: string;
   scheduledAt: string;
   kind: string;
   scope: string;
   surveyor: string;
   location: string;
   status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'POSTPONED' | 'CANCELLED';
+  certificateId?: string | null;
   notes?: string | null;
 }
 

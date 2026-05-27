@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client.js';
 import { useVessel } from '../context/useVessel.js';
+import { CreateTankModal } from '../components/CreateTankModal.js';
+import { EditTankModal } from '../components/EditTankModal.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -9,6 +11,7 @@ interface Tank {
   id: string;
   name: string;
   tankType: string;
+  fuelProductId: string | null;
   capacityM3: number | null;
   framePosition: string | null;
 }
@@ -80,6 +83,16 @@ export function FlgoPage() {
   const [readings, setReadings] = useState<TankReading[]>([]);
   const [bdns, setBdns] = useState<Bdn[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showCreateTank, setShowCreateTank] = useState(false);
+  const [editingTank, setEditingTank] = useState<Tank | null>(null);
+
+  const reloadTanks = () => {
+    if (!selectedVesselId) return;
+    api
+      .get<Tank[]>(`/tanks?vesselId=${selectedVesselId}`)
+      .then((rows) => setTanks(rows))
+      .catch(() => null);
+  };
 
   useEffect(() => {
     if (!selectedVesselId) return;
@@ -155,6 +168,24 @@ export function FlgoPage() {
             onClick={() => setTab(tabId)}
           />
         ))}
+        {tab === 'tanks' && (
+          <button
+            onClick={() => setShowCreateTank(true)}
+            style={{
+              marginLeft: 'auto',
+              padding: '6px 12px',
+              borderRadius: 6,
+              border: '1px solid #0A1F33',
+              background: '#0A1F33',
+              color: '#fff',
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: 'pointer',
+            }}
+          >
+            {t('flgo.tank_modal.new_tank_button')}
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -214,23 +245,25 @@ export function FlgoPage() {
                   {t('flgo.no_tanks')}
                 </div>
               ) : (
-                tanks.map((t) => {
-                  const rob = latestByTank[t.id]?.quantityMt;
-                  const pct = rob != null && t.capacityM3 ? (rob / t.capacityM3) * 100 : null;
+                tanks.map((tank) => {
+                  const rob = latestByTank[tank.id]?.quantityMt;
+                  const pct = rob != null && tank.capacityM3 ? (rob / tank.capacityM3) * 100 : null;
                   const { bg, fg } = pct != null && pct < 20 ? SIG.amber : SIG.green;
                   return (
                     <div
-                      key={t.id}
+                      key={tank.id}
+                      onClick={() => setEditingTank(tank)}
                       style={{
                         display: 'grid',
                         gridTemplateColumns: '2fr 1fr 1fr 1fr',
                         alignItems: 'center',
                         padding: '10px 16px',
                         borderTop: '1px solid #EEEBE2',
+                        cursor: 'pointer',
                       }}
                     >
                       <span style={{ fontSize: 13, fontWeight: 500, color: '#0A1F33' }}>
-                        {t.name}
+                        {tank.name}
                       </span>
                       <span
                         style={{
@@ -243,10 +276,10 @@ export function FlgoPage() {
                           display: 'inline-block',
                         }}
                       >
-                        {t.tankType}
+                        {tank.tankType}
                       </span>
                       <span style={{ fontSize: 12, color: '#41546A' }}>
-                        {t.capacityM3 != null ? t.capacityM3.toFixed(1) : '—'}
+                        {tank.capacityM3 != null ? tank.capacityM3.toFixed(1) : '—'}
                       </span>
                       <span>
                         {rob != null ? (
@@ -450,6 +483,29 @@ export function FlgoPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* M4: Tank create + edit modals */}
+      {selectedVesselId && (
+        <CreateTankModal
+          open={showCreateTank}
+          vesselId={selectedVesselId}
+          onClose={() => setShowCreateTank(false)}
+          onCreated={() => {
+            setShowCreateTank(false);
+            reloadTanks();
+          }}
+        />
+      )}
+      {editingTank && (
+        <EditTankModal
+          tank={editingTank}
+          onClose={() => setEditingTank(null)}
+          onSaved={() => {
+            setEditingTank(null);
+            reloadTanks();
+          }}
+        />
       )}
     </div>
   );
