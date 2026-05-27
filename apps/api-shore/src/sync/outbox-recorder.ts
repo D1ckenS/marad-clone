@@ -31,6 +31,9 @@ export class OutboxRecorder {
     entityType: string,
     entityId: string,
     fields: Record<string, unknown>,
+    // B6: ULID of the user who triggered the change. Defaults to 'system'
+    // for service-internal writes (cron, sync replay, dev seeds).
+    actorUserId: string = 'system',
   ): Promise<{ hlc: string; nodeId: string }> {
     const { clock, nodeId } = this.clocks.entryFor(ctx.tenantId, ctx.vesselId);
     const hlcStr = encodeHlc(clock.send());
@@ -51,10 +54,20 @@ export class OutboxRecorder {
         payload: incoming as unknown as Prisma.InputJsonValue,
         hlc: hlcStr,
         nodeId,
+        actorUserId,
       },
     });
 
-    await this.mergeIntoSyncRecord(tx, ctx, entityType, entityId, hlcStr, incoming, false);
+    await this.mergeIntoSyncRecord(
+      tx,
+      ctx,
+      entityType,
+      entityId,
+      hlcStr,
+      incoming,
+      false,
+      actorUserId,
+    );
 
     return { hlc: hlcStr, nodeId };
   }
@@ -64,6 +77,7 @@ export class OutboxRecorder {
     ctx: { tenantId: string; vesselId: string },
     entityType: string,
     entityId: string,
+    actorUserId: string = 'system',
   ): Promise<{ hlc: string; nodeId: string }> {
     const { clock, nodeId } = this.clocks.entryFor(ctx.tenantId, ctx.vesselId);
     const hlcStr = encodeHlc(clock.send());
@@ -79,10 +93,11 @@ export class OutboxRecorder {
         payload: Prisma.JsonNull,
         hlc: hlcStr,
         nodeId,
+        actorUserId,
       },
     });
 
-    await this.mergeIntoSyncRecord(tx, ctx, entityType, entityId, hlcStr, {}, true);
+    await this.mergeIntoSyncRecord(tx, ctx, entityType, entityId, hlcStr, {}, true, actorUserId);
 
     return { hlc: hlcStr, nodeId };
   }
@@ -95,6 +110,7 @@ export class OutboxRecorder {
     hlcStr: string,
     incoming: LwwRecord,
     deleted: boolean,
+    actorUserId: string,
   ): Promise<void> {
     const where = {
       tenantId_vesselId_entityType_entityId: {
@@ -121,11 +137,13 @@ export class OutboxRecorder {
         hlc: hlcStr,
         deletedAt,
         fields: mergedFields as unknown as Prisma.InputJsonValue,
+        actorUserId,
       },
       update: {
         hlc: hlcStr,
         deletedAt,
         fields: mergedFields as unknown as Prisma.InputJsonValue,
+        actorUserId,
       },
     });
   }

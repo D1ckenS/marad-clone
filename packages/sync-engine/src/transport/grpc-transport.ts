@@ -24,6 +24,9 @@ interface WireDelta {
   hlc: string;
   nodeId: string;
   payload: Buffer;
+  // Added by B6. proto-loader defaults absent fields to '' on the wire,
+  // so receivers reading from older producers get an empty string here.
+  actorUserId: string;
 }
 
 interface WireDeltaBatch {
@@ -87,6 +90,7 @@ function deltaToWire(d: SyncDelta): WireDelta {
     hlc: d.hlc,
     nodeId: d.nodeId,
     payload: Buffer.from(JSON.stringify(d.payload ?? null)),
+    actorUserId: d.actorUserId ?? '',
   };
 }
 
@@ -97,6 +101,10 @@ function wireToDelta(w: WireDelta): SyncDelta {
     ? w.payload.toString('utf-8')
     : (w.payload as unknown as string);
   const payloadJson = JSON.parse(payloadStr) as SyncDelta['payload'] | null;
+  // proto-loader emits absent string fields as ''; normalise to 'system'
+  // for receivers so downstream audit code never has to deal with empty.
+  const actorUserId =
+    typeof w.actorUserId === 'string' && w.actorUserId.length > 0 ? w.actorUserId : 'system';
   return {
     entityType: w.entityType,
     entityId: w.entityId,
@@ -104,6 +112,7 @@ function wireToDelta(w: WireDelta): SyncDelta {
     payload: operation === 'delete' ? null : (payloadJson ?? null),
     hlc: w.hlc,
     nodeId: w.nodeId,
+    actorUserId,
   };
 }
 

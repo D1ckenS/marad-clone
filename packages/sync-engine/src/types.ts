@@ -18,6 +18,13 @@ export type OutboxEntry = {
   readonly payload: LwwRecord | null; // null for deletes
   readonly hlc: string; // encoded HLC of this event
   readonly nodeId: string;
+  /**
+   * ULID of the user who triggered this change, or 'system' for changes
+   * with no human actor (CRDT merges, scheduled jobs, pre-B6 backfill).
+   * Optional in the TS type so existing producer code keeps compiling;
+   * the wire layer normalises absent / empty to 'system' on receive (B6).
+   */
+  readonly actorUserId?: string;
   sentAt: number | null; // wall-clock ms when handed to transport; null = pending
 };
 
@@ -29,6 +36,8 @@ export type SyncDelta = {
   readonly payload: LwwRecord | null;
   readonly hlc: string;
   readonly nodeId: string;
+  /** See OutboxEntry.actorUserId. */
+  readonly actorUserId?: string;
 };
 
 /** The local materialised view of one synced entity. */
@@ -38,6 +47,8 @@ export type SyncRecord = {
   readonly hlc: string; // latest HLC seen for this record overall
   readonly deletedAt: string | null; // ISO 8601 UTC; null = not deleted
   readonly fields: LwwRecord;
+  /** Last actor who modified this record (whoever owns the latest HLC). */
+  readonly actorUserId?: string;
 };
 
 export type ApplyResult = {

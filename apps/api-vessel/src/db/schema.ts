@@ -1981,6 +1981,10 @@ export const outbox = sqliteTable(
     payload: text('payload'), // JSON-encoded LwwRecord, null for deletes
     hlc: text('hlc').notNull(),
     nodeId: text('node_id').notNull(),
+    // B6: ULID of the user who triggered the write, or 'system' for changes
+    // with no human actor. Default 'system' covers pre-B6 backfill and any
+    // service-internal writes that don't carry a user context.
+    actorUserId: text('actor_user_id').notNull().default('system'),
     sentAt: integer('sent_at'), // unix ms; null = pending
     createdAt: integer('created_at')
       .notNull()
@@ -2003,6 +2007,9 @@ export const syncRecords = sqliteTable(
     hlc: text('hlc').notNull(),
     deletedAt: text('deleted_at'),
     fields: text('fields').notNull(), // JSON LwwRecord
+    // B6: last actor who touched this record (whoever owns the latest HLC).
+    // Default 'system' covers pre-B6 backfill.
+    actorUserId: text('actor_user_id').notNull().default('system'),
   },
   (t) => [unique('sync_records_pk').on(t.entityType, t.entityId)],
 );

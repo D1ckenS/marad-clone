@@ -31,10 +31,10 @@ export class DrizzleSyncAdapter implements SyncAdapter {
 
   async appendOutbox(entry: OutboxEntry): Promise<void> {
     this.db.run(
-      sql`INSERT INTO outbox (id, entity_type, entity_id, operation, payload, hlc, node_id, sent_at)
+      sql`INSERT INTO outbox (id, entity_type, entity_id, operation, payload, hlc, node_id, actor_user_id, sent_at)
           VALUES (${entry.id}, ${entry.entityType}, ${entry.entityId}, ${entry.operation},
                   ${entry.payload === null ? null : JSON.stringify(entry.payload)},
-                  ${entry.hlc}, ${entry.nodeId}, ${entry.sentAt})`,
+                  ${entry.hlc}, ${entry.nodeId}, ${entry.actorUserId ?? 'system'}, ${entry.sentAt})`,
     );
   }
 
@@ -47,9 +47,10 @@ export class DrizzleSyncAdapter implements SyncAdapter {
       payload: string | null;
       hlc: string;
       node_id: string;
+      actor_user_id: string;
       sent_at: number | null;
     }>(
-      sql`SELECT id, entity_type, entity_id, operation, payload, hlc, node_id, sent_at
+      sql`SELECT id, entity_type, entity_id, operation, payload, hlc, node_id, actor_user_id, sent_at
           FROM outbox
           WHERE sent_at IS NULL
           ORDER BY created_at ASC
@@ -63,6 +64,7 @@ export class DrizzleSyncAdapter implements SyncAdapter {
       payload: r.payload === null ? null : (JSON.parse(r.payload) as OutboxEntry['payload']),
       hlc: r.hlc,
       nodeId: r.node_id,
+      actorUserId: r.actor_user_id,
       sentAt: r.sent_at,
     }));
   }
@@ -80,6 +82,8 @@ export class DrizzleSyncAdapter implements SyncAdapter {
 
   async applyRemoteDelta(delta: SyncDelta): Promise<ApplyResult> {
     const existing = await this.readLocalRecord(delta.entityType, delta.entityId);
+    const actorUserId =
+      delta.actorUserId && delta.actorUserId.length > 0 ? delta.actorUserId : 'system';
 
     if (delta.operation === 'delete') {
       if (existing === null || compareEncodedHlc(delta.hlc, existing.hlc) > 0) {
@@ -89,6 +93,7 @@ export class DrizzleSyncAdapter implements SyncAdapter {
           hlc: delta.hlc,
           deletedAt: new Date().toISOString(),
           fields: existing?.fields ?? {},
+          actorUserId,
         };
         await this.upsertSyncRecord(record);
         materialiseTenantEntity(
@@ -111,6 +116,7 @@ export class DrizzleSyncAdapter implements SyncAdapter {
         hlc: delta.hlc,
         deletedAt: null,
         fields: delta.payload ?? {},
+        actorUserId,
       };
       await this.upsertSyncRecord(record);
       materialiseTenantEntity(
@@ -137,6 +143,12 @@ export class DrizzleSyncAdapter implements SyncAdapter {
       hlc: newHlc,
       deletedAt,
       fields: mergedFields,
+      // Latest-writer-wins on the actor too — only stamp when the incoming
+      // delta is strictly newer than what we already have.
+      actorUserId:
+        compareEncodedHlc(delta.hlc, existing.hlc) > 0
+          ? actorUserId
+          : (existing.actorUserId ?? 'system'),
     };
     await this.upsertSyncRecord(record);
     materialiseTenantEntity(
@@ -157,8 +169,9 @@ export class DrizzleSyncAdapter implements SyncAdapter {
       hlc: string;
       deleted_at: string | null;
       fields: string;
+      actor_user_id: string;
     }>(
-      sql`SELECT entity_type, entity_id, hlc, deleted_at, fields
+      sql`SELECT entity_type, entity_id, hlc, deleted_at, fields, actor_user_id
           FROM sync_records
           WHERE entity_type = ${entityType} AND entity_id = ${entityId}`,
     );
@@ -169,18 +182,20 @@ export class DrizzleSyncAdapter implements SyncAdapter {
       hlc: row.hlc,
       deletedAt: row.deleted_at,
       fields: JSON.parse(row.fields) as SyncRecord['fields'],
+      actorUserId: row.actor_user_id,
     };
   }
 
   private async upsertSyncRecord(record: SyncRecord): Promise<void> {
     this.db.run(
-      sql`INSERT INTO sync_records (entity_type, entity_id, hlc, deleted_at, fields)
+      sql`INSERT INTO sync_records (entity_type, entity_id, hlc, deleted_at, fields, actor_user_id)
           VALUES (${record.entityType}, ${record.entityId}, ${record.hlc}, ${record.deletedAt},
-                  ${JSON.stringify(record.fields)})
+                  ${JSON.stringify(record.fields)}, ${record.actorUserId ?? 'system'})
           ON CONFLICT(entity_type, entity_id) DO UPDATE SET
             hlc = excluded.hlc,
             deleted_at = excluded.deleted_at,
-            fields = excluded.fields`,
+            fields = excluded.fields,
+            actor_user_id = excluded.actor_user_id`,
     );
   }
 }

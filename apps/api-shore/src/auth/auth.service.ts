@@ -2,6 +2,7 @@ import { newId } from '@fleetops/domain';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { AuditEventService } from '../audit-event/audit-event.service';
 import { UserService } from '../user/user.service';
 
 export type JwtPayload = {
@@ -31,6 +32,7 @@ export class AuthService {
   constructor(
     private readonly users: UserService,
     private readonly jwt: JwtService,
+    private readonly audit: AuditEventService,
   ) {}
 
   async login(tenantId: string | null, identifier: string, password: string): Promise<LoginResult> {
@@ -58,8 +60,20 @@ export class AuthService {
       throw new UnauthorizedException('This account uses SSO — password login not allowed');
     }
     const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) throw new UnauthorizedException('Invalid credentials');
+    if (!valid) {
+      // B7: record the failed attempt under the resolved tenant (if any) so
+      // bruteforce + credential-stuffing patterns are visible in the trail.
+      if (user.tenantId !== null) {
+        await this.recordAuthEvent(user.tenantId, user.id, 'LOGIN_FAIL').catch(() => undefined);
+      }
+      throw new UnauthorizedException('Invalid credentials');
+    }
 
+    // B7: record successful login. SUPER_ADMIN has tenantId=null; we skip
+    // recording in that case because the AuditEvent schema requires a tenant.
+    if (user.tenantId !== null) {
+      await this.recordAuthEvent(user.tenantId, user.id, 'LOGIN_SUCCESS').catch(() => undefined);
+    }
     return this.issueTokens(user);
   }
 
@@ -84,7 +98,25 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException('User no longer exists');
     }
+    // B7: record the refresh as part of the session lifecycle audit.
+    if (user.tenantId !== null) {
+      await this.recordAuthEvent(user.tenantId, user.id, 'TOKEN_REFRESH').catch(() => undefined);
+    }
     return this.issueTokens(user);
+  }
+
+  /**
+   * Best-effort audit recorder for login/logout/refresh. Fire-and-forget at
+   * the caller — failures here must never block authentication.
+   */
+  private recordAuthEvent(tenantId: string, userId: string, action: string) {
+    return this.audit.record({
+      tenantId,
+      actorUserId: userId,
+      action,
+      entityType: 'User',
+      entityId: userId,
+    });
   }
 
   issueTokens(user: {

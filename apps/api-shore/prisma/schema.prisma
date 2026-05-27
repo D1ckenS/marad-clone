@@ -2361,30 +2361,36 @@ model ManagementReview {
 // ── Outbox / SyncRecord ───────────────────────────────────────────────────────
 
 model Outbox {
-  id         String    @id
-  tenantId   String    @map("tenant_id")
-  vesselId   String    @map("vessel_id")
-  entityType String    @map("entity_type")
-  entityId   String    @map("entity_id")
-  operation  String
-  payload    Json?
-  hlc        String
-  nodeId     String    @map("node_id")
-  sentAt     DateTime? @map("sent_at")
-  createdAt  DateTime  @default(now()) @map("created_at")
+  id          String    @id
+  tenantId    String    @map("tenant_id")
+  vesselId    String    @map("vessel_id")
+  entityType  String    @map("entity_type")
+  entityId    String    @map("entity_id")
+  operation   String
+  payload     Json?
+  hlc         String
+  nodeId      String    @map("node_id")
+  // B6: ULID of the user who triggered the write, or 'system' for changes
+  // with no human actor. Default 'system' covers pre-B6 backfill.
+  actorUserId String    @default("system") @map("actor_user_id")
+  sentAt      DateTime? @map("sent_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
 
   @@index([tenantId, vesselId, sentAt, createdAt], name: "outbox_pending_idx")
   @@map("outbox")
 }
 
 model SyncRecord {
-  tenantId   String    @map("tenant_id")
-  vesselId   String    @map("vessel_id")
-  entityType String    @map("entity_type")
-  entityId   String    @map("entity_id")
-  hlc        String
-  deletedAt  DateTime? @map("deleted_at")
-  fields     Json
+  tenantId    String    @map("tenant_id")
+  vesselId    String    @map("vessel_id")
+  entityType  String    @map("entity_type")
+  entityId    String    @map("entity_id")
+  hlc         String
+  deletedAt   DateTime? @map("deleted_at")
+  fields      Json
+  // B6: last actor who touched this record (whoever owns the latest HLC).
+  // Default 'system' covers pre-B6 backfill.
+  actorUserId String    @default("system") @map("actor_user_id")
 
   @@id([tenantId, vesselId, entityType, entityId])
   @@map("sync_records")

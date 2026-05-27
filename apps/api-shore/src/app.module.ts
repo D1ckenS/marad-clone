@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
+import { AuditInterceptor } from './audit-event/audit.interceptor';
 import { BudgetModule } from './budget/budget.module';
 import { FleetviewModule } from './fleetview/fleetview.module';
 import { TechLibraryModule } from './tech-library/tech-library.module';
@@ -151,6 +153,12 @@ import { VesselModule } from './vessel/vessel.module';
     DischargeLogModule,
     DrybmsElementModule,
     ManagementReviewModule,
+  ],
+  providers: [
+    // B7: global write-audit interceptor. Records every successful POST /
+    // PATCH / DELETE / PUT into the AuditEvent log with the actor's userId
+    // taken from the JWT context.
+    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],
 })
 export class AppModule {}

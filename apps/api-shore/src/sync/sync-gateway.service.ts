@@ -12,6 +12,7 @@ import {
   OnApplicationShutdown,
 } from '@nestjs/common';
 import { resolve } from 'node:path';
+import { AuditEventService } from '../audit-event/audit-event.service';
 import { BlobReceiverService } from './blob-receiver.service';
 import { HlcClockRegistry } from './hlc-clock-registry';
 import { PRISMA_SYNC_ADAPTER_FACTORY, type PrismaSyncAdapterFactory } from './sync.tokens';
@@ -49,6 +50,7 @@ export class SyncGatewayService implements OnApplicationBootstrap, OnApplication
     private readonly adapterFactory: PrismaSyncAdapterFactory,
     private readonly clocks: HlcClockRegistry,
     private readonly blobs: BlobReceiverService,
+    private readonly audit: AuditEventService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -97,7 +99,26 @@ export class SyncGatewayService implements OnApplicationBootstrap, OnApplication
         return {
           welcome: { cursors: {}, sessionId: `${key}-${Date.now()}` },
           onReceive: async (d: SyncDelta) => {
-            await engine!.applyRemoteDelta(d);
+            const result = await engine!.applyRemoteDelta(d);
+            // B7: every vessel-originated delta that actually changes shore
+            // state gets an AuditEvent row tagged with the wire's
+            // actorUserId. Fire-and-forget — audit must never block the
+            // applied write.
+            if (result.merged) {
+              const actorUserId =
+                d.actorUserId && d.actorUserId.length > 0 ? d.actorUserId : 'system';
+              await this.audit
+                .record({
+                  tenantId: hello.tenantId,
+                  vesselId: hello.vesselId,
+                  actorUserId,
+                  action: d.operation === 'delete' ? 'VESSEL_SYNC_DELETE' : 'VESSEL_SYNC_UPSERT',
+                  entityType: d.entityType,
+                  entityId: d.entityId,
+                  metadata: { hlc: d.hlc, nodeId: d.nodeId },
+                })
+                .catch(() => undefined);
+            }
           },
           onClose: async () => {
             this.log.log(`stream close tenant=${hello.tenantId} vessel=${hello.vesselId}`);
