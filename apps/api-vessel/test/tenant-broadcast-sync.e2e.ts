@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { LwwRecord, SyncDelta } from '@fleetops/sync-engine';
 import { encodeHlc, newId } from '@fleetops/domain';
 import { AppModule } from '../src/app.module';
@@ -247,5 +247,391 @@ describe('tenant-broadcast — QhseObjective materialiser handles JSON trend', (
     expect(row!.category).toBe('S');
     expect(row!.label).toBe('LTI rate');
     expect(JSON.parse(row!.trend!)).toEqual([0, 0, 1, 0, 0]);
+  });
+});
+
+/**
+ * H8: parametrised round-trip for all 16 tenant-scoped materialisers.
+ *
+ * Each spec drives one describe block with three tests: insert → row exists
+ * with expected projection, update (newer HLC, one field changed) → field
+ * merged + untouched fields preserved, delete → deletedAt set. FK-dependent
+ * entities (ApprovalStep needs ApprovalFlow; DocumentRevision needs
+ * QhseDocument) declare a `setup` callback that seeds the parent first.
+ *
+ * The existing detailed Jha / DrybmsElement / QhseObjective blocks above
+ * stay — they cover edge cases (JSON arrays, LWW merge of multiple fields).
+ * This block locks in basic correctness for every materialiser so a future
+ * field-rename in tenant-materialisers.ts can't silently rot 13 of 16.
+ */
+
+interface MaterialiserSpec {
+  entityType: string;
+  tableName: string;
+  /** Build the upsert payload. tenantId + the field-under-test live here. */
+  payload: (hlc: string, tenantId: string, ctx: Record<string, string>) => LwwRecord;
+  /** Field to change in the second-pass update (and the new value). */
+  updateField: string;
+  updateValue: unknown;
+  /** Column on the projected row to read for the update assertion. */
+  updateAssertColumn: string;
+  /** Column to verify is preserved across the LWW merge. */
+  preservedColumn: string;
+  preservedValue: unknown;
+  /** Optional FK setup. Returns ctx values used in `payload`. */
+  setup?: (db: typeof drizzle.db, tenantId: string) => Record<string, string>;
+}
+
+const SPECS: MaterialiserSpec[] = [
+  {
+    entityType: 'MasterComponent',
+    tableName: 'master_components',
+    payload: (hlc, tenantId) => ({
+      tenantId: { value: tenantId, hlc },
+      name: { value: 'Main Engine SFI 210', hlc },
+      description: { value: '6-cyl 2-stroke', hlc },
+      sfi: { value: '210', hlc },
+      category: { value: 'Propulsion', hlc },
+    }),
+    updateField: 'name',
+    updateValue: 'Main Engine SFI 210 (rev)',
+    updateAssertColumn: 'name',
+    preservedColumn: 'sfi',
+    preservedValue: '210',
+  },
+  {
+    entityType: 'PartCategory',
+    tableName: 'part_categories',
+    payload: (hlc, tenantId) => ({
+      tenantId: { value: tenantId, hlc },
+      name: { value: 'Filters', hlc },
+      description: { value: 'Oil, fuel, air', hlc },
+    }),
+    updateField: 'description',
+    updateValue: 'Oil and fuel only',
+    updateAssertColumn: 'description',
+    preservedColumn: 'name',
+    preservedValue: 'Filters',
+  },
+  {
+    entityType: 'Supplier',
+    tableName: 'suppliers',
+    payload: (hlc, tenantId) => ({
+      tenantId: { value: tenantId, hlc },
+      name: { value: 'Acme Marine', hlc },
+      contactEmail: { value: 'sales@acme.test', hlc },
+      country: { value: 'NL', hlc },
+      isActive: { value: true, hlc },
+    }),
+    updateField: 'country',
+    updateValue: 'DE',
+    updateAssertColumn: 'country',
+    preservedColumn: 'name',
+    preservedValue: 'Acme Marine',
+  },
+  {
+    entityType: 'ApprovalFlow',
+    tableName: 'approval_flows',
+    payload: (hlc, tenantId) => ({
+      tenantId: { value: tenantId, hlc },
+      name: { value: 'PO approval — standard', hlc },
+      description: { value: 'Two-step officer→master', hlc },
+      isActive: { value: true, hlc },
+    }),
+    updateField: 'name',
+    updateValue: 'PO approval — standard (v2)',
+    updateAssertColumn: 'name',
+    preservedColumn: 'description',
+    preservedValue: 'Two-step officer→master',
+  },
+  {
+    entityType: 'ApprovalStep',
+    tableName: 'approval_steps',
+    setup: (db, tenantId) => {
+      const flowId = newId();
+      const hlc = hlcAt(1_700_000_001_000);
+      db.run(sql`INSERT INTO approval_flows (id, tenant_id, name, is_active, created_at, updated_at, hlc)
+                 VALUES (${flowId}, ${tenantId}, ${'PO approval — for ApprovalStep test'}, 1,
+                         ${new Date().toISOString()}, ${new Date().toISOString()}, ${hlc})`);
+      return { flowId };
+    },
+    payload: (hlc, tenantId, ctx) => ({
+      tenantId: { value: tenantId, hlc },
+      flowId: { value: ctx['flowId']!, hlc },
+      stepOrder: { value: 1, hlc },
+      approverRole: { value: 'OFFICER', hlc },
+      limitAmount: { value: '5000.00', hlc },
+      limitCurrency: { value: 'USD', hlc },
+    }),
+    updateField: 'stepOrder',
+    updateValue: 2,
+    updateAssertColumn: 'step_order',
+    preservedColumn: 'approver_role',
+    preservedValue: 'OFFICER',
+  },
+  {
+    entityType: 'CertificateType',
+    tableName: 'certificate_types',
+    payload: (hlc, tenantId) => ({
+      tenantId: { value: tenantId, hlc },
+      name: { value: 'STCW VI/1', hlc },
+      description: { value: 'Basic safety training', hlc },
+      alertDaysJson: { value: [90, 60, 30, 7], hlc },
+    }),
+    updateField: 'description',
+    updateValue: 'Basic safety training (updated)',
+    updateAssertColumn: 'description',
+    preservedColumn: 'name',
+    preservedValue: 'STCW VI/1',
+  },
+  {
+    entityType: 'DrillType',
+    tableName: 'drill_types',
+    payload: (hlc, tenantId) => ({
+      tenantId: { value: tenantId, hlc },
+      name: { value: 'Fire drill', hlc },
+      description: { value: 'Engine room fire', hlc },
+    }),
+    updateField: 'description',
+    updateValue: 'Engine room + accommodation fire',
+    updateAssertColumn: 'description',
+    preservedColumn: 'name',
+    preservedValue: 'Fire drill',
+  },
+  {
+    entityType: 'PermitTemplate',
+    tableName: 'permit_templates',
+    payload: (hlc, tenantId) => ({
+      tenantId: { value: tenantId, hlc },
+      permitType: { value: 'HOT_WORK', hlc },
+      name: { value: 'Hot work permit', hlc },
+      checklistItemsJson: { value: ['Fire watch posted', 'Extinguisher ready'], hlc },
+    }),
+    updateField: 'name',
+    updateValue: 'Hot work permit (v2)',
+    updateAssertColumn: 'name',
+    preservedColumn: 'permit_type',
+    preservedValue: 'HOT_WORK',
+  },
+  {
+    entityType: 'ChecklistTemplate',
+    tableName: 'checklist_templates',
+    payload: (hlc, tenantId) => ({
+      tenantId: { value: tenantId, hlc },
+      title: { value: 'Bunker checklist', hlc },
+      description: { value: 'Pre-bunkering safety', hlc },
+      itemsJson: { value: [{ label: 'SOPEP kit ready' }], hlc },
+    }),
+    updateField: 'title',
+    updateValue: 'Bunker checklist (rev A)',
+    updateAssertColumn: 'title',
+    preservedColumn: 'description',
+    preservedValue: 'Pre-bunkering safety',
+  },
+  {
+    entityType: 'QhseDocument',
+    tableName: 'qhse_documents',
+    payload: (hlc, tenantId) => ({
+      tenantId: { value: tenantId, hlc },
+      title: { value: 'SMS Manual', hlc },
+      category: { value: 'Manual', hlc },
+      description: { value: 'Safety management system', hlc },
+      isControlled: { value: true, hlc },
+    }),
+    updateField: 'title',
+    updateValue: 'SMS Manual (rev 2)',
+    updateAssertColumn: 'title',
+    preservedColumn: 'category',
+    preservedValue: 'Manual',
+  },
+  {
+    entityType: 'DocumentRevision',
+    tableName: 'document_revisions',
+    setup: (db, tenantId) => {
+      const docId = newId();
+      const hlc = hlcAt(1_700_000_002_000);
+      db.run(sql`INSERT INTO qhse_documents (id, tenant_id, title, is_controlled, created_at, updated_at, hlc)
+                 VALUES (${docId}, ${tenantId}, ${'Parent doc for revision test'}, 0,
+                         ${new Date().toISOString()}, ${new Date().toISOString()}, ${hlc})`);
+      return { docId };
+    },
+    payload: (hlc, tenantId, ctx) => ({
+      tenantId: { value: tenantId, hlc },
+      documentId: { value: ctx['docId']!, hlc },
+      revisionNumber: { value: 1, hlc },
+      summary: { value: 'Initial', hlc },
+      s3Key: { value: 'docs/test/rev-1.pdf', hlc },
+    }),
+    updateField: 'summary',
+    updateValue: 'Initial (annotated)',
+    updateAssertColumn: 'summary',
+    preservedColumn: 's3_key',
+    preservedValue: 'docs/test/rev-1.pdf',
+  },
+  {
+    entityType: 'FuelProduct',
+    tableName: 'fuel_products',
+    payload: (hlc, tenantId) => ({
+      tenantId: { value: tenantId, hlc },
+      name: { value: 'VLSFO 0.5%', hlc },
+      tankType: { value: 'HFO', hlc },
+      sulphurPct: { value: '0.50', hlc },
+      densityKgM3: { value: '991.0', hlc },
+    }),
+    // Avoid numeric-affinity columns (sulphurPct, densityKgM3) for the
+    // assertion path — SQLite would coerce the TEXT-stored decimal back
+    // to a number on raw select, which makes the round-trip type-fragile.
+    // Stick to TEXT columns where the column-affinity round-trip is
+    // identity.
+    updateField: 'name',
+    updateValue: 'VLSFO 0.5% (rev)',
+    updateAssertColumn: 'name',
+    preservedColumn: 'tank_type',
+    preservedValue: 'HFO',
+  },
+  {
+    entityType: 'Jha',
+    tableName: 'jhas',
+    payload: (hlc, tenantId) => ({
+      tenantId: { value: tenantId, hlc },
+      ref: { value: 'JHA-PARAM', hlc },
+      title: { value: 'Parametrised', hlc },
+      activity: { value: 'Test', hlc },
+      hazards: { value: ['fall'], hlc },
+      controls: { value: ['harness'], hlc },
+      residualL: { value: 1, hlc },
+      residualS: { value: 1, hlc },
+    }),
+    updateField: 'title',
+    updateValue: 'Parametrised (rev)',
+    updateAssertColumn: 'title',
+    preservedColumn: 'ref',
+    preservedValue: 'JHA-PARAM',
+  },
+  {
+    entityType: 'QhseObjective',
+    tableName: 'qhse_objectives',
+    payload: (hlc, tenantId) => ({
+      tenantId: { value: tenantId, hlc },
+      category: { value: 'Q', hlc },
+      label: { value: 'Audit closure %', hlc },
+      target: { value: '95', hlc },
+      actual: { value: '92', hlc },
+      unit: { value: '%', hlc },
+      status: { value: 'AMBER', hlc },
+    }),
+    updateField: 'actual',
+    updateValue: '94',
+    updateAssertColumn: 'actual',
+    preservedColumn: 'label',
+    preservedValue: 'Audit closure %',
+  },
+  {
+    entityType: 'DrybmsElement',
+    tableName: 'drybms_elements',
+    payload: (hlc, tenantId) => ({
+      tenantId: { value: tenantId, hlc },
+      chapter: { value: '2', hlc },
+      chapterTitle: { value: 'Risk Management', hlc },
+      name: { value: 'Hazard identification', hlc },
+      score: { value: 2, hlc },
+      stage: { value: 'Reactive', hlc },
+    }),
+    updateField: 'score',
+    updateValue: 4,
+    updateAssertColumn: 'score',
+    preservedColumn: 'chapter',
+    preservedValue: '2',
+  },
+  {
+    entityType: 'ManagementReview',
+    tableName: 'management_reviews',
+    payload: (hlc, tenantId) => ({
+      tenantId: { value: tenantId, hlc },
+      kind: { value: 'Annual', hlc },
+      scheduledAt: { value: '2026-12-01T09:00:00Z', hlc },
+      chair: { value: 'CEO', hlc },
+      attendees: { value: 6, hlc },
+      status: { value: 'SCHEDULED', hlc },
+      actionsTotal: { value: 0, hlc },
+      actionsDone: { value: 0, hlc },
+    }),
+    updateField: 'attendees',
+    updateValue: 8,
+    updateAssertColumn: 'attendees',
+    preservedColumn: 'chair',
+    preservedValue: 'CEO',
+  },
+];
+
+describe.each(SPECS)('tenant-broadcast round-trip — $entityType (H8)', (spec) => {
+  const id = newId();
+  let baseHlcMs = 0;
+  let ctx: Record<string, string> = {};
+
+  // Each spec runs in its own beforeAll so the FK setup (when present)
+  // is scoped to this describe block — keeps the test isolated from the
+  // siblings even if they happen to share an entity type.
+  beforeAll(() => {
+    baseHlcMs = 1_700_000_500_000 + SPECS.findIndex((s) => s === spec) * 1_000;
+    ctx = spec.setup ? spec.setup(drizzle.db, fixedTenantId) : {};
+  });
+
+  const readRow = () =>
+    drizzle.db.get<Record<string, unknown>>(
+      sql.raw(`SELECT * FROM ${spec.tableName} WHERE id = '${id}'`),
+    );
+
+  it('insert delta materialises into the entity table', async () => {
+    const adapter = new DrizzleSyncAdapter(drizzle.db);
+    const hlc = hlcAt(baseHlcMs);
+    await adapter.applyRemoteDelta({
+      entityType: spec.entityType,
+      entityId: id,
+      operation: 'upsert',
+      payload: spec.payload(hlc, fixedTenantId, ctx),
+      hlc,
+      nodeId: 'shore-test',
+    });
+    const row = readRow();
+    expect(row).toBeDefined();
+    expect(row!['tenant_id']).toBe(fixedTenantId);
+    expect(row!['deleted_at']).toBeNull();
+  });
+
+  it('update delta (newer HLC) merges the changed field while preserving untouched ones', async () => {
+    const adapter = new DrizzleSyncAdapter(drizzle.db);
+    const newerHlc = hlcAt(baseHlcMs + 1);
+    await adapter.applyRemoteDelta({
+      entityType: spec.entityType,
+      entityId: id,
+      operation: 'upsert',
+      payload: { [spec.updateField]: { value: spec.updateValue, hlc: newerHlc } },
+      hlc: newerHlc,
+      nodeId: 'shore-test',
+    });
+    const row = readRow();
+    expect(row).toBeDefined();
+    // The materialiser re-projects all fields from the LWW-merged sync_record,
+    // so unchanged columns keep their original values and the targeted field
+    // takes the new one.
+    expect(row![spec.updateAssertColumn]).toEqual(spec.updateValue);
+    expect(row![spec.preservedColumn]).toEqual(spec.preservedValue);
+  });
+
+  it('delete delta soft-deletes (deleted_at set)', async () => {
+    const adapter = new DrizzleSyncAdapter(drizzle.db);
+    const deleteHlc = hlcAt(baseHlcMs + 2);
+    await adapter.applyRemoteDelta({
+      entityType: spec.entityType,
+      entityId: id,
+      operation: 'delete',
+      payload: null,
+      hlc: deleteHlc,
+      nodeId: 'shore-test',
+    });
+    const row = readRow();
+    expect(row).toBeDefined();
+    expect(row!['deleted_at']).not.toBeNull();
   });
 });
